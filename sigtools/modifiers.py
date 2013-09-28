@@ -1,0 +1,319 @@
+# sigtools - Python module to manipulate function signatures
+# Copyright (c) 2013 Yann Kaiser
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+"""Decorators to modify a callable's signature."""
+
+from functools import partial, update_wrapper
+
+import six
+
+from sigtools import _util
+
+__all__ = ['annotate', 'posoargs', 'kwoargs', 'autokwoargs']
+
+
+class _PokTranslator(_util.OverrideableDataDesc):
+    def __new__(cls, func=None, posoargs=(), kwoargs=(), *args, **kwargs):
+        if func is None:
+            return partial(_PokTranslator, posoargs=posoargs,
+                           kwoargs=kwoargs, **kwargs)
+        if posoargs or kwoargs:
+            return super(_PokTranslator, cls).__new__(cls)
+        return func
+
+    def __init__(self, func, posoargs=(), kwoargs=(), *args, **kwargs):
+        self.func = func
+        self.posoarg_names = set(posoargs)
+        self.kwoarg_names = set(kwoargs)
+        super(_PokTranslator, self).__init__(**kwargs)
+        if isinstance(func, _PokTranslator):
+            self._merge_other(func)
+        self._prepare()
+
+    def _merge_other(self, other):
+        self.func = other.func
+        self.posoarg_names |= other.posoarg_names
+        self.kwoarg_names |= other.kwoarg_names
+
+        from sigtools import wrappers
+        self.custom_getter = wrappers.Combination(
+            self.custom_getter, other.custom_getter)
+
+    def _prepare(self):
+        update_wrapper(self, self.func, updated=())
+
+        intersection = self.posoarg_names & self.kwoarg_names
+        if intersection:
+            raise ValueError(
+                'Parameters marked as both positional-only and keyword-only: '
+                + ' '.join(repr(name) for name in intersection))
+        to_use = self.posoarg_names | self.kwoarg_names
+
+        sig = _util.signature(self.func)
+        params = []
+        kwoparams = []
+        kwopos = self.kwopos = []
+        found_pok = found_kws = False
+        for i, param in enumerate(sig.parameters.values()):
+            if param.kind == param.POSITIONAL_OR_KEYWORD:
+                if param.name in self.posoarg_names:
+                    if found_pok:
+                        raise ValueError(
+                            '{0.name!r} was requested to become a positional-'
+                            'only parameter, but comes after a regular '
+                            'parameter'.format(param))
+                    params.append(
+                        param.replace(kind=param.POSITIONAL_ONLY))
+                    to_use.remove(param.name)
+                elif param.name in self.kwoarg_names:
+                    kwoparams.append(
+                        param.replace(kind=param.KEYWORD_ONLY))
+                    kwopos.append((i, param))
+                    to_use.remove(param.name)
+                else:
+                    found_pok = True
+                    params.append(param)
+            else: # not a POK param
+                if param.name in to_use:
+                    raise ValueError(
+                        '{0.name!r} is not of kind POSITIONAL_OR_KEYWORD, but:'
+                        ' {0.kind}'.format(param))
+                if param.kind == param.VAR_KEYWORD:
+                    found_kws = True
+                    params.extend(kwoparams)
+                params.append(param)
+        if not found_kws:
+            params.extend(kwoparams)
+        if to_use:
+            raise ValueError('leftovers ' + str(to_use)) #FIXME
+        self.__signature__ = sig.replace(parameters=params)
+
+    def __call__(self, *args, **kwargs):
+        intersect = self.posoarg_names.intersection(kwargs)
+        if intersect:
+            raise TypeError(
+                'Named arguments refer to positional-only parameters: {0}'
+                .format(' '.join(repr(name) for name in intersect))
+                )
+        args = list(args) # we might need list.insert
+        missing = []
+        for pos, param in self.kwopos:
+            if param.name in kwargs:
+                if pos < len(args):
+                    args.insert(pos, kwargs.pop(param.name))
+            elif param.default == param.empty:
+                missing.append(param.name)
+            elif pos < len(args):
+                args.insert(pos, param.default)
+        if missing:
+            raise TypeError('{0}() is missing the following required '
+                            'keyword-only arguments: {1}'.format(
+                            self.func.__name__, ', '.join(missing)))
+        return self.func(*args, **kwargs)
+
+    def parameters(self):
+        return {
+            'posoargs': self.posoarg_names,
+            'kwoargs': self.kwoarg_names,
+            }
+
+    def __repr__(self):
+        return (
+            '<{0.func!r} with signature '
+            '{0.func.__name__}{0.__signature__}>'
+            .format(self))
+
+@_PokTranslator(kwoargs=('start',))
+def kwoargs(start=None, *kwoarg_names):
+    """Marks the given parameters as keyword-only, avoiding the use of
+    python3 syntax.
+
+    These two functions are equivalent::
+
+        def py3_func(spam, *, ham, eggs='chicken'):
+            return spam, ham, eggs
+
+        @kwoargs('ham', 'eggs')
+        def py23_func(spam, ham, eggs='chichen'):
+            return spam, ham, eggs
+
+    If ``start`` is given and is the name of a parameter, it and all
+    parameters after it are made keyword-only.
+    """
+    assert all(isinstance(s, six.string_types) for s in kwoarg_names), \
+        "argument names must be strings; forgot to put () after @kwoargs?"
+    if start is not None:
+        return partial(_kwoargs_start, start, kwoarg_names)
+    if not kwoarg_names:
+        return _util.noop
+    return partial(_PokTranslator, kwoargs=kwoarg_names)
+# my syntax highlighter is broken """
+
+def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
+    kwoarg_names = set(_kwoargs)
+    found = False
+    sig = _util.signature(func).parameters.values()
+    for param in sig:
+        if param.kind == param.POSITIONAL_OR_KEYWORD:
+            if found or param.name == start:
+                found = True
+                kwoarg_names.add(param.name)
+        elif param.kind != param.POSITIONAL_ONLY:
+            break # no more POKs now
+    if not found:
+        raise ValueError('{0!r} not found in {1.__name__}{2}'.format(
+            start, func, sig))
+    return _PokTranslator(
+        func, kwoargs=kwoarg_names,
+        get=partial(_kwoargs_start, start, _kwoargs))
+
+@kwoargs('end')
+def posoargs(end=None, *posoarg_names):
+    """Marks the given parameters as positional-only.
+
+    If the resulting function is passed named arguments for any positional
+    parameter, ``TypeError`` is raised.
+
+        >>> from sigtools.modifiers import posoargs
+        >>> @posoargs('ham')
+        ... def func(ham, spam):
+        ...     pass
+        ...
+        >>> func('ham', 'spam')
+        >>> func('ham', spam='spam')
+        >>> func(ham='ham', spam='spam')
+        Traceback (most recent call last):
+          File "<input>", line 1, in <module>
+          File "./sigtools/modifiers.py", line 94, in __call__
+            .format(' '.join(repr(name) for name in intersect))
+        TypeError: Named arguments refer to positional-only parameters: 'ham'
+
+    If ``end`` is given and is the name of a parameter, it and all
+    parameters leading to it are made positional-only.
+
+    :raises: ``ValueError`` if end or one of posoarg_names isn't in the
+        decorated function's signature.
+
+    """
+    assert all(isinstance(s, six.string_types) for s in posoarg_names), \
+        "argument names must be strings; forgot to put () after @kwoargs?"
+    if end is not None:
+        return partial(_posoargs_end, end, posoarg_names)
+    if not posoarg_names:
+        return _util.noop
+    return partial(_PokTranslator, posoargs=posoarg_names)
+
+def _posoargs_end(end, _posoargs, func, *args, **kwargs):
+    posoarg_names = set(_posoargs)
+    found = False
+    sig = _util.signature(func).parameters.values()
+    for param in sig:
+        if param.kind == param.POSITIONAL_OR_KEYWORD:
+            if not found:
+                posoarg_names.add(param.name)
+            if param.name == end:
+                found = True
+        elif param.kind != param.POSITIONAL_ONLY:
+            break # no more POKs now
+    if not found:
+        raise ValueError('{0!r} not found in {1.__name__}{2}'.format(
+            end, func, sig))
+    return _PokTranslator(
+        func, posoargs=posoarg_names,
+        get=partial(_posoargs_end, end, _posoargs))
+
+
+@kwoargs('exceptions')
+def autokwoargs(exceptions=()):
+    """Marks all arguments with default values as keyword-only."""
+    return partial(_autokwoargs, exceptions)
+
+def _autokwoargs(exceptions, func):
+    sig = _util.signature(func)
+    args = []
+    for param in sig.parameters.values():
+        if (
+                param.kind == param.POSITIONAL_OR_KEYWORD
+                and param.default != param.empty
+                and param.name not in exceptions
+            ):
+            args.append(param.name)
+    return kwoargs(*args)(func)
+
+class annotate(object):
+    """Annotates a function, avoiding the use of python3 syntax
+
+    These two functions are equivalent::
+
+        def py3_func(spam: 'ham', eggs: 'chicken'=False) -> 'return':
+            return spam, eggs
+
+        @annotate('return', spam='ham', eggs='chicken')
+        def py23_func(spam, eggs=False):
+            return spam, eggs
+
+    Raises ValueError if a parameter to be annotated does not exist
+    on the function.
+    """
+
+    def __init__(self, __return_annotation=_util.UNSET, **annotations):
+        """
+        Initializer.
+
+        __return_annotation: The return annotation
+
+        annotations: argument=annotation pairs
+        """
+        self.ret = __return_annotation
+        self.annotations = annotations
+        self.to_use = set(annotations)
+
+    def __call__(self, func):
+        sig = _util.signature(func)
+        parameters = []
+        to_use = self.to_use.copy()
+        for name, parameter in sig.parameters.items():
+            if name in self.annotations:
+                parameters.append(parameter.replace(
+                    annotation=self.annotations[name]))
+                to_use.remove(name)
+            else:
+                parameters.append(parameter)
+        if to_use:
+            raise ValueError(
+                'the following parameters to be annotated '
+                'were not found in {0}: {1}'
+                .format(func.__name__, ', '.join(to_use)))
+        if self.ret is _util.UNSET:
+            sig = sig.replace(parameters=parameters)
+        else:
+            sig = sig.replace(parameters=parameters,
+                              return_annotation=self.ret)
+        func.__signature__ = sig
+        return func
+
+    def __repr__(self):
+        return '{0}.annotate({1}{2})'.format(
+            _util.qualname(type(self)),
+            '' if self.ret is _util.UNSET else '{0!r}, '.format(self.ret),
+            ', '.join('{0[0]}={0[1]!r}'.format(item)
+                      for item in sorted(self.annotations.items())))
+
