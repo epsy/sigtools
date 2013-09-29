@@ -1,44 +1,51 @@
-.. sigtools documentation master file, created by
-   sphinx-quickstart on Thu Sep 26 15:32:20 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 :mod:`sigtools` documentation
 =============================
 
-:mod:`modifiers` Module
------------------------
+Python 3.3's ``inspect`` module has introduced `signature objects
+<http://docs.python.org/3/library/inspect#introspecting-callables-with-the-signature-object>`_,
+which provide a new way to introspect callable objects and a protocol for
+pretending to have a different call signature.
+
+This package helps module authors enhance their callables' introspectability
+if needed, and provides a way to use features the python syntax does not
+or did not permit, such as keyword-only parameters.
+
+For versions of Python below 3.3, `a backport of the relevant parts of inspect
+is available on pypi <https://pypi.python.org/pypi/funcsigs>`_.
+
+:mod:`modifiers`: Change the effective signature of a callable
+--------------------------------------------------------------
 
 .. automodule:: sigtools.modifiers
     :members:
     :undoc-members:
 
-:mod:`wrappers` Module
-----------------------
-
-.. automodule:: sigtools.wrappers
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-:mod:`specifiers` Module
-------------------------
+:mod:`specifiers`: Enhance a callable's signature
+-------------------------------------------------
 
 .. automodule:: sigtools.specifiers
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`signatures` Module
-------------------------
+:mod:`wrappers`: Combine multiple functions
+-------------------------------------------
+
+.. automodule:: sigtools.wrappers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`signatures`: Algorithms that operate on signatures directly
+-----------------------------------------------------------------
 
 .. automodule:: sigtools.signatures
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`test` Module
-------------------------
+:mod:`test`: Utilities for use in interactive sessions or unit tests
+--------------------------------------------------------------------
 
 .. automodule:: sigtools.test
     :members:

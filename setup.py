@@ -13,6 +13,7 @@ setup(
     version='0.1a',
     author='Yann Kaiser',
     author_email='kaiser.yann@gmail.com',
+    url='http://sigtools.readthedocs.org/',
     packages=['sigtools'],
     install_requires=requires,
     test_suite='test',
