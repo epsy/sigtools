@@ -1,3 +1,4 @@
+# vim: set fileencoding=utf-8
 # sigtools - Python module to manipulate function signatures
 # Copyright (c) 2013 Yann Kaiser
 #
@@ -23,6 +24,7 @@
 
 import re
 import itertools
+from warnings import warn
 
 from sigtools import _util, modifiers, signatures
 from sigtools.specifiers import forwards_to
@@ -291,9 +293,21 @@ def sort_callsigs(sig, callsigs):
         try:
             bound = bind_callsig(sig, args, kwargs)
         except TypeError:
+            try:
+                sig.bind(*args, **kwargs)
+            except TypeError:
+                pass
+            else:
+                warn('{0}.bind(*{1}, **{2}) didn\'t raise TypeError'
+                     .format(sig, args, kwargs))
             invalid.append((args, kwargs))
         else:
             valid.append((args, kwargs, bound))
+            try:
+                sig.bind(*args, **kwargs)
+            except TypeError as e:
+                warn('{0}.bind(*{1}, **{2}) raised TypeError: {3}'
+                     .format(sig, args, kwargs, e))
 
     return valid, invalid
 
@@ -308,7 +322,7 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
     """
     sig = _util.signature(func)
 
-    valid, invalid = sort_callsigs(sig, make_up_callsigs(sig))
+    valid, invalid = sort_callsigs(sig, make_up_callsigs(sig, extra=0))
 
     for args, kwargs, expected_ret in valid:
         try:

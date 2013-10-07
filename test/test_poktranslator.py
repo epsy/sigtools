@@ -73,11 +73,11 @@ class PokTranslatorTestsOneArg(object):
 
     def test_kwoargs_noop(self):
         func = f('')
-        self.assertIs(func, modifiers.kwoargs()(func))
+        self.assertTrue(func is modifiers.kwoargs()(func))
 
     def test_posoargs_noop(self):
         func = f('')
-        self.assertIs(func, modifiers.posoargs()(func))
+        self.assertTrue(func is modifiers.posoargs()(func))
 
 @poktranslator_tests
 class PokTranslatorTestsTwoArgs(object):
