@@ -242,9 +242,15 @@ def _posoargs_end(end, _posoargs, func, *args, **kwargs):
 
 
 @kwoargs('exceptions')
-def autokwoargs(exceptions=()):
+def autokwoargs(func=None , exceptions=()):
     """Marks all arguments with default values as keyword-only."""
-    return partial(_autokwoargs, exceptions)
+    if func is not None:
+        if callable(func):
+            return _autokwoargs(exceptions, func)
+        else:
+            raise ValueError("exceptions must be passed by name")
+    else:
+        return partial(_autokwoargs, exceptions)
 
 def _autokwoargs(exceptions, func):
     sig = _util.signature(func)
