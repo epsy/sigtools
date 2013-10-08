@@ -31,11 +31,29 @@ try:
 except AttributeError:
     zip_longest = itertools.zip_longest
 
+__all__ = [
+    'merge', 'embed', 'mask', 'IncompatibleSignatures',
+    'sort_params', 'apply_params',
+    ]
+
 def sort_params(sig):
     """Classifies the parameters from sig.
 
     :returns: A tuple ``(posargs, pokargs, varargs, kwoargs, varkwas)``
     :rtype: ``(list, list, Parameter or None, dict, Parameter or None)``
+
+    ::
+
+        >>> from sigtools import signatures, test
+        >>> from pprint import pprint
+        >>> pprint(signatures.sort_params(test.s('<a>, b, *args, c, d')))
+        ([<Parameter at 0x7fdda4e89418 'a'>],
+         [<Parameter at 0x7fdda4e89470 'b'>],
+         <Parameter at 0x7fdda4e89c58 'args'>,
+         {'c': <Parameter at 0x7fdda4e89c00 'c'>,
+          'd': <Parameter at 0x7fdda4e89db8 'd'>},
+         None)
+
     """
     posargs = []
     pokargs = []
@@ -253,7 +271,7 @@ def merge(ignore=(), *signatures):
     :returns: a signature object
     :raises: :py:class:`IncompatibleSignatures`
 
-    Example::
+    ::
 
         >>> from sigtools import signatures, test
         >>> print(signatures.merge(
@@ -353,9 +371,9 @@ def embed(share=(), *signatures):
     :param share: a sequence of parameter names that are shared across the
         passed signatures.
     :returns: a signature object
-    :raises: :py:class:`IncompatibleSignatures`
+    :raises: :py:exc:`IncompatibleSignatures`
 
-    Example:
+    ::
 
         >>> from sigtools import signatures, test
         >>> print(signatures.embed(
@@ -381,3 +399,73 @@ def embed(share=(), *signatures):
             raise IncompatibleSignatures(sig, signatures[:i])
     return apply_params(signatures[0], *ret)
 
+def _pop_chain(*sequences):
+    for sequence in sequences:
+        while sequence:
+            yield sequence.pop(0)
+
+@modifiers.autokwoargs
+def mask(sig, num_args, hide_varargs=False,
+            hide_varkwargs=False, *kwarg_names):
+    """Masks the parameters from ``sig`` should a matching callable be
+    passed the given amount of positional arguments and named arguments.
+
+    :param integer num_args: The amount of positional arguments passed
+    :param strings kwarg_names: The names of named arguments passed
+    :param hide_varargs: If true, mask the ``*args``-like parameter
+        completely if present.
+    :param hide_varkwargs: If true, mask the ``*kwargs``-like parameter
+        completely if present.
+    :raises: :exc:`ValueError` if the signature cannot handle the arguments
+        to be passed.
+
+    ::
+
+        >>> from sigtools import signatures, test
+        >>> print(signatures.mask(test.s('a, b, *, c, d'), 1, 'd'))
+        (b, *, c)
+        >>> print(signatures.mask(test.s('a, b, *args, c, d'), 3, 'd'))
+        (*args, c)
+        >>> print(signatures.mask(test.s('*args, c, d'), 2, 'd', hide_varargs=True))
+        (*, c)
+
+    """
+    posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
+
+    pokargs_by_name = dict((p.name, p) for p in pokargs)
+
+    consumed_names = set()
+
+    if num_args:
+        consume = num_args
+        for param in _pop_chain(posargs, pokargs):
+            consume -= 1
+            consumed_names.add(param.name)
+            if not consume:
+                break
+        else:
+            if not varargs:
+                raise ValueError(
+                    'Signature cannot be passed {0} arguments: {1}'
+                    .format(num_args, sig))
+
+    if hide_varargs:
+        varargs = None
+
+    for kwarg_name in kwarg_names:
+        if kwarg_name in consumed_names:
+            raise ValueError('Duplicate argument: {0!r}'.format(kwarg_name))
+        elif kwarg_name in pokargs_by_name:
+            pokargs.remove(pokargs_by_name[kwarg_name])
+        elif kwarg_name in kwoargs:
+            kwoargs.pop(kwarg_name)
+        else:
+            raise ValueError(
+                'Named parameter {0!r} not found in signature: {1}'
+                .format(kwarg_name, sig))
+        consumed_names.add(kwarg_name)
+
+    if hide_varkwargs:
+        varkwargs = None
+
+    return apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
