@@ -1,6 +1,6 @@
 ./docs/_build
 ./htmlcov
 ./.coverage
-./sigtools.egg-info
 ./build
 ./dist
+./*.egg*
