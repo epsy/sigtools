@@ -19,8 +19,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Sphinx extension which makes sphinx use the __signature__ attribute
-of objects when auto-documenting them."""
+"""
+`sigtools.sphinxext`: Extension to make Sphinx use signature objects
+--------------------------------------------------------------------
+
+At the moment `sphinx.ext.autodoc` can only automatically discover the
+signatures of basic callables. This extension makes it use
+`inspect.signature` on the callable instead.
+
+Enable it by appending ``'sigtools.sphinxext'`` to the ``extensions`` list
+in your Sphinx ``conf.py``
+
+"""
 
 try:
     from inspect import signature

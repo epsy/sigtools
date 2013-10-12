@@ -19,7 +19,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Decorators to modify a callable's signature."""
+"""
+`sigtools.modifiers`: Modify the effective signature of the decorated callable
+------------------------------------------------------------------------------
+
+"""
 
 from functools import partial, update_wrapper
 
@@ -155,8 +159,12 @@ def kwoargs(start=None, *kwoarg_names):
         def py23_func(spam, ham, eggs='chichen'):
             return spam, ham, eggs
 
-    If ``start`` is given and is the name of a parameter, it and all
-    parameters after it are made keyword-only.
+    :param str start: If given and is the name of a parameter, it and all
+        parameters after it are made keyword-only
+    :param str kwoarg_names: Names of the parameters to convert
+
+    :raises: `ValueError` if end or one of posoarg_names isn't in the
+        decorated function's signature.
     """
     assert all(isinstance(s, six.string_types) for s in kwoarg_names), \
         "argument names must be strings; forgot to put () after @kwoargs?"
@@ -190,7 +198,7 @@ def posoargs(end=None, *posoarg_names):
     """Marks the given parameters as positional-only.
 
     If the resulting function is passed named arguments for any positional
-    parameter, ``TypeError`` is raised.
+    parameter, `TypeError` is raised.
 
         >>> from sigtools.modifiers import posoargs
         >>> @posoargs('ham')
@@ -206,15 +214,15 @@ def posoargs(end=None, *posoarg_names):
             .format(' '.join(repr(name) for name in intersect))
         TypeError: Named arguments refer to positional-only parameters: 'ham'
 
-    If ``end`` is given and is the name of a parameter, it and all
-    parameters leading to it are made positional-only.
+    :param str end: If given and is the name of a parameter, it and all
+        parameters leading to it are made positional-only.
+    :param str posoarg_names: Names of the parameters to convert
 
-    :raises: ``ValueError`` if end or one of posoarg_names isn't in the
+    :raises: `ValueError` if end or one of posoarg_names isn't in the
         decorated function's signature.
-
     """
     assert all(isinstance(s, six.string_types) for s in posoarg_names), \
-        "argument names must be strings; forgot to put () after @kwoargs?"
+        "argument names must be strings"
     if end is not None:
         return partial(_posoargs_end, end, posoarg_names)
     if not posoarg_names:
@@ -240,10 +248,24 @@ def _posoargs_end(end, _posoargs, func, *args, **kwargs):
         func, posoargs=posoarg_names,
         get=partial(_posoargs_end, end, _posoargs))
 
-
 @kwoargs('exceptions')
 def autokwoargs(func=None , exceptions=()):
-    """Marks all arguments with default values as keyword-only."""
+    """Marks all arguments with default values as keyword-only.
+
+    :param sequence exceptions: names of parameters not to convert
+
+    ::
+
+        >>> from sigtools.modifiers import autokwoargs
+        >>> @autokwoargs(exceptions=['c'])
+        ... def func(a, b, c=3, d=4, e=5):
+        ...     pass
+        ...
+        >>> from inspect import signature
+        >>> print(signature(func))
+        (a, b, c=3, *, d=4, e=5)
+
+    """
     if func is not None:
         if callable(func):
             return _autokwoargs(exceptions, func)
@@ -276,18 +298,14 @@ class annotate(object):
         def py23_func(spam, eggs=False):
             return spam, eggs
 
-    Raises ValueError if a parameter to be annotated does not exist
-    on the function.
+    :param _annotate__return_annotation: The annotation to attach for return
+        value
+    :param annotations: The annotations to attach for each parameter
+    :raises: `ValueError` if a parameter to be annotated does not exist
+        on the function
     """
 
     def __init__(self, __return_annotation=_util.UNSET, **annotations):
-        """
-        Initializer.
-
-        __return_annotation: The return annotation
-
-        annotations: argument=annotation pairs
-        """
         self.ret = __return_annotation
         self.annotations = annotations
         self.to_use = set(annotations)

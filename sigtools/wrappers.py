@@ -19,7 +19,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from sigtools import _util, signatures
+"""
+`sigtools.wrappers`: Combine multiple functions
+-----------------------------------------------
+
+"""
+
+from functools import partial, update_wrapper
+
+from sigtools import _util, signatures, specifiers
 
 class Combination(object):
     """Creates a callable that passes the first argument through each
@@ -45,3 +53,27 @@ class Combination(object):
         return '{0.__module__}.{0.__name__}({1})'.format(
             type(self), ', '.join(repr(f) for f in self.functions)
             )
+
+@specifiers.forwards_to(specifiers.forwards, 2)
+def wrapper_decorator(*args, **kwargs):
+    if not kwargs and len(args) == 1 and callable(args[0]):
+        return _wrapper_decorator((), {}, args[0])
+    return partial(_wrapper_decorator, args, kwargs)
+
+def _wrapper_decorator(f_args, f_kwargs, wrapper):
+    ret = partial(_wrapper, f_args, f_kwargs, wrapper)
+    update_wrapper(ret, wrapper)
+    return ret
+
+def _wrapper(f_args, f_kwargs, wrapper, wrapped):
+    ret = partial(wrapper, wrapped)
+    sig = specifiers.forwards(ret, wrapped, *f_args, **f_kwargs)
+    update_wrapper(ret, wrapped)
+    ret.__wrapped__ = wrapped # http://bugs.python.org/issue17482
+    ret.__signature__ = sig
+    return ret
+
+def wrappers(obj):
+    while isinstance(obj, partial) and hasattr(obj, '__wrapped__'):
+        yield obj.func
+        obj = obj.__wrapped__

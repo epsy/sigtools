@@ -19,7 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Tools to manipulate signatures directly.
+"""
+`sigtools.signatures`: Signature object manipulation
+----------------------------------------------------
 
 """
 import itertools
@@ -38,6 +40,8 @@ __all__ = [
 
 def sort_params(sig):
     """Classifies the parameters from sig.
+
+    :param inspect.Signature sig: The signature to operate on
 
     :returns: A tuple ``(posargs, pokargs, varargs, kwoargs, varkwas)``
     :rtype: ``(list, list, Parameter or None, dict, Parameter or None)``
@@ -76,9 +80,10 @@ def sort_params(sig):
     return posargs, pokargs, varargs, kwoargs, varkwas
 
 def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs):
-    """Reverses :py:func:`sort_params`'s operation.
+    """Reverses `sort_params`'s operation.
 
-    :returns: A new signature object based off sig, with the given parameters.
+    :returns: A new `inspect.Signature` object based off sig,
+        with the given parameters.
     """
     parameters = []
     parameters.extend(posargs)
@@ -94,7 +99,8 @@ class IncompatibleSignatures(ValueError):
     """Raised when two or more signatures are incompatible for the requested
     operation.
 
-    :ivar sig: The signature at which point the incompatibility was discovered
+    :ivar inspect.Signature sig: The signature at which point the
+        incompatibility was discovered
     :ivar others: The signatures up until ``sig``
     """
 
@@ -104,8 +110,8 @@ class IncompatibleSignatures(ValueError):
 
     def __str__(self):
         return '{0} {1}'.format(
+            ' '.join(str(sig) for sig in self.others),
             self.sig,
-            ' '.join(str(sig) for sig in self.others)
             )
 
 def _concile_meta(left, right):
@@ -129,20 +135,9 @@ def _concile_meta(left, right):
         annotation = right.annotation
     return left.replace(default=default, annotation=annotation)
 
-def _filter_ignored(seq, ignore):
-    return [
-        arg for arg in seq
-        if arg.name not in ignore
-        ]
-
-def _merge(left, right, ignore):
+def _merge(left, right):
     l_posargs, l_pokargs, l_varargs, l_kwoargs, l_varkwargs = left
     r_posargs, r_pokargs, r_varargs, r_kwoargs, r_varkwargs = right
-
-    l_posargs = _filter_ignored(l_posargs, ignore)
-    r_posargs = _filter_ignored(r_posargs, ignore)
-    l_pokargs = _filter_ignored(l_pokargs, ignore)
-    r_pokargs = _filter_ignored(r_pokargs, ignore)
 
     posargs = []
     pokargs = []
@@ -152,8 +147,6 @@ def _merge(left, right, ignore):
 
     l_kwoargs_limbo = {}
     for l_kwoarg in l_kwoargs.values():
-        if l_kwoarg.name in ignore:
-            continue
         if l_kwoarg.name in r_kwoargs:
             kwoargs[l_kwoarg.name] = _concile_meta(
                 l_kwoarg, r_kwoargs[l_kwoarg.name])
@@ -162,8 +155,6 @@ def _merge(left, right, ignore):
 
     r_kwoargs_limbo = {}
     for r_kwoarg in r_kwoargs.values():
-        if r_kwoarg.name in ignore:
-            continue
         if r_kwoarg.name not in l_kwoargs:
             r_kwoargs_limbo[r_kwoarg.name] = r_kwoarg
 
@@ -260,16 +251,17 @@ def _merge_kwoargs_limbo(kwoargs_limbo, o_varkwargs, kwoargs):
                 'Unmatched keyword parameters: {0}'.format(
                 ' '.join(str(arg) for arg in non_defaulted)))
 
-@modifiers.kwoargs('ignore')
-def merge(ignore=(), *signatures):
+def merge(*signatures):
     """Tries to compute one common signature from multiple ones.
 
     It guarantees any call that conforms to the merged signature will
     conform to all the given signatures. However, some calls that don't
     conform to the merged signature may actually work on all the given ones.
 
-    :returns: a signature object
-    :raises: :py:class:`IncompatibleSignatures`
+    :param inspect.Signature signatures: The signatures to merge together.
+
+    :returns: a `inspect.Signature` object
+    :raises: `IncompatibleSignatures`
 
     ::
 
@@ -297,12 +289,13 @@ def merge(ignore=(), *signatures):
         >>> sig_right = signature(right)
         >>> sig_merged = signatures.merge(sig_left, sig_right)
         >>> 
+        >>> print(sig_merged)
+        (<alpha>, *args, **kwargs)
+        >>> 
         >>> kwargs = {'alpha': 'a', 'beta': 'b'}
         >>> left(**kwargs), right(**kwargs) # both functions accept the call
         ('a', 'b')
         >>> 
-        >>> print(sig_merged)
-        (<alpha>, *args, **kwargs)
         >>> sig_merged.bind(**kwargs) # the merged signature doesn't
         Traceback (most recent call last):
           File "<input>", line 1, in <module>
@@ -319,7 +312,7 @@ def merge(ignore=(), *signatures):
     for i, sig in enumerate(signatures[1:], 1):
         sorted_params = sort_params(sig)
         try:
-            ret = _merge(ret, sorted_params, ignore=ignore)
+            ret = _merge(ret, sorted_params)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     return apply_params(signatures[0], *ret)
@@ -331,11 +324,11 @@ def _check_no_dupes(collect, params):
         raise ValueError('Duplicate parameter names: ' + ' '.join(dupes))
     collect.update(names)
 
-def _embed(outer, inner, share):
+def _embed(outer, inner):
     o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs = outer
 
     i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs = _merge(
-        ([], [], o_varargs, {}, o_varkwargs), inner, ignore=share)
+        inner, ([], [], o_varargs, {}, o_varkwargs))
 
     names = set()
 
@@ -363,15 +356,15 @@ def _embed(outer, inner, share):
 
     return e_posargs, e_pokargs, i_varargs, e_kwoargs, i_varkwargs
 
-@modifiers.kwoargs('share')
-def embed(share=(), *signatures):
+def embed(*signatures):
     """Embeds a signature within another's ``*args`` and ``**kwargs``
     parameters.
 
-    :param share: a sequence of parameter names that are shared across the
-        passed signatures.
-    :returns: a signature object
-    :raises: :py:exc:`IncompatibleSignatures`
+    :param inspect.Signature signatures: The signatures to embed within
+        one-another, outermost first.
+
+    :returns: a `inspect.Signature` object
+    :raises: `IncompatibleSignatures`
 
     ::
 
@@ -382,11 +375,11 @@ def embed(share=(), *signatures):
         ...     test.s('last'),
         ...     ))
         (one, two, last, *, kw)
-        >>> 
+        >>> # use signatures.mask() to remove self-like parameters
         >>> print(signatures.embed(
         ...     test.s('self, *args, **kwargs'),
-        ...     test.s('self, *args, keyword, **kwargs'),
-        ...     share=['self']
+        ...     signatures.mask(
+        ...         test.s('self, *args, keyword, **kwargs'), 1),
         ...     ))
         (self, *args, keyword, **kwargs)
     """
@@ -394,7 +387,7 @@ def embed(share=(), *signatures):
     ret = sort_params(signatures[0])
     for i, sig in enumerate(signatures[1:], 1):
         try:
-            ret = _embed(ret, sort_params(sig), share=share)
+            ret = _embed(ret, sort_params(sig))
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     return apply_params(signatures[0], *ret)
@@ -404,19 +397,20 @@ def _pop_chain(*sequences):
         while sequence:
             yield sequence.pop(0)
 
-@modifiers.autokwoargs
-def mask(sig, num_args, hide_varargs=False,
-            hide_varkwargs=False, *kwarg_names):
+@modifiers.autokwoargs(exceptions=('num_args',))
+def mask(sig, num_args=0, hide_varargs=False,
+            hide_varkwargs=False, *named_args):
     """Masks the parameters from ``sig`` should a matching callable be
     passed the given amount of positional arguments and named arguments.
 
-    :param integer num_args: The amount of positional arguments passed
-    :param strings kwarg_names: The names of named arguments passed
+    :param inspect.Signature sig: The signature to operate on
+    :param int num_args: The amount of positional arguments passed
+    :param str named_args: The names of named arguments passed
     :param hide_varargs: If true, mask the ``*args``-like parameter
         completely if present.
     :param hide_varkwargs: If true, mask the ``*kwargs``-like parameter
         completely if present.
-    :raises: :exc:`ValueError` if the signature cannot handle the arguments
+    :raises: `ValueError` if the signature cannot handle the arguments
         to be passed.
 
     ::
@@ -452,7 +446,7 @@ def mask(sig, num_args, hide_varargs=False,
     if hide_varargs:
         varargs = None
 
-    for kwarg_name in kwarg_names:
+    for kwarg_name in named_args:
         if kwarg_name in consumed_names:
             raise ValueError('Duplicate argument: {0!r}'.format(kwarg_name))
         elif kwarg_name in pokargs_by_name:

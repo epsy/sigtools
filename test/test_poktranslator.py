@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 import unittest
 
 from sigtools import modifiers
@@ -223,13 +223,22 @@ class PosoargEndTests(object):
 @sigtester
 def autokwoargs_tests(self, expected_sig_str, orig_sig_str, exceptions):
     orig_func = f(orig_sig_str)
+    expected_sig = s(expected_sig_str)
+
     func = modifiers.autokwoargs(exceptions=exceptions)(orig_func)
-    self.assertSigsEqual(s(expected_sig_str), signature(func))
+    self.assertSigsEqual(expected_sig, signature(func))
+
+    if not exceptions: # test the arg-less form of @autokwargs
+        func = modifiers.autokwoargs(orig_func)
+        self.assertSigsEqual(expected_sig, signature(func))
 
 @autokwoargs_tests
 class AutokwoargsTests(object):
     none = 'a, b, c', 'a, b, c', ''
     one_arg = 'a, b, *, c=1', 'a, b, c=1', ''
+
+    def test_bad_call(self):
+        self.assertRaises(ValueError, modifiers.autokwoargs, 'abc')
 
 if __name__ == '__main__':
     unittest.main()

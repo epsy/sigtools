@@ -78,28 +78,28 @@ class MergeRaiseTests(object):
     kwarg_raise = '*, a', ''
     kwarg_r_raise = '', '*, a'
 
-@sigtester
-def merge_ignore_tests(self, expected_sig_str, ignore, *sig_strs):
-    assert len(sig_strs) >= 2
-    sigs = [s(sig_str) for sig_str in sig_strs]
-    self.assertSigsEqual(
-        s(expected_sig_str),
-        merge(*sigs, ignore=ignore)
-        )
-
-@merge_ignore_tests
-class MergeIgnoreTests(object):
-    ignore_pos_pos = '', 'a', '<a>', '<a>'
-    ignore_pos_pok = '', 'a', '<a>', 'a'
-    ignore_pos_kwo = '', 'a', '<a>', '*, a'
-
-    ignore_pok_pos = '', 'a', 'a', '<a>'
-    ignore_pok_pok = '', 'a', 'a', 'a'
-    ignore_pok_kwo = '', 'a', 'a', '*, a'
-
-    ignore_kwo_pos = '', 'a', '*, a', '<a>'
-    ignore_kwo_pok = '', 'a', '*, a', 'a'
-    ignore_kwo_kwo = '', 'a', '*, a', '*, a'
+# @sigtester
+# def merge_ignore_tests(self, expected_sig_str, ignore, *sig_strs):
+#     assert len(sig_strs) >= 2
+#     sigs = [s(sig_str) for sig_str in sig_strs]
+#     self.assertSigsEqual(
+#         s(expected_sig_str),
+#         merge(*sigs, ignore=ignore)
+#         )
+# 
+# @merge_ignore_tests
+# class MergeIgnoreTests(object):
+#     ignore_pos_pos = '', 'a', '<a>', '<a>'
+#     ignore_pos_pok = '', 'a', '<a>', 'a'
+#     ignore_pos_kwo = '', 'a', '<a>', '*, a'
+# 
+#     ignore_pok_pos = '', 'a', 'a', '<a>'
+#     ignore_pok_pok = '', 'a', 'a', 'a'
+#     ignore_pok_kwo = '', 'a', 'a', '*, a'
+# 
+#     ignore_kwo_pos = '', 'a', '*, a', '<a>'
+#     ignore_kwo_pok = '', 'a', '*, a', 'a'
+#     ignore_kwo_kwo = '', 'a', '*, a', '*, a'
 
 if __name__ == '__main__':
     unittest.main()

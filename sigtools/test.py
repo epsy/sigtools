@@ -20,7 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Tools for trying stuff out and to help with unit testing"""
+"""
+`sigtools.test`: Utilities for use in interactive sessions and unit tests
+-------------------------------------------------------------------------
+
+"""
 
 import re
 import itertools
@@ -50,7 +54,7 @@ re_posoarg = re.compile(r'^<(.*)>$')
 
 def read_sig(sig_str, ret=None):
     """Reads a string representation of a signature and returns a tuple
-    :func:`func_code` can understand."""
+    `func_code` can understand."""
 
     names = []
     return_annotation = ret
@@ -116,7 +120,7 @@ def read_sig(sig_str, ret=None):
 
 def func_code(names, return_annotation, annotations, posoarg_n,
               kwoarg_n, params):
-    """Formats the code to construct a function to :func:`read_sig`'s design.
+    """Formats the code to construct a function to `read_sig`'s design.
     """
     code = []
     if return_annotation and annotations:
@@ -280,9 +284,9 @@ def sort_callsigs(sig, callsigs):
 
         ``valid``
             ``(args, kwargs, bound)`` in which ``bound`` is the dict
-            returned by :func:`bind_callsig`. It will be equal to the
+            returned by `bind_callsig`. It will be equal to the
             return value of a function with ``sig`` returned by
-            :func:`f`
+            `f`
         ``ìnvalid``
             ``(args, kwargs)``
     """
@@ -315,7 +319,7 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
     """Tests if a function is coherent with its signature.
 
     :param bool check_return: Check if the return value is correct
-        (see :func:`sort_callsigs`)
+        (see `sort_callsigs`)
     :param bool check_invalid: Make sure call signatures invalid for the
         signature are also invalid for the passed callable.
     :raises: AssertionError

@@ -31,18 +31,6 @@ def qualname(obj):
     except AttributeError:
         return '{0.__module__}.{0.__name__}'.format(obj)
 
-class RoProxy(object):
-    """Read-only proxy with extra attributes"""
-
-    def __init__(self, subject, **attrs):
-        """Proxies subject with attrs as extra attributes"""
-        self.__subject = subject
-        for key, value in attrs.items():
-            setattr(self, key, value)
-
-    def __getattr__(self, attr):
-        return getattr(self.__subject, attr)
-
 class OverrideableDataDesc(object):
     def __init__(self, *args, **kwargs):
         try:
@@ -71,3 +59,10 @@ class OverrideableDataDesc(object):
             ret = self.custom_getter(func)
         self.insts[func] = ret
         return ret
+
+def safe_get(obj, instance, owner):
+    try:
+        get = type(obj).__get__
+    except (AttributeError, KeyError):
+        return obj
+    return get(obj, instance, owner)
