@@ -49,7 +49,7 @@ def forwards(wrapper, wrapped, *args, **kwargs):
     return signatures.embed(
         _util.signature(wrapper),
         signatures.mask(_util.signature(wrapped), *args, **kwargs))
-forwards.__signature__ = forwards(forwards, signatures.mask)
+forwards.__signature__ = forwards(forwards, signatures.mask, 1)
 
 class _ProxyForwardsTo(object):
     def __init__(self, forwards_inst, wrapper, sig):
@@ -116,7 +116,7 @@ def forwards_to(wrapped, *args, **kwargs):
 
     """
     return partial(_ForwardsTo, wrapped, args, kwargs)
-forwards_to.__signature__ = forwards(forwards_to, signatures.mask)
+forwards_to.__signature__ = forwards(forwards_to, signatures.mask, 1)
 
 class _ForwardsToMethod(_BaseForwardsTo):
     def get(self, instance, owner):
@@ -128,7 +128,7 @@ class _ForwardsToMethod(_BaseForwardsTo):
             wrapped = _util.safe_get(wrapped, object(), owner)
         return self._forwards(wrapper, wrapped)
 
-@forwards_to(signatures.mask)
+@forwards_to(signatures.mask, 1)
 def forwards_to_method(wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the method
@@ -147,7 +147,7 @@ class _ForwardsToIvar(_BaseForwardsTo):
         else:
             return self._forwards(wrapper, self.wrapped(instance))
 
-@forwards_to(signatures.mask)
+@forwards_to(signatures.mask, 1)
 def forwards_to_ivar(wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
     when it forwards its ``*args`` and ``**kwargs`` to the named instance
@@ -195,7 +195,7 @@ class _ForwardsToSuper(_BaseForwardsTo):
         wrapped = self.get_wrapped(wrapper, instance, owner)
         return self._forwards(wrapper, wrapped)
 
-@forwards_to(signatures.mask)
+@forwards_to(signatures.mask, 1)
 def forwards_to_super(*args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
     when it forwards its ``*args`` and ``**kwargs`` to the same method on
