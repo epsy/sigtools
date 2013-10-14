@@ -56,6 +56,32 @@ class Combination(object):
 
 @specifiers.forwards_to(specifiers.forwards, 2)
 def wrapper_decorator(*args, **kwargs):
+    """Turns a function into a decorator that wraps callables with
+    that function.
+
+    The wrapped function is passed as first argument to the wrapper.
+
+    As an example, here we create an ``@as_json`` decorator which wraps
+    the decorated function and serializes the decorated functions's return
+    value::
+
+        >>> from sigtools import modifiers, wrappers
+        >>> from json import dumps
+        >>> @wrappers.wrapper_decorator
+        ... @modifiers.autokwoargs
+        ... def as_json(func, sort_keys=False, *args, **kwargs):
+        ...     return dumps(func(*args, **kwargs), sort_keys=sort_keys)
+        ...
+        >>> @as_json
+        ... def ret_dict(key, val):
+        ...     return {key: val}
+        ...
+        >>> from inspect import signature
+        >>> print(signature(ret_dict))
+        (key, val, *, sort_keys=False)
+        >>> ret_dict('key', 'value')
+        '{"key": "value"}'
+    """
     if not kwargs and len(args) == 1 and callable(args[0]):
         return _wrapper_decorator((), {}, args[0])
     return partial(_wrapper_decorator, args, kwargs)
@@ -70,10 +96,24 @@ def _wrapper(f_args, f_kwargs, wrapper, wrapped):
     sig = specifiers.forwards(ret, wrapped, *f_args, **f_kwargs)
     update_wrapper(ret, wrapped)
     ret.__wrapped__ = wrapped # http://bugs.python.org/issue17482
+    ret._sigtools__wrapper = wrapper
     ret.__signature__ = sig
     return ret
 
 def wrappers(obj):
-    while isinstance(obj, partial) and hasattr(obj, '__wrapped__'):
-        yield obj.func
+    """For introspection purposes, returns an iterable that yields each
+    wrapping function of obj(as done through `wrapper_decorator`, outermost
+    wrapper first.
+
+    Continuing from the `wrapper_decorator` example::
+
+        >>> list(wrappers.wrappers(ret_dict))
+        [<<function as_json at 0x7fc2f76b5a70> with signature as_json(func, *args, sort_
+        keys=False, **kwargs)>]
+
+    """
+    while hasattr(obj, '_sigtools__wrapper'):
+        yield obj._sigtools__wrapper
+        if not hasattr(obj, '__wrapped__'):
+            return
         obj = obj.__wrapped__
