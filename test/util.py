@@ -4,21 +4,13 @@ from functools import partial
 
 from sigtools import _util
 
-class BindingPartial(object):
-    def __init__(self, __func, *args, **kwargs):
-        self.func = __func
-        self.args = args
-        self.kwargs = kwargs
-
-    def __get__(self, instance, owner):
-        return type(self)(
-            self.func.__get__(instance, owner),
-            *self.args, **self.kwargs)
-
-    def __call__(self, *args, **kwargs):
-        kwargs_ = dict(self.kwargs)
-        kwargs_.update(kwargs)
-        return self.func(*(self.args + args), **kwargs_)
+def conv_first_posarg(sig):
+    if not sig.parameters:
+        return sig
+    first = sig.parameters.values()[0]
+    first = first.replace(kind=first.POSITIONAL_ONLY)
+    return sig.replace(
+        parameters=(first,) + tuple(sig.parameters.values())[1:])
 
 class SignatureTests(unittest.TestCase):
     def format_func(self, func, args=None, kwargs=None):
@@ -32,9 +24,14 @@ class SignatureTests(unittest.TestCase):
                 )
 
     def assertSigsEqual(self, left, right, *args, **kwargs):
+        conv = kwargs.pop('conv_first_posarg', False)
         if left != right:
+            if conv:
+                left = conv_first_posarg(left)
+                right = conv_first_posarg(right)
+                if left == right:
+                    return
             raise AssertionError('{0} != {1}'.format(left, right))
-        self.assertEqual(left, right, *args, **kwargs)
 
 def make_run_test(func, value, **kwargs):
     def _func(self):
@@ -42,7 +39,9 @@ def make_run_test(func, value, **kwargs):
     return _func
 
 def build_sigtests(func, cls):
-    members = {}
+    members = {
+            '_test_func': func,
+        }
     for key, value in cls.__dict__.items():
         if key.startswith('test_') or key.startswith('_'):
             members[key] = value

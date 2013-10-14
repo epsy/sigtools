@@ -116,7 +116,7 @@ def forwards_to(wrapped, *args, **kwargs):
 
     """
     return partial(_ForwardsTo, wrapped, args, kwargs)
-forwards.__signature__ = forwards(forwards_to, signatures.mask)
+forwards_to.__signature__ = forwards(forwards_to, signatures.mask)
 
 class _ForwardsToMethod(_BaseForwardsTo):
     def get(self, instance, owner):
@@ -171,7 +171,7 @@ class _ForwardsToSuper(_BaseForwardsTo):
             func = _util.safe_get(self.wrapper, None, owner)
             try:
                 idx = func.__code__.co_freevars.index('__class__')
-            except IndexError:
+            except ValueError:
                 raise ValueError('Class could not be auto-determined.')
             self.cls = func.__closure__[idx].cell_contents
         return self.cls
