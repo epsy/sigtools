@@ -324,11 +324,12 @@ def _check_no_dupes(collect, params):
         raise ValueError('Duplicate parameter names: ' + ' '.join(dupes))
     collect.update(names)
 
-def _embed(outer, inner):
+def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs = outer
 
     i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs = _merge(
-        inner, ([], [], o_varargs, {}, o_varkwargs))
+        inner, ([], [], use_varargs and o_varargs,
+                {}, use_varkwargs and o_varkwargs))
 
     names = set()
 
@@ -354,9 +355,13 @@ def _embed(outer, inner):
     _check_no_dupes(names, i_kwoargs.values())
     e_kwoargs.update(i_kwoargs)
 
-    return e_posargs, e_pokargs, i_varargs, e_kwoargs, i_varkwargs
+    return (
+        e_posargs, e_pokargs, i_varargs if use_varargs else o_varargs,
+        e_kwoargs, i_varkwargs if use_varkwargs else o_varkwargs
+        )
 
-def embed(*signatures):
+@modifiers.autokwoargs
+def embed(use_varargs=True, use_varkwargs=True, *signatures):
     """Embeds a signature within another's ``*args`` and ``**kwargs``
     parameters.
 
@@ -387,7 +392,7 @@ def embed(*signatures):
     ret = sort_params(signatures[0])
     for i, sig in enumerate(signatures[1:], 1):
         try:
-            ret = _embed(ret, sort_params(sig))
+            ret = _embed(ret, sort_params(sig), use_varargs, use_varkwargs)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     return apply_params(signatures[0], *ret)

@@ -36,7 +36,9 @@ __all__ = [
     'forwards_to_super', 'apply_forwards_to_super', 'forwards_to_ivar',
     ]
 
-def forwards(wrapper, wrapped, *args, **kwargs):
+@modifiers.autokwoargs
+def forwards(wrapper, wrapped,
+             use_varargs=True, use_varkwargs=True, *args, **kwargs):
     """Returns an effective signature of ``wrapper`` when it forwards
     its ``*args`` and ``**kwargs`` to ``wrapped``.
 
@@ -48,7 +50,8 @@ def forwards(wrapper, wrapped, *args, **kwargs):
     """
     return signatures.embed(
         _util.signature(wrapper),
-        signatures.mask(_util.signature(wrapped), *args, **kwargs))
+        signatures.mask(_util.signature(wrapped), *args, **kwargs),
+        use_varargs=use_varargs, use_varkwargs=use_varkwargs)
 forwards.__signature__ = forwards(forwards, signatures.mask, 1)
 
 class _ProxyForwardsTo(object):
