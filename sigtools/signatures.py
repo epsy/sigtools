@@ -62,7 +62,7 @@ def sort_params(sig):
     posargs = []
     pokargs = []
     varargs = None
-    kwoargs = {}
+    kwoargs = _util.dod()
     varkwas = None
     for param in sig.parameters.values():
         if param.kind == param.POSITIONAL_ONLY:
@@ -142,10 +142,10 @@ def _merge(left, right):
     posargs = []
     pokargs = []
     varargs = r_varargs and l_varargs
-    kwoargs = {}
+    kwoargs = _util.dod()
     varkwargs = r_varkwargs and l_varkwargs
 
-    l_kwoargs_limbo = {}
+    l_kwoargs_limbo = _util.dod()
     for l_kwoarg in l_kwoargs.values():
         if l_kwoarg.name in r_kwoargs:
             kwoargs[l_kwoarg.name] = _concile_meta(
@@ -153,7 +153,7 @@ def _merge(left, right):
         else:
             l_kwoargs_limbo[l_kwoarg.name] = l_kwoarg
 
-    r_kwoargs_limbo = {}
+    r_kwoargs_limbo = _util.dod()
     for r_kwoarg in r_kwoargs.values():
         if r_kwoarg.name not in l_kwoargs:
             r_kwoargs_limbo[r_kwoarg.name] = r_kwoarg
@@ -335,7 +335,7 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
 
     e_posargs = []
     e_pokargs = []
-    e_kwoargs = {}
+    e_kwoargs = _util.dod()
 
     e_posargs.extend(o_posargs)
     _check_no_dupes(names, o_posargs)

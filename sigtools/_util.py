@@ -11,9 +11,16 @@ def get_funcsigs():
         return funcsigs
     else:
         return inspect
-
 funcsigs = get_funcsigs()
 signature = funcsigs.signature
+
+def get_ordereddict_or_dict():
+    import collections
+    try:
+        return collections.OrderedDict
+    except AttributeError:
+        return dict
+dod = get_ordereddict_or_dict()
 
 class _Unset(object):
     __slots__ = ()
