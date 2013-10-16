@@ -46,7 +46,8 @@ def forwards(wrapper, wrapped,
     :param callable wrapped: The callable ``wrapper``'s extra arguments
         are passed to.
 
-    See `sigtools.signatures.mask` for the other parameters' documentation.
+    See `sigtools.signatures.embed` and `mask <sigtools.signatures.mask>` for
+    the other parameters' documentation.
     """
     return signatures.embed(
         _util.signature(wrapper),
@@ -119,7 +120,7 @@ def forwards_to(wrapped, *args, **kwargs):
 
     """
     return partial(_ForwardsTo, wrapped, args, kwargs)
-forwards_to.__signature__ = forwards(forwards_to, signatures.mask, 1)
+forwards_to.__signature__ = forwards(forwards_to, forwards, 2)
 
 class _ForwardsToMethod(_BaseForwardsTo):
     def get(self, instance, owner):
@@ -131,7 +132,7 @@ class _ForwardsToMethod(_BaseForwardsTo):
             wrapped = _util.safe_get(wrapped, object(), owner)
         return self._forwards(wrapper, wrapped)
 
-@forwards_to(signatures.mask, 1)
+@forwards_to(forwards, 2)
 def forwards_to_method(wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the method
@@ -150,7 +151,7 @@ class _ForwardsToIvar(_BaseForwardsTo):
         else:
             return self._forwards(wrapper, self.wrapped(instance))
 
-@forwards_to(signatures.mask, 1)
+@forwards_to(forwards, 2)
 def forwards_to_ivar(wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
     when it forwards its ``*args`` and ``**kwargs`` to the named instance
@@ -198,7 +199,7 @@ class _ForwardsToSuper(_BaseForwardsTo):
         wrapped = self.get_wrapped(wrapper, instance, owner)
         return self._forwards(wrapper, wrapped)
 
-@forwards_to(signatures.mask, 1)
+@forwards_to(forwards, 2)
 def forwards_to_super(*args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
     when it forwards its ``*args`` and ``**kwargs`` to the same method on
@@ -229,7 +230,7 @@ def forwards_to_super(*args, **kwargs):
     """
     return partial(_ForwardsToSuper, None, args, kwargs)
 
-#@forwards_to(signatures.mask, 2, hide_varargs=True)
+@forwards_to(forwards, 3, use_varargs=False)
 @modifiers.autokwoargs
 def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
                             **kwargs):

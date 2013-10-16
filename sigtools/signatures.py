@@ -367,6 +367,8 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
 
     :param inspect.Signature signatures: The signatures to embed within
         one-another, outermost first.
+    :param bool use_varargs: Make use of the ``*args``-like parameter.
+    :param bool use_varkwargs: Make use of the ``*kwargs``-like parameter.
 
     :returns: a `inspect.Signature` object
     :raises: `IncompatibleSignatures`
