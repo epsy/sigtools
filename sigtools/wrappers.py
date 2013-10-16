@@ -61,44 +61,82 @@ def wrapper_decorator(*args, **kwargs):
 
     The wrapped function is passed as first argument to the wrapper.
 
-    As an example, here we create an ``@as_json`` decorator which wraps
-    the decorated function and serializes the decorated functions's return
-    value::
+    As an example, here we create an ``@print_call`` decorator which wraps
+    the decorated function and prints a line everytime the function is called::
 
         >>> from sigtools import modifiers, wrappers
-        >>> from json import dumps
         >>> @wrappers.wrapper_decorator
         ... @modifiers.autokwoargs
-        ... def as_json(func, sort_keys=False, *args, **kwargs):
-        ...     return dumps(func(*args, **kwargs), sort_keys=sort_keys)
+        ... def print_call(func, _show_return=True, *args, **kwargs):
+        ...     print('Calling {0.__name__}(*{1}, **{2})'.format(func, args, kwargs))
+        ...     ret = func(*args, **kwargs)
+        ...     if _show_return:
+        ...         print('Return: {0!r}'.format(ret))
+        ...     return ret
         ...
-        >>> @as_json
-        ... def ret_dict(key, val):
-        ...     return {key: val}
+        >>> print_call
+        <decorate with <<function print_call at 0x7f28d721a950> with signature print_cal
+        l(func, *args, _show_return=True, **kwargs)>>
+        >>> @print_call
+        ... def as_list(obj):
+        ...     return [obj]
         ...
+        >>> as_list
+        <<function as_list at 0x7f28d721ad40> decorated with <<function print_call at 0x
+        7f28d721a950> with signature print_call(func, *args, _show_return=True, **kwargs
+        )>>
         >>> from inspect import signature
-        >>> print(signature(ret_dict))
-        (key, val, *, sort_keys=False)
-        >>> ret_dict('key', 'value')
-        '{"key": "value"}'
+        >>> print(signature(as_list))
+        (obj, *, _show_return=True)
+        >>> as_list('ham')
+        Calling as_list(*('ham',), **{})
+        Return: ['ham']
+        ['ham']
+        >>> as_list('spam', _show_return=False)
+        Calling as_list(*('spam',), **{})
+        ['spam']
+
     """
     if not kwargs and len(args) == 1 and callable(args[0]):
-        return _wrapper_decorator((), {}, args[0])
-    return partial(_wrapper_decorator, args, kwargs)
+        return _WrapperDecorator((), {}, args[0])
+    return partial(_WrapperDecorator, args, kwargs)
 
-def _wrapper_decorator(f_args, f_kwargs, wrapper):
-    ret = partial(_wrapper, f_args, f_kwargs, wrapper)
-    update_wrapper(ret, wrapper)
-    return ret
+class _WrapperDecorator(object):
+    def __init__(self, f_args, f_kwargs, wrapper):
+        self.f_args = f_args
+        self.f_kwargs = f_kwargs
+        self.wrapper = wrapper
 
-def _wrapper(f_args, f_kwargs, wrapper, wrapped):
-    ret = partial(wrapper, wrapped)
-    sig = specifiers.forwards(ret, wrapped, *f_args, **f_kwargs)
-    update_wrapper(ret, wrapped)
-    ret.__wrapped__ = wrapped # http://bugs.python.org/issue17482
-    ret._sigtools__wrapper = wrapper
-    ret.__signature__ = sig
-    return ret
+    def wrap(self, wrapped):
+        return _Wrapped(self, self.wrapper, wrapped)
+
+    __call__ = wrap
+
+    def __repr__(self):
+        return '<decorate with {0!r}>'.format(self.wrapper)
+
+class _Wrapped(object):
+    def __init__(self, deco, wrapper, wrapped):
+        func = partial(wrapper, wrapped)
+        sig = specifiers.forwards(func, wrapped, *deco.f_args, **deco.f_kwargs)
+        update_wrapper(self, wrapped)
+        self.func = func
+        self._sigtools__wrapper = self.wrapper = wrapper
+        self.decorator = deco
+        self.__wrapped__ = wrapped
+        self.__signature__ = sig
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+    def __get__(self, instance, owner):
+        return type(self)(
+            self.decorator, self.wrapper,
+            _util.safe_get(self.__wrapped__, instance, owner))
+
+    def __repr__(self):
+        return '<{0!r} decorated with {1!r}>'.format(
+                self.__wrapped__, self.wrapper)
 
 def wrappers(obj):
     """For introspection purposes, returns an iterable that yields each
@@ -107,9 +145,9 @@ def wrappers(obj):
 
     Continuing from the `wrapper_decorator` example::
 
-        >>> list(wrappers.wrappers(ret_dict))
-        [<<function as_json at 0x7fc2f76b5a70> with signature as_json(func, *args, sort_
-        keys=False, **kwargs)>]
+        >>> list(wrappers.wrappers(as_list))
+        [<<function print_call at 0x7f28d721a950> with signature print_call(func, *args,
+         _show_return=True, **kwargs)>]
 
     """
     while hasattr(obj, '_sigtools__wrapper'):

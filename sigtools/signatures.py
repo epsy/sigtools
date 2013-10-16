@@ -26,7 +26,7 @@
 """
 import itertools
 
-from sigtools import modifiers
+from sigtools import _util, modifiers
 
 try:
     zip_longest = itertools.izip_longest
@@ -34,7 +34,7 @@ except AttributeError:
     zip_longest = itertools.zip_longest
 
 __all__ = [
-    'merge', 'embed', 'mask', 'IncompatibleSignatures',
+    'merge', 'embed', 'mask', 'forwards', 'IncompatibleSignatures',
     'sort_params', 'apply_params',
     ]
 
@@ -470,3 +470,30 @@ def mask(sig, num_args=0, hide_varargs=False,
         varkwargs = None
 
     return apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
+
+@modifiers.autokwoargs
+def forwards(outer, inner,
+             use_varargs=True, use_varkwargs=True, *args, **kwargs):
+    """Combines the action of `embed` and `mask`.
+
+    :param inspect.Signature outer: The outermost signature.
+    :param inspect.Signature inner: The inner signature.
+
+    :return: the resulting `inspect.Signature` object
+    :raises: `IncompatibleSignatures`
+
+    ::
+
+        >>> from sigtools import test, signatures
+        >>> print(signatures.forwards(
+        ...     test.s('a, *args, x, **kwargs'),
+        ...     test.s('b, c, *, y, z'),
+        ...     1, 'y'))
+        (a, c, *, x, z)
+
+    """
+    return embed(
+        outer, mask(inner, *args, **kwargs),
+        use_varargs=use_varargs, use_varkwargs=use_varkwargs)
+forwards.__signature__ = forwards(
+    _util.signature(forwards), _util.signature(mask), 1)

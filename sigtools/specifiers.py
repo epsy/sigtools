@@ -37,8 +37,7 @@ __all__ = [
     ]
 
 @modifiers.autokwoargs
-def forwards(wrapper, wrapped,
-             use_varargs=True, use_varkwargs=True, *args, **kwargs):
+def forwards(wrapper, wrapped, *args, **kwargs):
     """Returns an effective signature of ``wrapper`` when it forwards
     its ``*args`` and ``**kwargs`` to ``wrapped``.
 
@@ -49,11 +48,10 @@ def forwards(wrapper, wrapped,
     See `sigtools.signatures.embed` and `mask <sigtools.signatures.mask>` for
     the other parameters' documentation.
     """
-    return signatures.embed(
-        _util.signature(wrapper),
-        signatures.mask(_util.signature(wrapped), *args, **kwargs),
-        use_varargs=use_varargs, use_varkwargs=use_varkwargs)
-forwards.__signature__ = forwards(forwards, signatures.mask, 1)
+    return signatures.forwards(
+        _util.signature(wrapper), _util.signature(wrapped),
+        *args, **kwargs)
+forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 
 class _ProxyForwardsTo(object):
     def __init__(self, forwards_inst, wrapper, sig):
