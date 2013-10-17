@@ -457,10 +457,16 @@ def mask(sig, num_args=0, hide_varargs=False,
         if kwarg_name in consumed_names:
             raise ValueError('Duplicate argument: {0!r}'.format(kwarg_name))
         elif kwarg_name in pokargs_by_name:
-            pokargs.remove(pokargs_by_name[kwarg_name])
+            i = pokargs.index(pokargs_by_name[kwarg_name])
+            pokargs, conv_kwoargs = pokargs[:i], pokargs[i+1:]
+            kwoargs.update(
+                (p.name, p.replace(kind=p.KEYWORD_ONLY))
+                for p in conv_kwoargs)
+            varargs = None
+            pokargs_by_name.clear()
         elif kwarg_name in kwoargs:
             kwoargs.pop(kwarg_name)
-        else:
+        elif not varkwargs:
             raise ValueError(
                 'Named parameter {0!r} not found in signature: {1}'
                 .format(kwarg_name, sig))
