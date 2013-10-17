@@ -1,6 +1,8 @@
 :mod:`sigtools` documentation
 =============================
 
+.. module:: sigtools
+
 Python 3.3's ``inspect`` module has introduced `signature objects
 <http://docs.python.org/3/library/inspect#introspecting-callables-with-the-signature-object>`_,
 which provide a new way to introspect callable objects and a protocol for
