@@ -113,7 +113,7 @@ class _WrapperDecorator(object):
     __call__ = wrap
 
     def __repr__(self):
-        return '<decorate with {0!r}>'.format(self.wrapper)
+        return '<wrap with {0!r}>'.format(self.wrapper)
 
 class _Wrapped(object):
     def __init__(self, deco, wrapper, wrapped):
@@ -135,7 +135,7 @@ class _Wrapped(object):
             _util.safe_get(self.__wrapped__, instance, owner))
 
     def __repr__(self):
-        return '<{0!r} decorated with {1!r}>'.format(
+        return '<{0!r} wrapped with {1!r}>'.format(
                 self.__wrapped__, self.wrapper)
 
 def wrappers(obj):
@@ -152,6 +152,4 @@ def wrappers(obj):
     """
     while hasattr(obj, '_sigtools__wrapper'):
         yield obj._sigtools__wrapper
-        if not hasattr(obj, '__wrapped__'):
-            return
         obj = obj.__wrapped__
