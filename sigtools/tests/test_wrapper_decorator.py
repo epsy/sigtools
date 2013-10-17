@@ -3,7 +3,7 @@
 import unittest
 
 from sigtools import _util, wrappers, test
-from test.util import sigtester
+from sigtools.tests.util import sigtester
 
 def tup(*args):
     return lambda wrapped: (wrapped,) + args

@@ -3,7 +3,7 @@
 import unittest
 
 from sigtools import signatures, test
-from test.util import sigtester
+from sigtools.tests.util import sigtester
 
 @sigtester
 def mask_tests(self, expected_str, sig_str, num_args=0, named_args=(),

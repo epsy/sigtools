@@ -5,7 +5,7 @@ from sigtools import modifiers
 from sigtools._util import funcsigs, signature
 from sigtools.test import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params
-from test.util import sigtester
+from sigtools.tests.util import sigtester
 
 def replace_parameter(sig, param):
     params = sig.parameters.copy()

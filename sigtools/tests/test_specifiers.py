@@ -4,7 +4,7 @@ import unittest
 import sys
 
 from sigtools import modifiers, specifiers, test, _util
-from test.util import sigtester
+from sigtools.tests.util import sigtester
 
 # bulk of the testing happens in test_merge and test_embed
 

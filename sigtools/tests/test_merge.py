@@ -3,7 +3,7 @@ import unittest
 
 from sigtools.signatures import merge, IncompatibleSignatures
 from sigtools.test import s
-from test.util import sigtester
+from sigtools.tests.util import sigtester
 
 @sigtester
 def merge_tests(self, result, *signatures):

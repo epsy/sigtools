@@ -16,5 +16,5 @@ setup(
     url='http://sigtools.readthedocs.org/',
     packages=['sigtools'],
     install_requires=requires,
-    test_suite='test',
+    test_suite='sigtools.tests',
     )
