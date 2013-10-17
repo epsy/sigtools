@@ -36,7 +36,10 @@ def qualname(obj):
     try:
         return obj.__qualname__
     except AttributeError:
-        return '{0.__module__}.{0.__name__}'.format(obj)
+        try:
+            return '{0.__module__}.{0.__name__}'.format(obj)
+        except AttributeError:
+            return repr(obj)
 
 class OverrideableDataDesc(object):
     def __init__(self, *args, **kwargs):
