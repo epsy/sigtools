@@ -61,68 +61,68 @@ class ForwardsAttributeTests(object):
 
         @modifiers.kwoargs('b')
         def inner(self, a, b):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_method('inner')
         def ftm(self, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_ivar('decorated')
         def fti(self, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_method('ftm')
         @modifiers.kwoargs('d')
         def ftm2(self, c, d, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
         @modifiers.kwoargs('m')
         def fts(self, l, m):
-            pass
+            raise NotImplementedError
 
         @modifiers.kwoargs('o')
         def afts(self, n, o):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_method('ftm2')
         @modifiers.kwoargs('q')
         def chain_fts(self, p, q, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_method('ftm2')
         @modifiers.kwoargs('s')
         def chain_afts(self, r, s, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
     @_Base
     @modifiers.kwoargs('b')
     def _base_inst(a, b):
-        pass
+        raise NotImplementedError
 
     @specifiers.apply_forwards_to_super('afts', 'chain_afts')
     class _Derivate(_Base):
         @specifiers.forwards_to_method('inner')
         def ftm(self, e, *args, **kwoargs):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_super()
         def fts(self, s, *args, **kwargs):
-            super()
+            super() # pramga: no cover
 
         def afts(self, asup, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
         @specifiers.forwards_to_super()
         def chain_fts(self, u, *args, **kwargs):
-            super()
+            super() # pragma: no cover
 
         def chain_afts(self, v, *args, **kwargs):
-            pass
+            raise NotImplementedError
 
     @_Derivate
     @modifiers.kwoargs('y')
     def _sub_inst(x, y):
-        pass
+        raise NotImplementedError
 
     base_function = _Base.ftm, 'self, a, *, b'
     base_method = _base_inst.ftm, 'a, *, b'
