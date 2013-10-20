@@ -10,7 +10,7 @@ if require_funcsigs:
 
 setup(
     name='sigtools',
-    version='0.1a',
+    version='0.1a2',
     author='Yann Kaiser',
     author_email='kaiser.yann@gmail.com',
     url='http://sigtools.readthedocs.org/',
