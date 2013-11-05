@@ -47,7 +47,7 @@ except AttributeError:
 re_paramname = re.compile(
     r'^'
     r'\s*([^:=]+)'      # param name
-    r'\s*(?::(.+))?'    # annotation
+    r'\s*(?::(.+?))?'    # annotation
     r'\s*(?:=(.+))?'   # default value
     r'$')
 re_posoarg = re.compile(r'^<(.*)>$')
@@ -119,10 +119,10 @@ def read_sig(sig_str, ret=None):
         ', '.join(params))
 
 def func_code(names, return_annotation, annotations, posoarg_n,
-              kwoarg_n, params):
+              kwoarg_n, params, pre=''):
     """Formats the code to construct a function to `read_sig`'s design.
     """
-    code = []
+    code = [pre]
     if return_annotation and annotations:
         code.append('@modifiers.annotate({0}, {1})'.format(
             return_annotation, ', '.join(
@@ -162,7 +162,8 @@ def f(*args, **kwargs):
         The contents of the arguments are eventually passed to exec.
         Do not use with untrusted input.
     """
-    return make_func(func_code(*read_sig(*args, **kwargs)))
+    pre = kwargs.pop('pre', '')
+    return make_func(func_code(*read_sig(*args, **kwargs), pre=pre))
 
 @forwards_to(f)
 def s(*args, **kwargs):
