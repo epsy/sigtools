@@ -121,7 +121,8 @@ class _Wrapped(object):
         sig = specifiers.forwards(func, wrapped, *deco.f_args, **deco.f_kwargs)
         update_wrapper(self, wrapped)
         self.func = func
-        self._sigtools__wrapper = self.wrapper = wrapper
+        self.wrapper = wrapper
+        self._sigtools__wrappers = wrapper,
         self.decorator = deco
         self.__wrapped__ = wrapped
         self.__signature__ = sig
@@ -150,6 +151,15 @@ def wrappers(obj):
          _show_return=True, **kwargs)>]
 
     """
-    while hasattr(obj, '_sigtools__wrapper'):
-        yield obj._sigtools__wrapper
-        obj = obj.__wrapped__
+    while True:
+        try:
+            wrappers = obj._sigtools__wrappers
+        except AttributeError:
+            return
+        else:
+            for wrapper in wrappers:
+                yield wrapper
+        try:
+            obj = obj.__wrapped__
+        except AttributeError:
+            return
