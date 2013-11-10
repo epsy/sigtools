@@ -30,8 +30,7 @@ import re
 import itertools
 from warnings import warn
 
-from sigtools import _util, modifiers, signatures
-from sigtools.specifiers import forwards_to
+from sigtools import _util, modifiers, signatures, specifiers
 
 __all__ = [
     's', 'f', 'read_sig', 'func_code', 'make_func', 'func_from_sig',
@@ -145,15 +144,17 @@ def func_code(names, return_annotation, annotations, posoarg_n,
         ', '.join('{0!r}: {0}'.format(name) for name in names)))
     return '\n'.join(code)
 
-def make_func(code):
+def make_func(code, locals=None):
     """Executes the given code and returns the object named func from
     the resulting namespace."""
-    d = {}
-    exec(code, globals(), d)
-    return d['func']
+    if locals is None:
+        locals = {}
+    exec(code, globals(), locals)
+    return locals['func']
 
-@forwards_to(read_sig)
-def f(*args, **kwargs):
+@specifiers.forwards_to(read_sig)
+@modifiers.autokwoargs
+def f(pre='', locals=None, *args, **kwargs):
     """Creates a dummy function that has the signature represented by
     ``sig_str`` and returns a tuple containing the arguments passed,
     in order.
@@ -162,10 +163,11 @@ def f(*args, **kwargs):
         The contents of the arguments are eventually passed to exec.
         Do not use with untrusted input.
     """
-    pre = kwargs.pop('pre', '')
-    return make_func(func_code(*read_sig(*args, **kwargs), pre=pre))
+    return make_func(
+        func_code(*read_sig(*args, **kwargs), pre=pre),
+        locals=locals)
 
-@forwards_to(f)
+@specifiers.forwards_to(f)
 def s(*args, **kwargs):
     """Creates a signature from the given string representation of one.
 
