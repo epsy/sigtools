@@ -67,6 +67,14 @@ class _ProxyForwardsTo(object):
         return type(self.__forwards_inst).__get__(
             self.__forwards_inst, instance, owner)
 
+def _transform(obj, meta):
+    try:
+        name = obj.__name__
+    except AttributeError:
+        return obj
+    cls = meta('name', (object,), {name: obj})
+    return cls.__dict__[name]
+
 class _BaseForwardsTo(object):
     def __init__(self, wrapped, m_args, m_kwargs, wrapper):
         update_wrapper(self, wrapper)
@@ -74,6 +82,7 @@ class _BaseForwardsTo(object):
         self.wrapper = wrapper
         self.m_args = m_args
         self.m_kwargs = m_kwargs
+        self.transformed = False
 
     def _forwards(self, wrapper, wrapped, **kwargs):
         return _ProxyForwardsTo(
@@ -83,6 +92,9 @@ class _BaseForwardsTo(object):
         return forwards(wrapper, wrapped, *self.m_args, **self.m_kwargs)
 
     def __get__(self, instance, owner):
+        if not self.transformed:
+            self.wrapper = _transform(self.wrapper, type(owner))
+            self.transformed = True
         return self.get(instance, owner)
 
 class _ForwardsTo(_BaseForwardsTo):

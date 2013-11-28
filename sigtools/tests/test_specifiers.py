@@ -164,5 +164,16 @@ class ForwardsAttributeTests(object):
     chain_afts_cls = _Derivate.chain_afts, 'self, v, r, c, e, a, *, d, b, s'
     chain_afts = _sub_inst.chain_afts, 'v, r, c, e, a, *, d, b, s'
 
+    def test_new(self):
+        class Cls(object):
+            @specifiers.forwards_to_method('__init__')
+            def __new__(cls):
+                pass
+
+            def __init__(self):
+                pass
+        Cls.__new__
+        self.assertEqual(type(Cls.__dict__['__new__'].wrapper), staticmethod)
+
 if __name__ == '__main__':
     unittest.main()
