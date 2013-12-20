@@ -6,7 +6,7 @@ require_funcsigs = sys.version_info < (3,3)
 requires = ['six']
 
 if require_funcsigs:
-    requires.append('funcsigs')
+    requires.append('funcsigs>=0.4')
 
 setup(
     name='sigtools',
