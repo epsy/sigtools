@@ -9,5 +9,5 @@ exclude_lines =
     raise AssertionError
     if __name__ == .__main__.:
 
-omit =
-    setup.py
+include =
+    sigtools/*
