@@ -5,7 +5,7 @@ from sigtools import modifiers
 from sigtools._util import funcsigs, signature
 from sigtools.test import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import sigtester, SignatureTests
 
 def replace_parameter(sig, param):
     params = sig.parameters.copy()
@@ -240,5 +240,36 @@ class AutokwoargsTests(object):
     def test_bad_call(self):
         self.assertRaises(ValueError, modifiers.autokwoargs, 'abc')
 
-if __name__ == '__main__':
-    unittest.main()
+
+class AnnotateTests(SignatureTests):
+    def test_success(self):
+        self.assertSigsEqual(
+            s('a, b:1'),
+            signature(modifiers.annotate(b=1)(f('a, b')))
+            )
+        self.assertSigsEqual(
+            s('a:1, b:2'),
+            signature(modifiers.annotate(a=1, b=2)(f('a, b')))
+            )
+        self.assertSigsEqual(
+            s('a:1, b', 2),
+            signature(modifiers.annotate(2, a=1)(f('a, b')))
+            )
+
+    def test_use_twice(self):
+        annotator = modifiers.annotate(a=1)
+        self.assertSigsEqual(
+            s('a:1, b'),
+            signature(annotator(f('a, b')))
+            )
+        self.assertSigsEqual(
+            s('a:1'),
+            signature(annotator(f('a')))
+            )
+
+    def test_unused_annotation(self):
+        self.assertRaises(
+            ValueError,
+            modifiers.annotate(b=1), f('a')
+            )
+
