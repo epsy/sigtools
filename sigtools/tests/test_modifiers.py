@@ -2,7 +2,7 @@
 import unittest
 
 from sigtools import modifiers
-from sigtools._util import funcsigs, signature
+from sigtools._util import funcsigs, signature, safe_get
 from sigtools.test import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params
 from sigtools.tests.util import sigtester, SignatureTests
@@ -127,6 +127,19 @@ class PokTranslatorTestsThreeArgs(object):
     posarg_kwoarg_kwoarg = '<a>, *, b, c', _sig, 'a', 'bc'
     kwoarg_posarg_kwoarg = '<b>, *, a, c', _sig, 'b', 'ac'
     kwoarg_kwoarg_posarg = '<c>, *, a, b', _sig, 'c', 'ab'
+
+    def test_preserve_annotations(self):
+        func = f('self, a:2, b, c:3', 4)
+
+        tr = modifiers._PokTranslator(func, kwoargs=('a', 'b'))
+        self.assertSigsEqual(
+            s('self, c:3, *, a:2, b', 4),
+            signature(tr)
+            )
+        self.assertSigsEqual(
+            s('c:3, *, a:2, b', 4),
+            signature(safe_get(tr, object(), object))
+            )
 
 @sigtester
 def poktranslator_raise_tests(self, sig_str, posoargs, kwoargs):
@@ -270,6 +283,20 @@ class AnnotateTests(SignatureTests):
     def test_unused_annotation(self):
         self.assertRaises(
             ValueError,
-            modifiers.annotate(b=1), f('a')
+            modifiers.annotate(a=1, c=2), f('a, b')
             )
+
+    def test_pok_interact(self):
+        pok = f('self, a, *, b')
+        annotated = modifiers.annotate(a=1, b=2)(pok)
+        self.assertSigsEqual(
+            s('self, a:1, *, b:2'),
+            signature(annotated)
+            )
+        self.assertSigsEqual(
+            s('a:1, *, b:2'),
+            signature(safe_get(annotated, object(), object))
+            )
+
+
 

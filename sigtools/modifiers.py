@@ -310,7 +310,12 @@ class annotate(object):
         self.annotations = annotations
         self.to_use = set(annotations)
 
-    def __call__(self, func):
+    def __call__(self, obj):
+        func = obj
+        poks = []
+        while isinstance(func, _PokTranslator):
+            poks.append(func)
+            func = func.func
         sig = _util.signature(func)
         parameters = []
         to_use = self.to_use.copy()
@@ -332,7 +337,9 @@ class annotate(object):
             sig = sig.replace(parameters=parameters,
                               return_annotation=self.ret)
         func.__signature__ = sig
-        return func
+        for pok in reversed(poks):
+            pok._prepare()
+        return obj
 
     def __repr__(self):
         return '{0}.annotate({1}{2})'.format(
