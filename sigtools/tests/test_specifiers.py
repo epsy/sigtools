@@ -3,7 +3,7 @@
 import unittest
 import sys
 
-from sigtools import modifiers, specifiers, test, _util
+from sigtools import modifiers, specifiers, support, _util
 from sigtools.tests.util import sigtester
 
 # bulk of the testing happens in test_merge and test_embed
@@ -12,20 +12,20 @@ not_py33 = sys.version_info < (3,3)
 
 @sigtester
 def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
-    outer_f = test.f(outer)
-    inner_f = test.f(inner)
+    outer_f = support.f(outer)
+    inner_f = support.f(inner)
     forw = specifiers.forwards_to(inner_f, *args, **kwargs)(outer_f)
 
     if expected is not None:
         self.assertSigsEqual(
             _util.signature(forw),
-            test.s(expected)
+            support.s(expected)
             )
 
     if expected_get is not None:
         self.assertSigsEqual(
             _util.signature(_util.safe_get(forw, object(), object)),
-            test.s(expected_get)
+            support.s(expected_get)
             )
 
 @forwards_tests
@@ -38,8 +38,8 @@ class ForwardsTest(object):
         'a, c, *, b, d', 'c, *, b, d')
 
     def test_call(self):
-        outer = test.f('*args, **kwargs')
-        inner = test.f('a, *, b')
+        outer = support.f('*args, **kwargs')
+        inner = support.f('a, *, b')
         forw = specifiers.forwards_to(inner)(outer)
         instance = object()
         forw_get_prox = _util.safe_get(forw, instance, object)
@@ -50,7 +50,7 @@ class ForwardsTest(object):
 
 @sigtester
 def sig_equal(self, obj, sig_str):
-    self.assertSigsEqual(_util.signature(obj), test.s(sig_str),
+    self.assertSigsEqual(_util.signature(obj), support.s(sig_str),
                          conv_first_posarg=True)
 
 @sig_equal

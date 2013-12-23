@@ -2,7 +2,7 @@
 
 import unittest
 
-from sigtools import _util, wrappers, test
+from sigtools import _util, wrappers, support
 from sigtools.tests.util import sigtester
 
 def tup(*args):
@@ -10,7 +10,7 @@ def tup(*args):
 
 @sigtester
 def wd_tests(self, func, sig_str, args, kwargs, ret, decorators):
-    self.assertSigsEqual(_util.signature(func), test.s(sig_str))
+    self.assertSigsEqual(_util.signature(func), support.s(sig_str))
     self.assertEqual(func(*args, **kwargs), ret)
     self.assertEqual(
         list(wrappers.wrappers(func)),

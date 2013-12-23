@@ -2,16 +2,16 @@
 
 import unittest
 
-from sigtools import signatures, test
+from sigtools import signatures, support
 from sigtools.tests.util import sigtester
 
 @sigtester
 def mask_tests(self, expected_str, sig_str, num_args=0, named_args=(),
                hide_varargs=False, hide_varkwargs=False):
     self.assertSigsEqual(
-        test.s(expected_str),
+        support.s(expected_str),
         signatures.mask(
-            test.s(sig_str), num_args, *named_args,
+            support.s(sig_str), num_args, *named_args,
             hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs))
 
 @mask_tests
@@ -42,7 +42,7 @@ class MaskTests(object):
 @sigtester
 def mask_raise_tests(self, sig_str, num_args, named_args=(),
                      hide_varargs=False, hide_varkwargs=False):
-    sig = test.s(sig_str)
+    sig = support.s(sig_str)
     try:
         signatures.mask(
             sig, num_args, *named_args,

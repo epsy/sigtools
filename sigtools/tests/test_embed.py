@@ -2,7 +2,7 @@
 import unittest
 
 from sigtools.signatures import embed, IncompatibleSignatures
-from sigtools.test import s
+from sigtools.support import s
 from sigtools.tests.util import sigtester
 
 @sigtester

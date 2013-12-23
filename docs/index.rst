@@ -34,7 +34,7 @@ is available on pypi <https://pypi.python.org/pypi/funcsigs>`_.
     :undoc-members:
     :show-inheritance:
 
-.. automodule:: sigtools.test
+.. automodule:: sigtools.support
     :members:
     :undoc-members:
     :show-inheritance:

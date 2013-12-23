@@ -48,9 +48,9 @@ def sort_params(sig):
 
     ::
 
-        >>> from sigtools import signatures, test
+        >>> from sigtools import signatures, support
         >>> from pprint import pprint
-        >>> pprint(signatures.sort_params(test.s('<a>, b, *args, c, d')))
+        >>> pprint(signatures.sort_params(support.s('<a>, b, *args, c, d')))
         ([<Parameter at 0x7fdda4e89418 'a'>],
          [<Parameter at 0x7fdda4e89470 'b'>],
          <Parameter at 0x7fdda4e89c58 'args'>,
@@ -265,13 +265,13 @@ def merge(*signatures):
 
     ::
 
-        >>> from sigtools import signatures, test
+        >>> from sigtools import signatures, support
         >>> print(signatures.merge(
-        ...     test.s('one, two, *args, **kwargs'),
-        ...     test.s('one, two, three, *, alpha, **kwargs'),
-        ...     test.s('one, *args, beta, **kwargs')
+        ...     support.s('one, two, *args, **kwargs'),
+        ...     support.s('one, two, three, *, alpha, **kwargs'),
+        ...     support.s('one, *args, beta, **kwargs')
         ...     ))
-        (one, two, three, *, beta, alpha, **kwargs)
+        (one, two, three, *, alpha, beta, **kwargs)
 
     The resulting signature does not necessarily validate all ways of
     conforming to the underlying signatures::
@@ -375,18 +375,18 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
 
     ::
 
-        >>> from sigtools import signatures, test
+        >>> from sigtools import signatures, support
         >>> print(signatures.embed(
-        ...     test.s('one, *args, **kwargs'),
-        ...     test.s('two, *args, kw, **kwargs'),
-        ...     test.s('last'),
+        ...     support.s('one, *args, **kwargs'),
+        ...     support.s('two, *args, kw, **kwargs'),
+        ...     support.s('last'),
         ...     ))
         (one, two, last, *, kw)
         >>> # use signatures.mask() to remove self-like parameters
         >>> print(signatures.embed(
-        ...     test.s('self, *args, **kwargs'),
+        ...     support.s('self, *args, **kwargs'),
         ...     signatures.mask(
-        ...         test.s('self, *args, keyword, **kwargs'), 1),
+        ...         support.s('self, *args, keyword, **kwargs'), 1),
         ...     ))
         (self, *args, keyword, **kwargs)
     """
@@ -422,12 +422,12 @@ def mask(sig, num_args=0, hide_varargs=False,
 
     ::
 
-        >>> from sigtools import signatures, test
-        >>> print(signatures.mask(test.s('a, b, *, c, d'), 1, 'd'))
+        >>> from sigtools import signatures, support
+        >>> print(signatures.mask(support.s('a, b, *, c, d'), 1, 'd'))
         (b, *, c)
-        >>> print(signatures.mask(test.s('a, b, *args, c, d'), 3, 'd'))
+        >>> print(signatures.mask(support.s('a, b, *args, c, d'), 3, 'd'))
         (*args, c)
-        >>> print(signatures.mask(test.s('*args, c, d'), 2, 'd', hide_varargs=True))
+        >>> print(signatures.mask(support.s('*args, c, d'), 2, 'd', hide_varargs=True))
         (*, c)
 
     """
@@ -490,10 +490,10 @@ def forwards(outer, inner,
 
     ::
 
-        >>> from sigtools import test, signatures
+        >>> from sigtools import support, signatures
         >>> print(signatures.forwards(
-        ...     test.s('a, *args, x, **kwargs'),
-        ...     test.s('b, c, *, y, z'),
+        ...     support.s('a, *args, x, **kwargs'),
+        ...     support.s('b, c, *, y, z'),
         ...     1, 'y'))
         (a, c, *, x, z)
 

@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 
 """
-`sigtools.test`: Utilities for use in interactive sessions and unit tests
+`sigtools.support`: Utilities for use in interactive sessions and unit tests
 -------------------------------------------------------------------------
 
 """

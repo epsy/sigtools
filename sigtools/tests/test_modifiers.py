@@ -3,7 +3,7 @@ import unittest
 
 from sigtools import modifiers
 from sigtools._util import funcsigs, signature, safe_get
-from sigtools.test import test_func_sig_coherent, f, s, func_from_sig
+from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params
 from sigtools.tests.util import sigtester, SignatureTests
 
