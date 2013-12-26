@@ -10,7 +10,7 @@ if require_funcsigs:
 
 setup(
     name='sigtools',
-    version='0.1a2',
+    version='0.1a3',
     description="Utilities for working with 3.3's inspect.Signature objects.",
     license='MIT',
     author='Yann Kaiser',
