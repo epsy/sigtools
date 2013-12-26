@@ -480,13 +480,57 @@ def mask(sig, num_args=0, hide_varargs=False,
 @modifiers.autokwoargs
 def forwards(outer, inner,
              use_varargs=True, use_varkwargs=True, *args, **kwargs):
-    """Combines the action of `embed` and `mask`.
+    """Calls `mask` on ``inner``, then returns the result of calling
+    `embed` with ``outer`` and the result of `mask`.
 
     :param inspect.Signature outer: The outermost signature.
     :param inspect.Signature inner: The inner signature.
 
+    ``use_varargs`` and ``use_varkwargs`` are the same parameters as in
+    `.embed`, and ``num_args``, ``named_args``, ``hide_varargs``,
+    ``hide_varkwargs`` are parameters of `.mask`.
+
     :return: the resulting `inspect.Signature` object
     :raises: `IncompatibleSignatures`
+
+    .. _forwards-pick:
+
+    .. note:: **Picking the appropriate settings for a wrapper function**
+
+        ::
+
+            def wrapper(one, two, *args, alpha, beta, **kwargs):
+                extra = [3, 4]
+                return args, wrapped(two, *extra, beta=beta, gamma=6, **kwargs)
+
+        If you want to decorate ``wrapper`` so that it reflects its use of
+        ``kwargs`` when calling ``wrapped``, you can use `forwards` to build
+        the appropriate signature.
+
+        ::
+
+            s_wrapper = signature(wrapper)
+            s_wrapped = signature(wrapped)
+            sig = signatures.forwards(s_wrapper, s_wrapped, ...)
+
+        The arguments must be picked depending on how you call ``wrapped``:
+
+        * Here you are supplying one positional argument directly, so set
+          ``num_args`` to ``1``.
+        * You are supplying your own extra positional arguments(``*extra``)
+          rather than passing ``*args`` from the wrapper directly to the
+          wrapped function, so pass ``use_varargs=False``.
+        * You are passing ``beta`` and ``gamma`` arguments by name, so pass
+          their name to `forwards` after ``num_args``.
+        * You are forwarding ``**kwargs`` directly, so leave ``use_varkwargs``
+          on ``False``.
+        * ``hide_var(kw)args`` are rarely useful with `forwards`, so leave
+          them on ``False``.
+
+        This results in the following call to `forwards`::
+
+            sig = signatures.forwards(s_wrapper, s_wrapped, 1, 'beta', 'gamma',
+                                      use_varargs=False)
 
     ::
 

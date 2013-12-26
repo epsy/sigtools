@@ -160,8 +160,20 @@ def f(pre='', locals=None, *args, **kwargs):
     in order.
 
     .. warning::
-        The contents of the arguments are eventually passed to exec.
+        The contents of the arguments are eventually passed to `exec`.
         Do not use with untrusted input.
+
+    ::
+
+        >>> from sigtools.support import f
+        >>> import inspect
+        >>> func = f('a, b=2, *args, c:"annotation", **kwargs')
+        >>> print(inspect.signature(func))
+        (a, b=2, *args, c:'annotation', **kwargs)
+        >>> func(1, c=3)
+        {'b': 2, 'a': 1, 'kwargs': {}, 'args': ()}
+        >>> func(1, 2, 3, 4, c=5, d=6)
+        {'b': 2, 'a': 1, 'kwargs': {'d': 6}, 'args': (3, 4)}
     """
     return make_func(
         func_code(*read_sig(*args, **kwargs), pre=pre),
@@ -172,8 +184,17 @@ def s(*args, **kwargs):
     """Creates a signature from the given string representation of one.
 
     .. warning::
-        The contents of the arguments are eventually passed to exec.
+        The contents of the arguments are eventually passed to `exec`.
         Do not use with untrusted input.
+
+    ::
+
+        >>> from sigtools.support import s
+        >>> sig = s('a, b=2, *args, c:"annotation", **kwargs')
+        >>> sig
+        <inspect.Signature object at 0x7f15e6055550>
+        >>> print(sig)
+        (a, b=2, *args, c:'annotation', **kwargs)
     """
     return _util.signature(f(*args, **kwargs))
 
@@ -181,7 +202,7 @@ def func_from_sig(sig):
     """Creates a dummy function from the given signature object
 
     .. warning::
-        The contents of the arguments are eventually passed to exec.
+        The contents of the arguments are eventually passed to `exec`.
         Do not use with untrusted input.
     """
     ret, sep, sig_str = str(sig).rpartition(' -> ')
@@ -226,7 +247,7 @@ def bind_callsig(sig, args, kwargs):
     values from ``args``, ``kwargs`` as if a function with ``sig``
     was called with ``(*args, **kwargs)``.
 
-    Similar to inspect.Signature.bind.
+    Similar to `inspect.Signature.bind`.
     """
     assigned = {}
 

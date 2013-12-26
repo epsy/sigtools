@@ -23,6 +23,9 @@
 `sigtools.wrappers`: Combine multiple functions
 -----------------------------------------------
 
+The functions here help you combine multiple functions into a new callable
+which will automatically advertise the correct signature.
+
 """
 
 from functools import partial, update_wrapper
@@ -59,10 +62,12 @@ def wrapper_decorator(*args, **kwargs):
     """Turns a function into a decorator that wraps callables with
     that function.
 
+    Consult `.signatures.forwards`'s documentation for :ref:`help picking the correct values for the parameters <forwards-pick>`.
+
     The wrapped function is passed as first argument to the wrapper.
 
-    As an example, here we create an ``@print_call`` decorator which wraps
-    the decorated function and prints a line everytime the function is called::
+    As an example, here we create a ``@print_call`` decorator which wraps the
+    decorated function and prints a line everytime the function is called::
 
         >>> from sigtools import modifiers, wrappers
         >>> @wrappers.wrapper_decorator
