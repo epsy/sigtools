@@ -21,7 +21,7 @@ def defaults_variations(exp, orig):
             keys_ = keys[i:]
             exp_ = exp
             orig_ = orig
-            for j, key in enumerate(keys_, i):
+            for j, key in enumerate(reversed(keys_), i):
                 exp_ = replace_parameter(
                     exp_, exp_.parameters[key].replace(default=j))
                 orig_ = replace_parameter(

@@ -88,7 +88,9 @@ def read_sig(sig_str, ret=None):
         else:
             insert = arg
 
-        if arg.startswith('*'):
+        if arg == '/':
+            posoarg_n.extend(names)
+        elif arg.startswith('*'):
             found_star = True
             if name:
                 params.append(insert)
