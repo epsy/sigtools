@@ -79,6 +79,26 @@ class PokTranslatorTestsOneArg(object):
         func = f('')
         self.assertTrue(func is modifiers.posoargs()(func))
 
+    def test_attr_conservation_before(self):
+        func = f('s, a')
+        func.attr = object()
+        pt = modifiers.kwoargs('a')(func)
+        self.assertIs(func.attr, pt.attr)
+        self.assertIs(func.attr, modifiers.kwoargs('a')(func).attr)
+        bpt = pt.__get__(object(), object)
+        self.assertIs(func.attr, bpt.attr)
+        self.assertIs(func.attr, modifiers.kwoargs('a')(bpt).attr)
+
+    def test_attr_conservation_after(self):
+        func = f('s, a')
+        pt = modifiers.kwoargs('a')(func)
+        pt.attr = object()
+        self.assertIs(pt.attr, modifiers.kwoargs('a')(pt).attr)
+        bpt = pt.__get__(object(), object)
+        self.assertIs(pt.attr, bpt.attr)
+        self.assertIs(pt.attr, modifiers.kwoargs('a')(bpt).attr)
+
+
 @poktranslator_tests
 class PokTranslatorTestsTwoArgs(object):
     _sig = 'a, b'

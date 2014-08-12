@@ -10,6 +10,15 @@ from sigtools.tests.util import sigtester
 
 not_py33 = sys.version_info < (3,3)
 
+
+def _func(*args, **kwargs): pass
+
+class _cls(object):
+    method = _func
+_inst = _cls()
+_im_type = type(_inst.method)
+
+
 @sigtester
 def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
     outer_f = support.f(outer)
@@ -18,13 +27,13 @@ def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
 
     if expected is not None:
         self.assertSigsEqual(
-            _util.signature(forw),
+            specifiers.signature(forw),
             support.s(expected)
             )
 
     if expected_get is not None:
         self.assertSigsEqual(
-            _util.signature(_util.safe_get(forw, object(), object)),
+            specifiers.signature(_util.safe_get(forw, object(), object)),
             support.s(expected_get)
             )
 
@@ -50,7 +59,7 @@ class ForwardsTest(object):
 
 @sigtester
 def sig_equal(self, obj, sig_str):
-    self.assertSigsEqual(_util.signature(obj), support.s(sig_str),
+    self.assertSigsEqual(specifiers.signature(obj), support.s(sig_str),
                          conv_first_posarg=True)
 
 @sig_equal
@@ -73,7 +82,7 @@ class ForwardsAttributeTests(object):
 
         @specifiers.forwards_to_method('ftm')
         @modifiers.kwoargs('d')
-        def ftm2(self, c, d, *args, **kwargs):
+        def ftm2(self, c, d, *args2, **kwargs2):
             raise NotImplementedError
 
         @modifiers.kwoargs('m')
@@ -124,32 +133,26 @@ class ForwardsAttributeTests(object):
     def _sub_inst(x, y):
         raise NotImplementedError
 
-    base_function = _Base.ftm, 'self, a, *, b'
     base_method = _base_inst.ftm, 'a, *, b'
-
-    base_function2 = _Base.ftm2, 'self, c, a, *, d, b'
     base_method2 = _base_inst.ftm2, 'c, a, *, d, b'
 
-    base_ivar_cls = _Base.fti, 'self, *args, **kwargs'
+    base_method_cls = _Base.ftm, 'self, *args, **kwargs'
+
     base_ivar = _base_inst.fti, 'a, *, b'
 
-    sub_function = _Derivate.ftm, 'self, e, a, *, b'
     sub_method = _sub_inst.ftm, 'e, a, *, b'
 
-    sub_function2 = _Derivate.ftm2, 'self, c, e, a, *, d, b'
     sub_method2 = _sub_inst.ftm2, 'c, e, a, *, d, b'
 
-    sub_ivar_cls = _Derivate.fti, 'self, *args, **kwargs'
     sub_ivar = _sub_inst.fti, 'x, *, y'
 
     def test_fts(self):
         if not_py33:
             return
 
-        self._test_func(self._Derivate.fts, 'self, s, l, *, m')
         self._test_func(self._sub_inst.fts, 's, l, *, m')
 
-    sub_afts_cls = _Derivate.afts, 'self, asup, n, *, o'
+    sub_afts_cls = _Derivate.afts, 'self, asup, *args, **kwargs'
     sub_afts = _sub_inst.afts, 'asup, n, *, o'
 
     def test_chain_fts(self):
@@ -157,23 +160,89 @@ class ForwardsAttributeTests(object):
             return
 
         self._test_func(self._Derivate.chain_fts,
-                        'self, u, p, c, e, a, *, d, b, q')
+                        'self, u, *args, **kwargs')
         self._test_func(self._sub_inst.chain_fts,
                         'u, p, c, e, a, *, d, b, q')
 
-    chain_afts_cls = _Derivate.chain_afts, 'self, v, r, c, e, a, *, d, b, s'
+    chain_afts_cls = _Derivate.chain_afts, 'self, v, *args, **kwargs'
     chain_afts = _sub_inst.chain_afts, 'v, r, c, e, a, *, d, b, s'
 
-    def test_new(self):
+    def test_transform(self):
+        class _callable(object):
+            def __call__(self):
+                pass
+
         class Cls(object):
-            @specifiers.forwards_to_method('__init__')
+            @specifiers.forwards_to_method('__init__', emulate=True)
             def __new__(cls):
                 pass
 
             def __init__(self):
                 pass
+
+            abc = None
+            if sys.version_info >= (3,):
+                abc = specifiers.forwards_to_method('__init__', emulate=True)(
+                    _callable()
+                    )
+        Cls.abc
         Cls.__new__
-        self.assertEqual(type(Cls.__dict__['__new__'].wrapper), staticmethod)
+        self.assertEqual(type(Cls.__dict__['__new__'].__wrapped__),
+                         staticmethod)
+        Cls.__new__
+        self.assertEqual(type(Cls.__dict__['__new__'].__wrapped__),
+                         staticmethod)
+
+    def test_emulation(self):
+        func = specifiers.forwards_to_method('abc', emulate=False)(_func)
+        self.assertTrue(_func is func)
+
+        func = specifiers.forwards_to_method('abc')(_func)
+        self.assertTrue(_func is func)
+
+        class Cls(object):
+            func = specifiers.forwards_to_method('abc')(_func)
+        func = getattr(Cls.func, '__func__', func)
+        self.assertTrue(_func is func)
+        self.assertTrue(_func is Cls().func.__func__)
+
+        class Cls(object):
+            func = _func
+
+            def abc(self, x):
+                pass
+        func = specifiers.forwards_to_method('abc')(Cls().func)
+        self.assertTrue(isinstance(func, specifiers._ForgerWrapper))
+        try:
+            specifiers.forwards_to_method('abc', emulate=False)(Cls().func)
+        except AttributeError:
+            pass
+        else:
+            self.fail('Did not raise AttributeError')
+
+
+        @specifiers.forwards_to(_func, emulate=True)
+        def func(x, y, *args, **kwargs):
+            return x + y
+        self.assertEqual(5, func(2, 3))
+
+    def test_super_fail(self):
+        class Cls(object):
+            def m(self):
+                pass
+            def n(self):
+                pass
+        class Sub(Cls):
+            @specifiers.forwards_to_super()
+            def m(self, *args, **kwargs):
+                pass
+            @specifiers.forwards_to_super()
+            def n(self, *args, **kwargs):
+                super(Sub, self).n(*args, **kwargs)
+        self.assertRaises(ValueError, specifiers.signature, Sub().m)
+        if sys.version_info < (3,):
+            self.assertRaises(ValueError, specifiers.signature, Sub().n)
+
 
 if __name__ == '__main__':
     unittest.main()

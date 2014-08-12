@@ -44,10 +44,15 @@ class _PokTranslator(_util.OverrideableDataDesc):
         return func
 
     def __init__(self, func, posoargs=(), kwoargs=(), **kwargs):
+        update_wrapper(self, func)
+        try:
+            self.__self__ = func.__self__
+        except AttributeError:
+            pass
+        super(_PokTranslator, self).__init__(**kwargs)
         self.func = func
         self.posoarg_names = set(posoargs)
         self.kwoarg_names = set(kwoargs)
-        super(_PokTranslator, self).__init__(**kwargs)
         if isinstance(func, _PokTranslator):
             self._merge_other(func)
         self._prepare()
@@ -62,8 +67,6 @@ class _PokTranslator(_util.OverrideableDataDesc):
             self.custom_getter, other.custom_getter)
 
     def _prepare(self):
-        update_wrapper(self, self.func, updated=())
-
         intersection = self.posoarg_names & self.kwoarg_names
         if intersection:
             raise ValueError(

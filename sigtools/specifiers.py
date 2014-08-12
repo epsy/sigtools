@@ -26,15 +26,109 @@
 """
 
 from functools import partial, update_wrapper
-import operator
 
 from sigtools import _util, modifiers, signatures
 
 __all__ = [
     'forwards',
+    'signature',
     'forwards_to', 'forwards_to_method',
-    'forwards_to_super', 'apply_forwards_to_super', 'forwards_to_ivar',
+    'forwards_to_super', 'apply_forwards_to_super',
+    'forger_function', 'set_signature_forger',
     ]
+
+
+_kwowr = modifiers.kwoargs('obj')
+
+
+def signature(obj):
+    """Retrieve the signature of ``obj``, taking into account any specifier
+    from this module.
+
+    You can use ``emulate=True`` as an argument to the specifiers from this
+    module if you wish them to work with `inspect.signature` or its `functools`
+    backport directly.
+
+    ::
+
+        >>> from sigtools import specifiers
+        >>> import inspect
+        >>> def inner(a, b):
+        ...     return a + b
+        ...
+        >>> @specifiers.forwards_to(inner)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        ...
+        >>> print(inspect.signature(outer))
+        (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
+        >>> @specifiers.forwards_to(inner, emulate=True)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        #fixme
+
+    """
+    forger = getattr(obj, '_sigtools__forger', None)
+    if forger is None:
+        return _util.signature(obj)
+    ret = forger(obj=obj)
+    return ret
+
+
+def set_signature_forger(obj, forger, emulate=None):
+    if not emulate:
+        try:
+            obj._sigtools__forger = forger
+            return obj
+        except (AttributeError, TypeError):
+            if emulate is False:
+                raise
+    return _ForgerWrapper(obj, forger)
+
+
+def _transform(obj, meta):
+    try:
+        name = obj.__name__
+    except AttributeError:
+        return obj
+    cls = meta('name', (object,), {name: obj})
+    return cls.__dict__[name]
+
+
+class _ForgerWrapper(object):
+    def __init__(self, obj, forger):
+        update_wrapper(self, obj)
+        self.__wrapped__ = obj
+        self._transformed = False
+        self._signature_forger = forger
+        self.__signature__ = forger(obj=obj)
+
+    def __call__(self, *args, **kwargs):
+        return self.__wrapped__(*args, **kwargs)
+
+    def __get__(self, instance, owner):
+        if not self._transformed:
+            self.__wrapped__ = _transform(self.__wrapped__, type(owner))
+            self._transformed = True
+        return type(self)(
+            _util.safe_get(self.__wrapped__, instance, owner),
+            self._signature_forger)
+
+
+def forger_function(func):
+    @modifiers.kwoargs('emulate')
+    def _apply_forger(emulate=None, *args, **kwargs):
+        def _applier(obj):
+            return set_signature_forger(
+                obj, partial(func, *args, **kwargs), emulate)
+        return _applier
+    sig = forwards(_apply_forger, func, 0, 'obj')
+    update_wrapper(_apply_forger, func, updated=())
+    _apply_forger.__signature__ = sig
+    return _apply_forger
+
 
 @modifiers.autokwoargs
 def forwards(wrapper, wrapped, *args, **kwargs):
@@ -49,67 +143,13 @@ def forwards(wrapper, wrapped, *args, **kwargs):
     the other parameters' documentation.
     """
     return signatures.forwards(
-        _util.signature(wrapper), _util.signature(wrapped),
+        _util.signature(wrapper), signature(wrapped),
         *args, **kwargs)
 forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 
-class _ProxyForwardsTo(object):
-    def __init__(self, forwards_inst, wrapper, sig):
-        update_wrapper(self, wrapper)
-        self.__forwards_inst = forwards_inst
-        self.__wrapper = wrapper
-        self.__signature__ = sig
 
-    def __call__(self, *args, **kwargs):
-        return self.__wrapper(*args, **kwargs)
-
-    def __get__(self, instance, owner):
-        return type(self.__forwards_inst).__get__(
-            self.__forwards_inst, instance, owner)
-
-def _transform(obj, meta):
-    try:
-        name = obj.__name__
-    except AttributeError:
-        return obj
-    cls = meta('name', (object,), {name: obj})
-    return cls.__dict__[name]
-
-class _BaseForwardsTo(object):
-    def __init__(self, wrapped, m_args, m_kwargs, wrapper):
-        update_wrapper(self, wrapper)
-        self.wrapped = wrapped
-        self.wrapper = wrapper
-        self.m_args = m_args
-        self.m_kwargs = m_kwargs
-        self.transformed = False
-
-    def _forwards(self, wrapper, wrapped, **kwargs):
-        return _ProxyForwardsTo(
-            self, wrapper, self._signature(wrapper, wrapped, **kwargs))
-
-    def _signature(self, wrapper, wrapped):
-        return forwards(wrapper, wrapped, *self.m_args, **self.m_kwargs)
-
-    def __get__(self, instance, owner):
-        if not self.transformed:
-            self.wrapper = _transform(self.wrapper, type(owner))
-            self.transformed = True
-        return self.get(instance, owner)
-
-class _ForwardsTo(_BaseForwardsTo):
-    def __init__(self, *args, **kwargs):
-        super(_ForwardsTo, self).__init__(*args, **kwargs)
-        self.__signature__ = self._signature(self.wrapper, self.wrapped)
-
-    def get(self, instance, owner):
-        wrapper = _util.safe_get(self.wrapper, instance, owner)
-        return self._forwards(wrapper, self.wrapped)
-
-    def __call__(self, *args, **kwargs):
-        return self.wrapper(*args, **kwargs)
-
-def forwards_to(wrapped, *args, **kwargs):
+@_kwowr
+def forwards_to(obj, *args, **kwargs):
     """Wraps the decorated function to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the static
     callable wrapped.
@@ -129,88 +169,48 @@ def forwards_to(wrapped, *args, **kwargs):
         (a, x, y)
 
     """
-    return partial(_ForwardsTo, wrapped, args, kwargs)
-forwards_to.__signature__ = forwards(forwards_to, forwards, 2)
+    ret = forwards(obj, *args, **kwargs)
+    return ret
+forwards_to.__signature__ = forwards(forwards_to, forwards, 1)
+forwards_to = forger_function(forwards_to)
 
-class _ForwardsToMethod(_BaseForwardsTo):
-    def get(self, instance, owner):
-        wrapper = _util.safe_get(self.wrapper, instance, owner)
-        wrapped = getattr(owner, self.wrapped)
-        if instance is not None:
-            wrapped = _util.safe_get(wrapped, instance, owner)
-        else:
-            wrapped = _util.safe_get(wrapped, object(), owner)
-        return self._forwards(wrapper, wrapped)
 
+@forger_function
 @forwards_to(forwards, 2)
-def forwards_to_method(wrapped_name, *args, **kwargs):
+@_kwowr
+def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the method
     named by ``wrapped_name``.
 
     :param str wrapped_name: The name of the wrapped method.
     """
-    return partial(_ForwardsToMethod,
-                   wrapped_name, args, kwargs)
+    try:
+        self = obj.__self__
+    except AttributeError:
+        self = None
+    if self is None:
+        return _util.signature(obj)
+    return forwards(obj, getattr(self, wrapped_name), *args, **kwargs)
 
-class _ForwardsToIvar(_BaseForwardsTo):
-    def __get__(self, instance, owner):
-        wrapper = _util.safe_get(self.wrapper, instance, owner)
-        if instance is None:
-            return wrapper
-        else:
-            return self._forwards(wrapper, self.wrapped(instance))
 
+forwards_to_ivar = forwards_to_method
+
+
+def _get_origin_class(obj, cls):
+    if cls is not None:
+        return cls
+    try:
+        idx = obj.__code__.co_freevars.index('__class__')
+    except ValueError:
+        raise ValueError('Class could not be auto-determined.')
+    return obj.__closure__[idx].cell_contents
+
+
+@forger_function
 @forwards_to(forwards, 2)
-def forwards_to_ivar(wrapped_name, *args, **kwargs):
-    """Wraps the decorated method to give it the effective signature it has
-    when it forwards its ``*args`` and ``**kwargs`` to the named instance
-    variables.
-
-    :param str wrapped_name: The name of the wrapped instance variable.
-    """
-    return partial(_ForwardsToIvar,
-                   operator.attrgetter(wrapped_name), args, kwargs)
-
-class _ForwardsToSuper(_BaseForwardsTo):
-    def __init__(self, cls, m_args, m_kwargs, wrapper):
-        update_wrapper(self, wrapper)
-        self.wrapper = wrapper
-        self.cls = cls
-        self.m_args = m_args
-        self.m_kwargs = m_kwargs
-
-    def get_class(self, owner):
-        if self.cls is None:
-            func = _util.safe_get(self.wrapper, None, owner)
-            try:
-                idx = func.__code__.co_freevars.index('__class__')
-            except ValueError:
-                raise ValueError('Class could not be auto-determined.')
-            self.cls = func.__closure__[idx].cell_contents
-        return self.cls
-
-    def get_super(self, instance, owner):
-        cls = self.get_class(owner)
-        if instance is None:
-            return super(cls, owner)
-        else:
-            return super(cls, instance)
-
-    def get_wrapped(self, wrapper, instance, owner):
-        wrapped = getattr(self.get_super(None, owner), wrapper.__name__)
-        if instance is None:
-            return _util.safe_get(wrapped, object(), owner)
-        else:
-            return _util.safe_get(wrapped, instance, owner)
-
-    def __get__(self, instance, owner):
-        wrapper = _util.safe_get(self.wrapper, instance, owner)
-        wrapped = self.get_wrapped(wrapper, instance, owner)
-        return self._forwards(wrapper, wrapped)
-
-@forwards_to(forwards, 2)
-def forwards_to_super(*args, **kwargs):
+@modifiers.kwoargs('obj', 'cls')
+def forwards_to_super(obj, cls=None, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
     when it forwards its ``*args`` and ``**kwargs`` to the same method on
     the super object for the class it belongs in.
@@ -238,9 +238,19 @@ def forwards_to_super(*args, **kwargs):
     `apply_forwards_to_super` instead.
 
     """
-    return partial(_ForwardsToSuper, None, args, kwargs)
+    try:
+        self = obj.__self__
+    except AttributeError:
+        self = None
+    if self is None:
+        return _util.signature(obj)
+    inner = getattr(
+        super(_get_origin_class(obj, cls), self),
+        obj.__name__)
+    return forwards(obj, inner, *args, **kwargs)
 
-@forwards_to(forwards, 3, use_varargs=False)
+
+@forwards_to(forwards_to_super, 1, 'cls', use_varargs=False)
 @modifiers.autokwoargs
 def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
                             **kwargs):
@@ -268,11 +278,10 @@ def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
     return partial(_apply_forwards_to_super, member_names,
                    ((0,) + named_args), kwargs)
 
+
 def _apply_forwards_to_super(member_names, m_args, m_kwargs, cls):
+    fts = forwards_to_super(*m_args, cls=cls, **m_kwargs)
     for name in member_names:
-        setattr(cls, name,
-            _ForwardsToSuper(
-                cls, m_args, m_kwargs,
-                cls.__dict__[name]))
+        setattr(cls, name, fts(cls.__dict__[name]))
     return cls
 

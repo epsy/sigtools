@@ -7,7 +7,7 @@ from sigtools import _util
 def conv_first_posarg(sig):
     if not sig.parameters:
         return sig
-    first = sig.parameters.values()[0]
+    first = list(sig.parameters.values())[0]
     first = first.replace(kind=first.POSITIONAL_ONLY)
     return sig.replace(
         parameters=(first,) + tuple(sig.parameters.values())[1:])
@@ -23,15 +23,30 @@ class SignatureTests(unittest.TestCase):
                 _util.qualname(func), _util.signature(func),
                 )
 
-    def assertSigsEqual(self, left, right, *args, **kwargs):
+    def assertSigsEqual(self, found, expected, *args, **kwargs):
         conv = kwargs.pop('conv_first_posarg', False)
-        if left != right:
+        if expected != found:
             if conv:
-                left = conv_first_posarg(left)
-                right = conv_first_posarg(right)
-                if left == right:
+                expected = conv_first_posarg(expected)
+                found = conv_first_posarg(found)
+                if expected == found:
                     return
-            raise AssertionError('{0} != {1}'.format(left, right))
+            raise AssertionError(
+                'Did not get expected signature({0}), got {1} instead.'
+                .format(expected, found))
+
+    def assertIs(self, left, right):
+        return self.assertTrue(left is right)
+    if hasattr(unittest.TestCase, 'assertIs'):
+        del assertIs
+
+    def assertRaises(self, _exc, _func, *args, **kwargs):
+        try:
+            _func(*args, **kwargs)
+        except _exc:
+            pass
+        else:
+            self.fail("{0} did not raise {1}".format(_func, _exc))
 
 def make_run_test(func, value, **kwargs):
     def _func(self):

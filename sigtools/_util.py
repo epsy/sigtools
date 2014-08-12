@@ -1,5 +1,5 @@
 
-from functools import partial
+from functools import partial, update_wrapper
 from weakref import WeakKeyDictionary
 
 def get_funcsigs():
@@ -43,10 +43,16 @@ def qualname(obj):
 
 class OverrideableDataDesc(object):
     def __init__(self, *args, **kwargs):
+        original = kwargs.pop('original', None)
+        if original is not None:
+            update_wrapper(self, original)
         try:
             self.custom_getter = kwargs.pop('get')
         except KeyError:
-            self.custom_getter = partial(type(self), **self.parameters())
+            def cg(func, **kwargs):
+                kwargs.update(self.parameters())
+                return type(self)(func, **kwargs)
+            self.custom_getter = cg
         self.insts = WeakKeyDictionary()
         super(OverrideableDataDesc, self).__init__(*args, **kwargs)
 
@@ -66,7 +72,7 @@ class OverrideableDataDesc(object):
         if func is self.func:
             ret = self
         else:
-            ret = self.custom_getter(func)
+            ret = self.custom_getter(func, original=self)
         self.insts[func] = ret
         return ret
 

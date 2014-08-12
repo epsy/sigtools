@@ -32,16 +32,16 @@ in your Sphinx ``conf.py``
 
 """
 
-try:
-    from inspect import signature
-except ImportError:
-    from funcsigs import signature
+from sigtools import specifiers, _util
 
 def process_signature(app, what, name, obj, options,
                       sig, return_annotation):
+    parent, obj = fetch_dotted_name(name)
+    if isinstance(parent, type) and callable(obj):
+        obj = _util.safe_get(obj, object(), type(parent))
     try:
-        sig = signature(obj)
-    except (TypeError, ValueError):
+        sig = specifiers.signature(obj)
+    except TypeError:
         return sig, return_annotation
     ret_annot = sig.return_annotation
     if ret_annot != sig.empty:
@@ -50,6 +50,25 @@ def process_signature(app, what, name, obj, options,
     else:
         sret_annot = ''
     return str(sig), sret_annot
+
+def fetch_dotted_name(name):
+    assert name
+    post_import = name.split('.')[1:]
+    while name:
+        name = name.rpartition('.')[0]
+        try:
+            mod = __import__(name)
+        except ImportError as exc:
+            imp_exc = exc
+        else:
+            return fetch_deep_attr(mod, post_import)
+    raise imp_exc
+
+def fetch_deep_attr(obj, attrs):
+    assert attrs
+    for attr in attrs:
+        parent, obj = obj, getattr(obj, attr)
+    return parent, obj
 
 def setup(app):
     app.connect('autodoc-process-signature', process_signature)
