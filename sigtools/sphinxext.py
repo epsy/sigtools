@@ -25,7 +25,7 @@
 
 At the moment `sphinx.ext.autodoc` can only automatically discover the
 signatures of basic callables. This extension makes it use
-`inspect.signature` on the callable instead.
+`sigtools.specifiers.signature` on the callable instead.
 
 Enable it by appending ``'sigtools.sphinxext'`` to the ``extensions`` list
 in your Sphinx ``conf.py``
