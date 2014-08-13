@@ -23,7 +23,13 @@
 `sigtools.signatures`: Signature object manipulation
 ----------------------------------------------------
 
+The functions here are high-level operations that produce a signature from
+other signature objects, as opposed to dealing with each parameter
+individually. They are most notably used by the decorators from
+`sigtools.specifiers` to compute combined signatures.
+
 """
+
 import itertools
 
 from sigtools import _util, modifiers
@@ -252,11 +258,13 @@ def _merge_kwoargs_limbo(kwoargs_limbo, o_varkwargs, kwoargs):
                 ' '.join(str(arg) for arg in non_defaulted)))
 
 def merge(*signatures):
-    """Tries to compute one common signature from multiple ones.
+    """Tries to compute a signature for which a valid call would also validate
+    the given signatures.
 
     It guarantees any call that conforms to the merged signature will
     conform to all the given signatures. However, some calls that don't
-    conform to the merged signature may actually work on all the given ones.
+    conform to the merged signature may actually work on all the given ones
+    regardless.
 
     :param inspect.Signature signatures: The signatures to merge together.
 
@@ -363,7 +371,8 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
 @modifiers.autokwoargs
 def embed(use_varargs=True, use_varkwargs=True, *signatures):
     """Embeds a signature within another's ``*args`` and ``**kwargs``
-    parameters.
+    parameters, as if a function with the outer signature called a function with
+    the inner signature with just ``f(*args, **kwargs)``.
 
     :param inspect.Signature signatures: The signatures to embed within
         one-another, outermost first.
@@ -407,8 +416,8 @@ def _pop_chain(*sequences):
 @modifiers.autokwoargs(exceptions=('num_args',))
 def mask(sig, num_args=0, hide_varargs=False,
             hide_varkwargs=False, *named_args):
-    """Masks the parameters from ``sig`` should a matching callable be
-    passed the given amount of positional arguments and named arguments.
+    """Removes the given amount of positional parameters and the given named
+    parameters from ``sig``.
 
     :param inspect.Signature sig: The signature to operate on
     :param int num_args: The amount of positional arguments passed
@@ -417,6 +426,7 @@ def mask(sig, num_args=0, hide_varargs=False,
         completely if present.
     :param hide_varkwargs: If true, mask the ``*kwargs``-like parameter
         completely if present.
+    :return: a `inspect.Signature` object
     :raises: `ValueError` if the signature cannot handle the arguments
         to be passed.
 

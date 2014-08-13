@@ -23,6 +23,15 @@
 `sigtools.specifiers`: Decorators to enhance a callable's signature
 -------------------------------------------------------------------
 
+The ``forwards_to_*`` decorators from this module will leave a "note" on the
+decorated object for `sigtools.specifiers.signature` to pick up. These "notes"
+tell `signature` in which way the signature of the examinated object
+should be crafted. The ``forwards_to_*`` decorators here will help you tell
+introspection or documentation tools what the ``*args`` and ``**kwargs``
+parameters stand for in your function if it forwards them to another callable.
+This should cover most use cases, but you can use `forger_function` or
+`set_signature_forger` to create your own.
+
 """
 
 from functools import partial, update_wrapper
@@ -30,10 +39,10 @@ from functools import partial, update_wrapper
 from sigtools import _util, modifiers, signatures
 
 __all__ = [
-    'forwards',
     'signature',
     'forwards_to', 'forwards_to_method',
     'forwards_to_super', 'apply_forwards_to_super',
+    'forwards',
     'forger_function', 'set_signature_forger',
     ]
 
@@ -46,8 +55,8 @@ def signature(obj):
     from this module.
 
     You can use ``emulate=True`` as an argument to the specifiers from this
-    module if you wish them to work with `inspect.signature` or its `functools`
-    backport directly.
+    module if you wish them to work with `inspect.signature` or its
+    `funcsigs<funcsigs:signature>` backport directly.
 
     ::
 
@@ -139,8 +148,10 @@ def forwards(wrapper, wrapped, *args, **kwargs):
     :param callable wrapped: The callable ``wrapper``'s extra arguments
         are passed to.
 
-    See `sigtools.signatures.embed` and `mask <sigtools.signatures.mask>` for
-    the other parameters' documentation.
+    :return: a `inspect.Signature` object
+
+    .. seealso:: `sigtools.signatures.forwards`
+
     """
     return signatures.forwards(
         _util.signature(wrapper), signature(wrapped),
@@ -152,7 +163,7 @@ forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 def forwards_to(obj, *args, **kwargs):
     """Wraps the decorated function to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the static
-    callable wrapped.
+    callable ``wrapped``.
 
     ::
 
@@ -167,6 +178,8 @@ def forwards_to(obj, *args, **kwargs):
         >>> from inspect import signature
         >>> print(signature(wrapper))
         (a, x, y)
+
+    .. seealso:: `sigtools.signatures.forwards`
 
     """
     ret = forwards(obj, *args, **kwargs)
@@ -184,6 +197,23 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     named by ``wrapped_name``.
 
     :param str wrapped_name: The name of the wrapped method.
+
+    ::
+
+        >>> from sigtools.specifiers import signature, forwards_to_method
+        >>> class Ham(object):
+        ...     def egg(self, a, b):
+        ...         return a + b
+        ...     @forwards_to_method('egg')
+        ...     def spam(self, c, *args, **kwargs):
+        ...         return c * self.egg(*args, **kwargs)
+        ...
+        >>> h = Ham()
+        >>> print(signature(h.spam))
+        (c, a, b)
+
+    .. seealso:: `sigtools.signatures.forwards`
+
     """
     try:
         self = obj.__self__
@@ -237,6 +267,8 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     If you need to use similar functionality in older python versions, use
     `apply_forwards_to_super` instead.
 
+    .. seealso:: `sigtools.signatures.forwards`
+
     """
     try:
         self = obj.__self__
@@ -273,6 +305,8 @@ def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
         (self, a, x, y)
         >>> print(signature(Subclass().func))
         (a, x, y)
+
+    .. seealso:: `sigtools.signatures.forwards`
 
     """
     return partial(_apply_forwards_to_super, member_names,

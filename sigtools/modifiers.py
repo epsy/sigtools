@@ -23,6 +23,12 @@
 `sigtools.modifiers`: Modify the effective signature of the decorated callable
 ------------------------------------------------------------------------------
 
+The functions in this module can be used as decorators to mark and enforce some
+parameters to be `keyword-only <kwoargs>` or `annotate` them, just like you can
+:ref:`using Python 3 syntax <def>`. You can also mark and enforce parameters to
+be `positional-only <posoarg>`. `autokwoargs` helps you quickly make your
+parameters with default values become keyword-only.
+
 """
 
 from functools import partial, update_wrapper
@@ -31,7 +37,7 @@ import six
 
 from sigtools import _util
 
-__all__ = ['annotate', 'posoargs', 'kwoargs', 'autokwoargs']
+__all__ = ['annotate', 'kwoargs', 'autokwoargs', 'posoargs']
 
 
 class _PokTranslator(_util.OverrideableDataDesc):
@@ -200,8 +206,8 @@ def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
 def posoargs(end=None, *posoarg_names):
     """Marks the given parameters as positional-only.
 
-    If the resulting function is passed named arguments for any positional
-    parameter, `TypeError` is raised.
+    If the resulting function is passed any named arguments that references a
+    positional parameter, `TypeError` will be raised.
 
         >>> from sigtools.modifiers import posoargs
         >>> @posoargs('ham')
@@ -252,7 +258,7 @@ def _posoargs_end(end, _posoargs, func, *args, **kwargs):
         get=partial(_posoargs_end, end, _posoargs))
 
 @kwoargs('exceptions')
-def autokwoargs(func=None , exceptions=()):
+def autokwoargs(func=None, exceptions=()):
     """Marks all arguments with default values as keyword-only.
 
     :param sequence exceptions: names of parameters not to convert
@@ -350,4 +356,3 @@ class annotate(object):
             '' if self.ret is _util.UNSET else '{0!r}, '.format(self.ret),
             ', '.join('{0[0]}={0[1]!r}'.format(item)
                       for item in sorted(self.annotations.items())))
-
