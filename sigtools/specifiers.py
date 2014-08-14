@@ -43,7 +43,7 @@ from sigtools import _util, modifiers, signatures
 
 __all__ = [
     'signature',
-    'forwards_to', 'forwards_to_method',
+    'forwards_to_function', 'forwards_to_method',
     'forwards_to_super', 'apply_forwards_to_super',
     'forwards',
     'forger_function', 'set_signature_forger',
@@ -170,18 +170,18 @@ forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 
 
 @_kwowr
-def forwards_to(obj, *args, **kwargs):
+def forwards_to_function(obj, *args, **kwargs):
     """Wraps the decorated function to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the static
     callable ``wrapped``.
 
     ::
 
-        >>> from sigtools.specifiers import forwards_to
+        >>> from sigtools.specifiers import forwards_to_function
         >>> def wrapped(x, y):
         ...     return x * y
         ...
-        >>> @forwards_to(wrapped)
+        >>> @forwards_to_function(wrapped)
         ... def wrapper(a, *args, **kwargs):
         ...     return a + wrapped(*args, **kwargs)
         ...
@@ -194,12 +194,16 @@ def forwards_to(obj, *args, **kwargs):
     """
     ret = forwards(obj, *args, **kwargs)
     return ret
-forwards_to.__signature__ = forwards(forwards_to, forwards, 1)
-forwards_to = forger_function(forwards_to)
+forwards_to_function.__signature__ = forwards(forwards_to_function,
+                                              forwards, 1)
+forwards_to_function = forger_function(forwards_to_function)
+
+
+forwards_to = forwards_to_function
 
 
 @forger_function
-@forwards_to(forwards, 2)
+@forwards_to_function(forwards, 2)
 @_kwowr
 def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
@@ -248,7 +252,7 @@ def _get_origin_class(obj, cls):
 
 
 @forger_function
-@forwards_to(forwards, 2)
+@forwards_to_function(forwards, 2)
 @modifiers.kwoargs('obj', 'cls')
 def forwards_to_super(obj, cls=None, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
@@ -292,7 +296,7 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     return forwards(obj, inner, *args, **kwargs)
 
 
-@forwards_to(forwards_to_super, 1, 'cls', use_varargs=False)
+@forwards_to_function(forwards_to_super, 1, 'cls', use_varargs=False)
 @modifiers.autokwoargs
 def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
                             **kwargs):

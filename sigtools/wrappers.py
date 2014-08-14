@@ -62,7 +62,7 @@ class Combination(object):
             type(self), ', '.join(repr(f) for f in self.functions)
             )
 
-@specifiers.forwards_to(specifiers.forwards, 2)
+@specifiers.forwards_to_function(specifiers.forwards, 2)
 def wrapper_decorator(*args, **kwargs):
     """Turns a function into a decorator that wraps callables with
     that function.

@@ -33,7 +33,7 @@ def forged_signature(obj):
         >>> def inner(a, b):
         ...     return a + b
         ...
-        >>> @specifiers.forwards_to(inner)
+        >>> @specifiers.forwards_to_function(inner)
         ... def outer(c, *args, **kwargs):
         ...     return c * inner(*args, **kwargs)
         ...
@@ -41,7 +41,7 @@ def forged_signature(obj):
         (c, *args, **kwargs)
         >>> print(specifiers.signature(outer))
         (c, a, b)
-        >>> @specifiers.forwards_to(inner, emulate=True)
+        >>> @specifiers.forwards_to_function(inner, emulate=True)
         ... def outer(c, *args, **kwargs):
         ...     return c * inner(*args, **kwargs)
         #fixme

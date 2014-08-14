@@ -32,19 +32,19 @@ Here's an overview of the parameters for the family of `~.signatures.forwards` f
 Examples
 ''''''''
 
-We will be using the ``~specifiers.forwards_to`` decorator for these examples.
+We will be using the ``~specifiers.forwards_to_function`` decorator for these examples.
 
 .. rubric:: ``*args`` and ``**kwargs`` are forwarded directly if present
 
 You do not need to signal anything about the wrapper function's parameters::
 
-    @specifiers.forwards_to(wrapped)
+    @specifiers.forwards_to_function(wrapped)
     def outer(arg, *args, **kwargs):
         inner(*args, **kwargs)
 
 This holds true even if you omit one of ``*args`` and ``**kwargs``::
 
-    @specifiers.forwards_to(wrapped)
+    @specifiers.forwards_to_function(wrapped)
     def outer(**kwargs):
         inner(**kwargs)
 
@@ -52,13 +52,13 @@ This holds true even if you omit one of ``*args`` and ``**kwargs``::
 
 Indicate the number of arguments you are passing to the wrapped function::
 
-    @specifiers.forwards_to(wrapped, 1)
+    @specifiers.forwards_to_function(wrapped, 1)
     def outer(*args, **kwargs):
         inner('abc', *args, **kwargs)
 
 This applies even if the argument comes from the wrapper::
 
-    @specifiers.forwards_to(wrapped, 1)
+    @specifiers.forwards_to_function(wrapped, 1)
     def outer(arg, *args, **kwargs):
         inner(arg, *args, **kwargs)
 
@@ -66,21 +66,21 @@ This applies even if the argument comes from the wrapper::
 
 Pass the names of the arguments after ``num_args``::
 
-    @specifiers.forwards_to(wrapped, 0, 'arg')
+    @specifiers.forwards_to_function(wrapped, 0, 'arg')
     def outer(*args, **kwargs):
         inner(*args, arg='abc', **kwargs)
 
 Once again, the same goes for if that argument comes from the outer
 function's::
 
-    @specifiers.forwards_to(wrapped, 0, 'arg')
+    @specifiers.forwards_to_function(wrapped, 0, 'arg')
     def outer(*args, arg, **kwargs): # py 3
         inner(*args, arg=arg, **kwargs)
 
 If you combine positional and named arguments, follow the previous advice as
 well::
 
-    @specifiers.forwards_to(wrapped, 2, 'alpha', 'beta')
+    @specifiers.forwards_to_function(wrapped, 2, 'alpha', 'beta')
     def outer(two, *args, beta, **kwargs):
         inner(one, two=two, *args, alpha='abc', beta=beta, **kwargs)
 
@@ -90,14 +90,14 @@ well::
 Pass ``use_varargs=False`` if you outer function has an ``*args``-like
 parameter but doesn't use it on the inner function directly::
 
-    @specifiers.forwards_to(wrapped, use_varargs=False)
+    @specifiers.forwards_to_function(wrapped, use_varargs=False)
     def outer(*args, **kwargs):
         inner(**kwargs)
 
 Pass ``use_varkwargs=False`` if you outer function has a ``**kwargs``-like
 parameter but doesn't use it on the inner function directly::
 
-    @specifiers.forwards_to(wrapped, use_varkwargs=False)
+    @specifiers.forwards_to_function(wrapped, use_varkwargs=False)
     def outer(*args, **kwargs):
         inner(*args)
 

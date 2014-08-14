@@ -23,7 +23,7 @@ _im_type = type(_inst.method)
 def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
     outer_f = support.f(outer)
     inner_f = support.f(inner)
-    forw = specifiers.forwards_to(inner_f, *args, **kwargs)(outer_f)
+    forw = specifiers.forwards_to_function(inner_f, *args, **kwargs)(outer_f)
 
     if expected is not None:
         self.assertSigsEqual(
@@ -49,7 +49,7 @@ class ForwardsTest(object):
     def test_call(self):
         outer = support.f('*args, **kwargs')
         inner = support.f('a, *, b')
-        forw = specifiers.forwards_to(inner)(outer)
+        forw = specifiers.forwards_to_function(inner)(outer)
         instance = object()
         forw_get_prox = _util.safe_get(forw, instance, object)
         self.assertEqual(
@@ -221,7 +221,7 @@ class ForwardsAttributeTests(object):
             self.fail('Did not raise AttributeError')
 
 
-        @specifiers.forwards_to(_func, emulate=True)
+        @specifiers.forwards_to_function(_func, emulate=True)
         def func(x, y, *args, **kwargs):
             return x + y
         self.assertEqual(5, func(2, 3))
