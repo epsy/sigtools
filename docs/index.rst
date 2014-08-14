@@ -9,8 +9,8 @@ which provide a new way to introspect callable objects and a protocol for
 pretending to have a different call signature.
 
 This package helps module authors enhance their callables' introspectability
-if needed, and provides a way to use features the python syntax does not
-or did not permit, such as keyword-only parameters.
+if needed, for instance for documentation, and provides a way to use features
+the python syntax does not or did not permit, such as keyword-only parameters.
 
 For versions of Python below 3.3, `a backport of the relevant parts of inspect
 is available on pypi <https://pypi.python.org/pypi/funcsigs>`_.
