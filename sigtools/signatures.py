@@ -56,7 +56,7 @@ def sort_params(sig):
 
         >>> from sigtools import signatures, support
         >>> from pprint import pprint
-        >>> pprint(signatures.sort_params(support.s('<a>, b, *args, c, d')))
+        >>> pprint(signatures.sort_params(support.s('a, /, b, *args, c, d')))
         ([<Parameter at 0x7fdda4e89418 'a'>],
          [<Parameter at 0x7fdda4e89470 'b'>],
          <Parameter at 0x7fdda4e89c58 'args'>,
@@ -300,7 +300,7 @@ def merge(*signatures):
         >>> sig_merged = signatures.merge(sig_left, sig_right)
         >>> 
         >>> print(sig_merged)
-        (<alpha>, *args, **kwargs)
+        (alpha, /, *args, **kwargs)
         >>> 
         >>> kwargs = {'alpha': 'a', 'beta': 'b'}
         >>> left(**kwargs), right(**kwargs) # both functions accept the call
@@ -309,12 +309,11 @@ def merge(*signatures):
         >>> sig_merged.bind(**kwargs) # the merged signature doesn't
         Traceback (most recent call last):
           File "<input>", line 1, in <module>
-          File "/usr/lib/python3.3/inspect.py", line 2036, in bind
-            return __bind_self._bind(args, kwargs)
-          File "/usr/lib/python3.3/inspect.py", line 1944, in _bind
+          File "/usr/lib64/python3.4/inspect.py", line 2642, in bind
+            return args[0]._bind(args[1:], kwargs)
+          File "/usr/lib64/python3.4/inspect.py", line 2542, in _bind
             raise TypeError(msg) from None
         TypeError: 'alpha' parameter is positional only, but was passed as a keyword
-
 
     """
     assert signatures, "Expected at least one signature"
