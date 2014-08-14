@@ -1,7 +1,7 @@
 ``sigtools``: utilities to manipulate callable objects' signatures
 ==================================================================
 
-``sigtools`` provides:
+The ``sigtools`` python library provides:
 
 * Decorators to specify keyword-only parameters, annotations and
   positional-only parameters, even on python2: ``sigtools.modifiers``
@@ -10,4 +10,17 @@
 * Function combination routines that preserve signatures: ``sigtools.wrappers``
 * Functions to manipulate signature objects likewise: ``sigtools.signatures``
 
-The documentation can be found at `Read The Docs <http://sigtools.readthedocs.org>`_.
+The documentation can be found at Read The Docs:
+http://sigtools.readthedocs.org
+
+Installing
+----------
+
+Within a `virtualenv
+<http://virtualenv.readthedocs.org/en/latest/virtualenv.html>`::
+
+    $ pip install sigtools
+
+Or for a user-wide install::
+
+    $ pip install --user sigtools
