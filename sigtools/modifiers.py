@@ -286,13 +286,20 @@ def autokwoargs(func=None, exceptions=()):
 def _autokwoargs(exceptions, func):
     sig = _util.forged_signature(func)
     args = []
+    exceptions = set(exceptions)
     for param in sig.parameters.values():
         if (
                 param.kind == param.POSITIONAL_OR_KEYWORD
                 and param.default != param.empty
-                and param.name not in exceptions
             ):
-            args.append(param.name)
+            try:
+                exceptions.remove(param.name)
+            except KeyError:
+                args.append(param.name)
+    if exceptions:
+        raise ValueError(
+            "parameters referred to by 'exceptions' not present: "
+            + ' '.join(repr(name) for name in exceptions))
     return kwoargs(*args)(func)
 
 class annotate(object):

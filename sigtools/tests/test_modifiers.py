@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import unittest
-
 from sigtools import modifiers
 from sigtools._util import funcsigs, signature, safe_get
 from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
@@ -272,6 +270,11 @@ class AutokwoargsTests(object):
 
     def test_bad_call(self):
         self.assertRaises(ValueError, modifiers.autokwoargs, 'abc')
+
+    def test_absent_exception(self):
+        deco = modifiers.autokwoargs(exceptions=['not_there'])
+        def func(there): pass
+        self.assertRaises(ValueError, deco, func)
 
 
 class AnnotateTests(SignatureTests):
