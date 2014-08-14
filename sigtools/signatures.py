@@ -182,6 +182,8 @@ def _merge(left, right):
             if l_pokarg.name == r_pokarg.name:
                 pokargs.append(_concile_meta(l_pokarg, r_pokarg))
             else:
+                for i, pokarg in enumerate(pokargs):
+                    pokargs[i] = pokarg.replace(kind=pokarg.POSITIONAL_ONLY)
                 pokargs.append(
                     _concile_meta(l_pokarg, r_pokarg)
                     .replace(kind=l_pokarg.POSITIONAL_ONLY))

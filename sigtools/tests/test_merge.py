@@ -40,7 +40,8 @@ class MergeTests(object):
     pokarg_star_convert_kwo = '*, a', '**kwargs', 'a'
     pokarg_star_keep = 'a', '*args, **kwargs', 'a'
 
-    pokarg_convert_name = '<a>', 'a', 'b'
+    pokarg_rename = '<a>', 'a', 'b'
+    pokarg_rename_second = '<a>, <b>', 'a, b', 'a, c'
 
     pokarg_found_kwo = '*, a', '*, a', 'a'
     pokarg_found_kwo_r = '*, a', 'a', '*, a'
