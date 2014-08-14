@@ -17,7 +17,7 @@ Installing
 ----------
 
 Within a `virtualenv
-<http://virtualenv.readthedocs.org/en/latest/virtualenv.html>`::
+<http://virtualenv.readthedocs.org/en/latest/virtualenv.html>`_::
 
     $ pip install sigtools
 
