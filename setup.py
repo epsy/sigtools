@@ -1,12 +1,5 @@
 #!/usr/bin/env python
 from setuptools import setup
-import sys
-
-require_funcsigs = sys.version_info < (3,3)
-requirements = ['six']
-
-if require_funcsigs:
-    requirements.append('funcsigs>=0.4')
 
 setup(
     name='sigtools',
@@ -17,7 +10,10 @@ setup(
     author_email='kaiser.yann@gmail.com',
     url='http://sigtools.readthedocs.org/',
     packages=['sigtools'],
-    install_requires=requirements,
+    install_requires=['six'],
+    extras_require={
+        ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
+    },
     test_suite='sigtools.tests',
     keywords='introspection signature',
     classifiers=[
@@ -32,4 +28,4 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    )
+)
