@@ -80,7 +80,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
                 + ' '.join(repr(name) for name in intersection))
         to_use = self.posoarg_names | self.kwoarg_names
 
-        sig = _util.signature(self.func)
+        sig = _util.forged_signature(self.func)
         params = []
         kwoparams = []
         kwopos = self.kwopos = []
@@ -187,7 +187,7 @@ def kwoargs(start=None, *kwoarg_names):
 def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
     kwoarg_names = set(_kwoargs)
     found = False
-    sig = _util.signature(func).parameters.values()
+    sig = _util.forged_signature(func).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if found or param.name == start:
@@ -241,7 +241,7 @@ def posoargs(end=None, *posoarg_names):
 def _posoargs_end(end, _posoargs, func, *args, **kwargs):
     posoarg_names = set(_posoargs)
     found = False
-    sig = _util.signature(func).parameters.values()
+    sig = _util.forged_signature(func).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if not found:
@@ -284,7 +284,7 @@ def autokwoargs(func=None, exceptions=()):
         return partial(_autokwoargs, exceptions)
 
 def _autokwoargs(exceptions, func):
-    sig = _util.signature(func)
+    sig = _util.forged_signature(func)
     args = []
     for param in sig.parameters.values():
         if (
@@ -325,7 +325,7 @@ class annotate(object):
         while isinstance(func, _PokTranslator):
             poks.append(func)
             func = func.func
-        sig = _util.signature(func)
+        sig = _util.forged_signature(func)
         parameters = []
         to_use = self.to_use.copy()
         for name, parameter in sig.parameters.items():
@@ -356,3 +356,6 @@ class annotate(object):
             '' if self.ret is _util.UNSET else '{0!r}, '.format(self.ret),
             ', '.join('{0[0]}={0[1]!r}'.format(item)
                       for item in sorted(self.annotations.items())))
+
+
+_finalized = True

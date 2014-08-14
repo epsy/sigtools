@@ -1,5 +1,5 @@
 
-from functools import partial, update_wrapper
+from functools import update_wrapper
 from weakref import WeakKeyDictionary
 
 def get_funcsigs():
@@ -13,6 +13,46 @@ def get_funcsigs():
         return inspect
 funcsigs = get_funcsigs()
 signature = funcsigs.signature
+
+
+# This function is exposed as `sigtools.specifiers.signature`.
+# it is here so that `sigtools.modifiers` may use it without causing
+# circular imports
+def forged_signature(obj):
+    """Retrieve the signature of ``obj``, taking into account any specifier
+    from this module.
+
+    You can use ``emulate=True`` as an argument to the specifiers from this
+    module if you wish them to work with `inspect.signature` or its
+    `funcsigs<funcsigs:signature>` backport directly.
+
+    ::
+
+        >>> from sigtools import specifiers
+        >>> import inspect
+        >>> def inner(a, b):
+        ...     return a + b
+        ...
+        >>> @specifiers.forwards_to(inner)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        ...
+        >>> print(inspect.signature(outer))
+        (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
+        >>> @specifiers.forwards_to(inner, emulate=True)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        #fixme
+
+    """
+    forger = getattr(obj, '_sigtools__forger', None)
+    if forger is None:
+        return signature(obj)
+    ret = forger(obj=obj)
+    return ret
+
 
 def get_ordereddict_or_dict():
     import collections

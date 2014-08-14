@@ -198,7 +198,7 @@ def s(*args, **kwargs):
         >>> print(sig)
         (a, b=2, *args, c:'annotation', **kwargs)
     """
-    return _util.signature(f(*args, **kwargs))
+    return specifiers.signature(f(*args, **kwargs))
 
 def func_from_sig(sig):
     """Creates a dummy function from the given signature object
@@ -350,7 +350,7 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
         signature are also invalid for the passed callable.
     :raises: AssertionError
     """
-    sig = _util.signature(func)
+    sig = specifiers.signature(func)
 
     valid, invalid = sort_callsigs(sig, make_up_callsigs(sig, extra=0))
 

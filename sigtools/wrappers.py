@@ -43,14 +43,19 @@ class Combination(object):
                 funcs.extend(function.functions)
             else:
                 funcs.append(function)
-        self.__signature__ = signatures.merge(
-            _util.signature(self),
-            *(_util.signature(func) for func in funcs))
+        specifiers.set_signature_forger(self, self.get_signature,
+                                        emulate=False)
 
     def __call__(self, arg, *args, **kwargs):
         for function in self.functions:
             arg = function(arg, *args, **kwargs)
         return arg
+
+    def get_signature(self, obj):
+        return signatures.merge(
+            _util.signature(self),
+            *(specifiers.signature(func) for func in self.functions)
+            )
 
     def __repr__(self):
         return '{0.__module__}.{0.__name__}({1})'.format(
