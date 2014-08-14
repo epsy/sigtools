@@ -32,6 +32,9 @@ parameters stand for in your function if it forwards them to another callable.
 This should cover most use cases, but you can use `forger_function` or
 `set_signature_forger` to create your own.
 
+.. |forwards_params| replace::
+    See :ref:`forwards-pick` for more information on the parameters. 
+
 """
 
 from functools import partial, update_wrapper
@@ -150,7 +153,7 @@ def forwards(wrapper, wrapped, *args, **kwargs):
 
     :return: a `inspect.Signature` object
 
-    .. seealso:: `sigtools.signatures.forwards`
+    |forwards_params|
 
     """
     return signatures.forwards(
@@ -179,7 +182,7 @@ def forwards_to(obj, *args, **kwargs):
         >>> print(signature(wrapper))
         (a, x, y)
 
-    .. seealso:: `sigtools.signatures.forwards`
+    |forwards_params|
 
     """
     ret = forwards(obj, *args, **kwargs)
@@ -198,6 +201,8 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
 
     :param str wrapped_name: The name of the wrapped method.
 
+    |forwards_params|
+
     ::
 
         >>> from sigtools.specifiers import signature, forwards_to_method
@@ -211,8 +216,6 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
         >>> h = Ham()
         >>> print(signature(h.spam))
         (c, a, b)
-
-    .. seealso:: `sigtools.signatures.forwards`
 
     """
     try:
@@ -267,7 +270,7 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     If you need to use similar functionality in older python versions, use
     `apply_forwards_to_super` instead.
 
-    .. seealso:: `sigtools.signatures.forwards`
+    |forwards_params|
 
     """
     try:
@@ -306,7 +309,7 @@ def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
         >>> print(signature(Subclass().func))
         (a, x, y)
 
-    .. seealso:: `sigtools.signatures.forwards`
+    |forwards_params|
 
     """
     return partial(_apply_forwards_to_super, member_names,

@@ -32,6 +32,8 @@ in your Sphinx ``conf.py``
 
 """
 
+from sphinx.ext import autodoc
+
 from sigtools import specifiers, _util
 
 def process_signature(app, what, name, obj, options,
@@ -70,5 +72,22 @@ def fetch_deep_attr(obj, attrs):
         parent, obj = obj, getattr(obj, attr)
     return parent, obj
 
+class SignatureDocumenter(autodoc.FunctionDocumenter):
+    objtype = 'signature'
+    directivetype = 'function'
+    priority = -1
+
+    option_spec = {
+        'index': autodoc.bool_option,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(SignatureDocumenter, self).__init__(*args, **kwargs)
+        self.options.noindex = not self.options.index
+
+    def add_content(self, *args, **kwargs):
+        pass
+
 def setup(app):
     app.connect('autodoc-process-signature', process_signature)
+    app.add_autodocumenter(SignatureDocumenter)

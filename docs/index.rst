@@ -40,3 +40,5 @@ is available on pypi <https://pypi.python.org/pypi/funcsigs>`_.
     :show-inheritance:
 
 .. automodule:: sigtools.sphinxext
+
+.. include:: forwards-howto.rsti
