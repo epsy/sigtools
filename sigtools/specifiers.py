@@ -90,6 +90,17 @@ def signature(obj):
 
 
 def set_signature_forger(obj, forger, emulate=None):
+    """Attempts to set the given signature forger on the supplied object.
+
+    This function first tries to set an attribute on ``obj`` and returns it.
+    If that fails, it wraps the object that advertises the correct signature (even to `inspect.signature`) and forwards calls.
+
+    :param emulate: If supplied, forces the function to adhere to one strategy:
+        either set the attribute or fail(``False``), or always wrap the
+        object(``True``). If something else is passed, it is called with
+        ``(obj, forger)`` and the return value is used.
+
+    """
     if not emulate:
         try:
             obj._sigtools__forger = forger
@@ -97,7 +108,10 @@ def set_signature_forger(obj, forger, emulate=None):
         except (AttributeError, TypeError):
             if emulate is False:
                 raise
-    return _ForgerWrapper(obj, forger)
+    if emulate is None or emulate is True:
+        return _ForgerWrapper(obj, forger)
+    else:
+        return emulate(obj, forger)
 
 
 def _transform(obj, meta):
@@ -130,6 +144,32 @@ class _ForgerWrapper(object):
 
 
 def forger_function(func):
+    """Creates a decorator factory which, when applied will set ``func`` as the
+    forger function of the decorated object.
+
+    :param callable func: Must return a fake signature for the object passed as
+        the named argument ``obj``. Any arguments supplied during decoration
+        are also passed.
+
+    The decorator produced by this function also accepts an ``emulate``
+    parameter. See `set_signature_forger` for information on it.
+
+    This function can be used as a decorator::
+
+        >>> from sigtools import specifiers, modifiers, support
+        >>> @specifiers.forger_function
+        ... @modifiers.kwoargs('obj')
+        ... def static_signature(obj, sig):
+        ...     return sig
+        ...
+        >>> @static_signature(support.s('a, b, /'))
+        ... def my_func(d, e):
+        ...     pass
+        ...
+        >>> print(specifiers.signature(my_func))
+        (a, b, /)
+
+    """
     @modifiers.kwoargs('emulate')
     def _apply_forger(emulate=None, *args, **kwargs):
         def _applier(obj):
