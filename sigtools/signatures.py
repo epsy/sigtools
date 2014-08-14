@@ -498,8 +498,7 @@ def forwards(outer, inner,
     :param inspect.Signature inner: The inner signature.
 
     ``use_varargs`` and ``use_varkwargs`` are the same parameters as in
-    `.embed`, and ``num_args``, ``named_args``, ``hide_varargs``,
-    ``hide_varkwargs`` are parameters of `.mask`.
+    `.embed`, and ``num_args``, ``named_args`` are parameters of `.mask`.
 
     :return: the resulting `inspect.Signature` object
     :raises: `IncompatibleSignatures`
@@ -518,7 +517,9 @@ def forwards(outer, inner,
 
     """
     return embed(
-        outer, mask(inner, *args, **kwargs),
+        outer,
+        mask(inner, *args, hide_varargs=False, hide_varkwargs=False, **kwargs),
         use_varargs=use_varargs, use_varkwargs=use_varkwargs)
 forwards.__signature__ = forwards(
-    _util.signature(forwards), _util.signature(mask), 1)
+    _util.signature(forwards), _util.signature(mask),
+    1, 'hide_varargs', 'hide_varkwargs')
