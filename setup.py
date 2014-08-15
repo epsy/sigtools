@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='sigtools',
-    version='0.1a4',
+    version='0.1a5',
     description="Utilities for working with 3.3's inspect.Signature objects.",
     license='MIT',
     author='Yann Kaiser',
