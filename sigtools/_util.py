@@ -48,10 +48,11 @@ def forged_signature(obj):
 
     """
     forger = getattr(obj, '_sigtools__forger', None)
-    if forger is None:
-        return signature(obj)
-    ret = forger(obj=obj)
-    return ret
+    if forger is not None:
+        ret = forger(obj=obj)
+        if ret is not None:
+            return ret
+    return signature(obj)
 
 
 def get_ordereddict_or_dict():
