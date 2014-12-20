@@ -220,6 +220,13 @@ class ForwardsAttributeTests(object):
         else:
             self.fail('Did not raise AttributeError')
 
+        class Emulator(object):
+            def __init__(self, obj, forger):
+                self.obj = obj
+                self.forger = forger
+
+        func = specifiers.forwards_to_function(func, emulate=Emulator)(_func)
+        self.assertTrue(isinstance(func, Emulator))
 
         @specifiers.forwards_to_function(_func, emulate=True)
         def func(x, y, *args, **kwargs):
