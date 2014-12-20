@@ -47,6 +47,8 @@ class SignatureTests(unittest.TestCase):
             pass
         else:
             self.fail("{0} did not raise {1}".format(_func, _exc))
+    if hasattr(unittest.TestCase, 'assertRaises'):
+        del assertRaises
 
 def make_run_test(func, value, **kwargs):
     def _func(self):
