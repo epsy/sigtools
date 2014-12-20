@@ -62,11 +62,17 @@ def sig_equal(self, obj, sig_str):
     self.assertSigsEqual(specifiers.signature(obj), support.s(sig_str),
                          conv_first_posarg=True)
 
+class _Coop(object):
+    @modifiers.kwoargs('cb')
+    def method(self, ca, cb, *cr, **ck):
+        pass
+
 @sig_equal
 class ForwardsAttributeTests(object):
     class _Base(object):
         def __init__(self, decorated=None):
             self.decorated = decorated
+            self.coop = _Coop()
 
         @modifiers.kwoargs('b')
         def inner(self, a, b):
@@ -101,6 +107,11 @@ class ForwardsAttributeTests(object):
         @specifiers.forwards_to_method('ftm2')
         @modifiers.kwoargs('s')
         def chain_afts(self, r, s, *args, **kwargs):
+            raise NotImplementedError
+
+        @specifiers.forwards_to_method('coop.method')
+        @modifiers.kwoargs('bc')
+        def ccm(self, ba, bb, bc, *args, **kwargs):
             raise NotImplementedError
 
     @_Base
@@ -139,6 +150,8 @@ class ForwardsAttributeTests(object):
     base_method_cls = _Base.ftm, 'self, *args, **kwargs'
 
     base_ivar = _base_inst.fti, 'a, *, b'
+
+    base_coop = _base_inst.ccm, 'ba, bb, ca, *cr, bc, cb, **ck'
 
     sub_method = _sub_inst.ftm, 'e, a, *, b'
 

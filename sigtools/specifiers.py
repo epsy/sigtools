@@ -208,9 +208,10 @@ forwards_to = forwards_to_function
 def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
     it has when it forwards its ``*args`` and ``**kwargs`` to the method
-    named by ``wrapped_name``.
+    or attribute named by ``wrapped_name``.
 
-    :param str wrapped_name: The name of the wrapped method.
+    :param str wrapped_name: The name of the wrapped method or attribute.
+        Passing a name with dots(``.``) will do a deep attribute search.
 
     |forwards_params|
 
@@ -235,7 +236,10 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
         self = None
     if self is None:
         return _util.signature(obj)
-    return forwards(obj, getattr(self, wrapped_name), *args, **kwargs)
+    wrapped = self
+    for attr in wrapped_name.split('.'):
+        wrapped = getattr(wrapped, attr)
+    return forwards(obj, wrapped, *args, **kwargs)
 
 
 forwards_to_ivar = forwards_to_method
