@@ -224,8 +224,10 @@ class ForwardsAttributeTests(object):
 
             def abc(self, x):
                 pass
-        func = specifiers.forwards_to_method('abc')(Cls().func)
+        method = Cls().func
+        func = specifiers.forwards_to_method('abc')(method)
         self.assertTrue(isinstance(func, specifiers._ForgerWrapper))
+        self.assertEquals(func.__wrapped__, method)
         try:
             specifiers.forwards_to_method('abc', emulate=False)(Cls().func)
         except AttributeError:
