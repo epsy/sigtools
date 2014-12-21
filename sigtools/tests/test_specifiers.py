@@ -2,6 +2,7 @@
 
 import unittest
 import sys
+from functools import partial
 
 from sigtools import modifiers, specifiers, support, _util
 from sigtools.tests.util import sigtester
@@ -265,6 +266,17 @@ class ForwardsAttributeTests(object):
         if sys.version_info < (3,):
             self.assertRaises(ValueError, specifiers.signature, Sub().n)
 
+
+@sig_equal
+class PartialSigTests(object):
+    _func1 = support.f('a, b, c, *args, d, e, **kwargs')
+
+    pos = partial(_func1, 1), 'b, c, *args, d, e, **kwargs'
+    kwkw = partial(_func1, d=1), 'a, b, c, *args, e, d=1, **kwargs'
+    kwkws = partial(_func1, f=1), 'a, b, c, *args, d, e, f=1, **kwargs'
+
+    kwposlast = partial(_func1, c=1), 'a, b, *, d, e, c=1, **kwargs'
+    kwposlast = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
 
 if __name__ == '__main__':
     unittest.main()

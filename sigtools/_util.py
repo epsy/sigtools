@@ -12,48 +12,6 @@ def get_funcsigs():
     else:
         return inspect
 funcsigs = get_funcsigs()
-signature = funcsigs.signature
-
-
-# This function is exposed as `sigtools.specifiers.signature`.
-# it is here so that `sigtools.modifiers` may use it without causing
-# circular imports
-def forged_signature(obj):
-    """Retrieve the signature of ``obj``, taking into account any specifier
-    from this module.
-
-    You can use ``emulate=True`` as an argument to the specifiers from this
-    module if you wish them to work with `inspect.signature` or its
-    `funcsigs<funcsigs:signature>` backport directly.
-
-    ::
-
-        >>> from sigtools import specifiers
-        >>> import inspect
-        >>> def inner(a, b):
-        ...     return a + b
-        ...
-        >>> @specifiers.forwards_to_function(inner)
-        ... def outer(c, *args, **kwargs):
-        ...     return c * inner(*args, **kwargs)
-        ...
-        >>> print(inspect.signature(outer))
-        (c, *args, **kwargs)
-        >>> print(specifiers.signature(outer))
-        (c, a, b)
-        >>> @specifiers.forwards_to_function(inner, emulate=True)
-        ... def outer(c, *args, **kwargs):
-        ...     return c * inner(*args, **kwargs)
-        #fixme
-
-    """
-    forger = getattr(obj, '_sigtools__forger', None)
-    if forger is not None:
-        ret = forger(obj=obj)
-        if ret is not None:
-            return ret
-    return signature(obj)
-
 
 def get_ordereddict_or_dict():
     import collections

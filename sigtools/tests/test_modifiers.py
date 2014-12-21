@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from sigtools import modifiers
-from sigtools._util import funcsigs, signature, safe_get
+from sigtools._util import funcsigs, safe_get
 from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
-from sigtools.signatures import sort_params, apply_params
+from sigtools.signatures import sort_params, apply_params, signature
 from sigtools.tests.util import sigtester, SignatureTests
 
 def replace_parameter(sig, param):

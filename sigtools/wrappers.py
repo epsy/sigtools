@@ -137,6 +137,11 @@ class _Wrapped(object):
         self.__wrapped__ = wrapped
         self.__signature__ = sig
 
+    def _sigtools__forger(self, obj):
+        return specifiers.forwards(
+            self.func, self.__wrapped__,
+            *self.decorator.f_args, **self.decorator.f_kwargs)
+
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 

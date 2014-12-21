@@ -39,7 +39,7 @@ This should cover most use cases, but you can use `forger_function` or
 
 from functools import partial, update_wrapper
 
-from sigtools import _util, modifiers, signatures
+from sigtools import _util, modifiers, signatures, _signatures
 
 __all__ = [
     'signature',
@@ -53,7 +53,7 @@ __all__ = [
 _kwowr = modifiers.kwoargs('obj')
 
 
-signature = _util.forged_signature
+signature = _signatures.forged_signature
 
 
 def set_signature_forger(obj, forger, emulate=None):
@@ -164,7 +164,7 @@ def forwards(wrapper, wrapped, *args, **kwargs):
 
     """
     return signatures.forwards(
-        _util.signature(wrapper), signature(wrapped),
+        signatures.signature(wrapper), signature(wrapped),
         *args, **kwargs)
 forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 
@@ -235,7 +235,7 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     except AttributeError:
         self = None
     if self is None:
-        return _util.signature(obj)
+        return signatures.signature(obj)
     wrapped = self
     for attr in wrapped_name.split('.'):
         wrapped = getattr(wrapped, attr)
@@ -293,7 +293,7 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     except AttributeError:
         self = None
     if self is None:
-        return _util.signature(obj)
+        return signatures.signature(obj)
     inner = getattr(
         super(_get_origin_class(obj, cls), self),
         obj.__name__)
