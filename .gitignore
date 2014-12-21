@@ -1,1 +1,7 @@
-.bzrignore
+/docs/_build
+/htmlcov
+/.coverage
+/build
+/dist
+/*.egg*
+/.tox
