@@ -23,8 +23,6 @@
 import unittest
 from functools import partial
 
-from sigtools import _util
-
 def conv_first_posarg(sig):
     if not sig.parameters:
         return sig
@@ -34,16 +32,6 @@ def conv_first_posarg(sig):
         parameters=(first,) + tuple(sig.parameters.values())[1:])
 
 class SignatureTests(unittest.TestCase):
-    def format_func(self, func, args=None, kwargs=None):
-        if args is not None and kwargs is not None:
-            return '{0}{1} <- *{2}, **{3}'.format(
-                _util.qualname(func), _util.signature(func),
-                args, kwargs)
-        else:
-            return '{0}{1}'.format(
-                _util.qualname(func), _util.signature(func),
-                )
-
     def assertSigsEqual(self, found, expected, *args, **kwargs):
         conv = kwargs.pop('conv_first_posarg', False)
         if expected != found:
@@ -60,16 +48,6 @@ class SignatureTests(unittest.TestCase):
         return self.assertTrue(left is right)
     if hasattr(unittest.TestCase, 'assertIs'):
         del assertIs
-
-    def assertRaises(self, _exc, _func, *args, **kwargs):
-        try:
-            _func(*args, **kwargs)
-        except _exc:
-            pass
-        else:
-            self.fail("{0} did not raise {1}".format(_func, _exc))
-    if hasattr(unittest.TestCase, 'assertRaises'):
-        del assertRaises
 
 def make_run_test(func, value, **kwargs):
     def _func(self):

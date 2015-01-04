@@ -183,16 +183,8 @@ class PokTranslatorTestsThreeArgs(object):
 
 @sigtester
 def poktranslator_raise_tests(self, sig_str, posoargs, kwoargs):
-    func = f(sig_str)
-    try:
-        ret = modifiers._PokTranslator(func, posoargs, kwoargs)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError(
-            '_PokTranslator({0}, {1!r}, {2!r}) did not raise ValueError, '
-            'instead returned {3}'.format(
-                self.format_func(func), posoargs, kwoargs, ret))
+    self.assertRaises(
+        ValueError, modifiers._PokTranslator, f(sig_str), posoargs, kwoargs)
 
 @poktranslator_raise_tests
 class PokTranslatorRaiseTests(object):
