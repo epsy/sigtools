@@ -59,7 +59,7 @@ def sort_params(sig):
     posargs = []
     pokargs = []
     varargs = None
-    kwoargs = _util.dod()
+    kwoargs = _util.OrderedDict()
     varkwas = None
     for param in sig.parameters.values():
         if param.kind == param.POSITIONAL_ONLY:
@@ -139,10 +139,10 @@ def _merge(left, right):
     posargs = []
     pokargs = []
     varargs = r_varargs and l_varargs
-    kwoargs = _util.dod()
+    kwoargs = _util.OrderedDict()
     varkwargs = r_varkwargs and l_varkwargs
 
-    l_kwoargs_limbo = _util.dod()
+    l_kwoargs_limbo = _util.OrderedDict()
     for l_kwoarg in l_kwoargs.values():
         if l_kwoarg.name in r_kwoargs:
             kwoargs[l_kwoarg.name] = _concile_meta(
@@ -150,7 +150,7 @@ def _merge(left, right):
         else:
             l_kwoargs_limbo[l_kwoarg.name] = l_kwoarg
 
-    r_kwoargs_limbo = _util.dod()
+    r_kwoargs_limbo = _util.OrderedDict()
     for r_kwoarg in r_kwoargs.values():
         if r_kwoarg.name not in l_kwoargs:
             r_kwoargs_limbo[r_kwoarg.name] = r_kwoarg
@@ -268,7 +268,7 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
 
     e_posargs = []
     e_pokargs = []
-    e_kwoargs = _util.dod()
+    e_kwoargs = _util.OrderedDict()
 
     e_posargs.extend(o_posargs)
     _check_no_dupes(names, o_posargs)

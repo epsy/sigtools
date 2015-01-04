@@ -13,6 +13,7 @@ setup(
     install_requires=['six'],
     extras_require={
         ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
+        ':python_version in "2.6"': ['ordereddict'],
     },
     test_suite='sigtools.tests',
     keywords='introspection signature',

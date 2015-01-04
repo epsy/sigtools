@@ -34,13 +34,12 @@ def get_funcsigs():
         return inspect
 funcsigs = get_funcsigs()
 
-def get_ordereddict_or_dict():
-    import collections
-    try:
-        return collections.OrderedDict
-    except AttributeError:
-        return dict
-dod = get_ordereddict_or_dict()
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 
 class _Unset(object):
     __slots__ = ()
