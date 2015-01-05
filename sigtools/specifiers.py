@@ -235,7 +235,7 @@ def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     except AttributeError:
         self = None
     if self is None:
-        return signatures.signature(obj)
+        return
     wrapped = self
     for attr in wrapped_name.split('.'):
         wrapped = getattr(wrapped, attr)
@@ -293,7 +293,7 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     except AttributeError:
         self = None
     if self is None:
-        return signatures.signature(obj)
+        return
     inner = getattr(
         super(_get_origin_class(obj, cls), self),
         obj.__name__)
