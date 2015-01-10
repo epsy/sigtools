@@ -21,8 +21,6 @@
 # THE SOFTWARE.
 
 
-from functools import wraps
-
 from sigtools import wrappers, support, signatures
 from sigtools.tests.util import sigtester
 
@@ -94,8 +92,8 @@ class WdTests(object):
         )
 
     def _deco_classic(func):
-        @wraps(func)
         def wrapper(*args, **kwargs): return func(*args, **kwargs)
+        wrapper.__wrapped__ = func
         return wrapper
 
     @tup('a, b, j, k, l', (1, 2, 3, 4, 5), {}, (1, 2, (3, 4, 5)), [_deco_all])
