@@ -26,12 +26,12 @@ from sigtools import _util
 
 try:
     from collections import abc
-except ImportError:
+except ImportError: # pragma: no cover
     import collections as abc
 
 try:
     zip_longest = itertools.izip_longest
-except AttributeError:
+except AttributeError: # pragma: no cover
     zip_longest = itertools.zip_longest
 
 
@@ -409,4 +409,3 @@ def forged_signature(obj):
         if ret is not None:
             return ret
     return signature(obj)
-

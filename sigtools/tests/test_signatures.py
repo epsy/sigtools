@@ -1,5 +1,3 @@
-
-#!/usr/bin/env python
 # sigtools - Collection of Python modules for manipulating function signatures
 # Copyright (c) 2013-2015 Yann Kaiser
 #
@@ -22,11 +20,12 @@
 # THE SOFTWARE.
 
 
-from sigtools._signatures import sort_params, apply_params
+from sigtools._signatures import (
+    sort_params, apply_params, IncompatibleSignatures)
 from sigtools.support import s
 from sigtools._util import OrderedDict
 
-from sigtools.tests.util import SignatureTests
+from sigtools.tests.util import SignatureTests, sigtester
 
 
 class SortParamsTests(SignatureTests):
@@ -101,3 +100,14 @@ class ApplyParamsTests(SignatureTests):
         sig = s(sig_str)
         self.assertEqual(apply_params(s(''), *sort_params(sig)), sig)
 
+@sigtester
+def test_exc(self, sig_str, sigs_strs, expected):
+    sig = s(sig_str)
+    sigs = [s(sig_str_) for sig_str_ in sigs_strs]
+    exc = IncompatibleSignatures(sig, sigs)
+    self.assertEqual(expected, str(exc))
+
+@test_exc
+class ExcTests(object):
+    one = 'a, b', ['c, d'], '(c, d) (a, b)'
+    two = 'a, b', ['c, d', 'e, f'], '(c, d) (e, f) (a, b)'

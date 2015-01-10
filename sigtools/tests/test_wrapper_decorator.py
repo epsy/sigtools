@@ -21,9 +21,9 @@
 # THE SOFTWARE.
 
 
-import unittest
+from functools import wraps
 
-from sigtools import _util, wrappers, support, signatures
+from sigtools import wrappers, support, signatures
 from sigtools.tests.util import sigtester
 
 def tup(*args):
@@ -93,5 +93,13 @@ class WdTests(object):
         [_deco_all, _deco_pos]
         )
 
-if __name__ == '__main__':
-    unittest.main()
+    def _deco_classic(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs): return func(*args, **kwargs)
+        return wrapper
+
+    @tup('a, b, j, k, l', (1, 2, 3, 4, 5), {}, (1, 2, (3, 4, 5)), [_deco_all])
+    @_deco_all
+    @_deco_classic
+    def partial_(j, k, l):
+        return j, k, l

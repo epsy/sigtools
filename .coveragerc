@@ -8,6 +8,7 @@ exclude_lines =
     raise NotImplementedError
     raise AssertionError
     if __name__ == .__main__.:
+    if sys.version_info
 
 include =
     sigtools/*

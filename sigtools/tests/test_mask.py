@@ -21,8 +21,6 @@
 # THE SOFTWARE.
 
 
-import unittest
-
 from sigtools import signatures, support
 from sigtools.tests.util import sigtester
 
@@ -59,22 +57,14 @@ class MaskTests(object):
     hide_varkwargs_absent = '', '', 0, '', False, True
 
 
-
 @sigtester
 def mask_raise_tests(self, sig_str, num_args, named_args=(),
                      hide_varargs=False, hide_varkwargs=False):
     sig = support.s(sig_str)
-    try:
-        signatures.mask(
-            sig, num_args, *named_args,
-            hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs)
-    except ValueError:
-        pass
-    else:
-        self.fail('ValueError not raised by mask({0}, {1}, *{2}, '
-                  'hide_varargs={3}, hide_varkwargs={4})'.format(
-                  sig, num_args, named_args, hide_varargs, hide_varkwargs
-                  ))
+    self.assertRaises(
+        ValueError, signatures.mask,
+        sig, num_args, *named_args,
+        hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs)
 
 @mask_raise_tests
 class MaskRaiseTests(object):
@@ -89,8 +79,3 @@ class MaskRaiseTests(object):
 
     key_twice = 'a', 0, 'aa'
     pos_and_key = 'a', 1, 'a'
-
-
-
-if __name__ == '__main__':
-    unittest.main()

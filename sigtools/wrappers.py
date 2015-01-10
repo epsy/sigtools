@@ -53,7 +53,7 @@ class Combination(object):
 
     def get_signature(self, obj):
         return signatures.merge(
-            _util.signature(self),
+            signatures.signature(self),
             *(specifiers.signature(func) for func in self.functions)
             )
 
@@ -171,10 +171,6 @@ def wrappers(obj):
             wrappers = obj._sigtools__wrappers
         except AttributeError:
             return
-        else:
-            for wrapper in wrappers:
-                yield wrapper
-        try:
-            obj = obj.__wrapped__
-        except AttributeError:
-            return
+        for wrapper in wrappers:
+            yield wrapper
+        obj = obj.__wrapped__

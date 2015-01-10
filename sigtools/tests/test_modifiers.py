@@ -34,19 +34,18 @@ def replace_parameter(sig, param):
 
 def defaults_variations(exp, orig):
     yield exp, orig
-    if set(exp.parameters.keys()) == set(orig.parameters.keys()):
-        keys = [param.name for param in orig.parameters.values()
-                if param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)]
-        for i in range(len(keys)):
-            keys_ = keys[i:]
-            exp_ = exp
-            orig_ = orig
-            for j, key in enumerate(reversed(keys_), i):
-                exp_ = replace_parameter(
-                    exp_, exp_.parameters[key].replace(default=j))
-                orig_ = replace_parameter(
-                    orig_, orig_.parameters[key].replace(default=j))
-            yield exp_, orig_
+    keys = [param.name for param in orig.parameters.values()
+            if param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)]
+    for i in range(len(keys)):
+        keys_ = keys[i:]
+        exp_ = exp
+        orig_ = orig
+        for j, key in enumerate(reversed(keys_), i):
+            exp_ = replace_parameter(
+                exp_, exp_.parameters[key].replace(default=j))
+            orig_ = replace_parameter(
+                orig_, orig_.parameters[key].replace(default=j))
+        yield exp_, orig_
 
 def insert_varargs(sig, args, kwargs):
     posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
@@ -281,13 +280,14 @@ def autokwoargs_tests(self, expected_sig_str, orig_sig_str, exceptions):
 class AutokwoargsTests(object):
     none = 'a, b, c', 'a, b, c', ''
     one_arg = 'a, b, *, c=1', 'a, b, c=1', ''
+    exception = 'a, b, c=1, *, d=2', 'a, b, c=1, d=2', 'c'
 
     def test_bad_call(self):
         self.assertRaises(ValueError, modifiers.autokwoargs, 'abc')
 
     def test_absent_exception(self):
         deco = modifiers.autokwoargs(exceptions=['not_there'])
-        def func(there): pass
+        def func(there): raise NotImplementedError
         self.assertRaises(ValueError, deco, func)
 
 

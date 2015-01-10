@@ -33,7 +33,8 @@ from sigtools.tests.util import sigtester
 not_py33 = sys.version_info < (3,3)
 
 
-def _func(*args, **kwargs): pass
+def _func(*args, **kwargs):
+    raise NotImplementedError
 
 class _cls(object):
     method = _func
@@ -47,17 +48,15 @@ def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
     inner_f = support.f(inner)
     forw = specifiers.forwards_to_function(inner_f, *args, **kwargs)(outer_f)
 
-    if expected is not None:
-        self.assertSigsEqual(
-            specifiers.signature(forw),
-            support.s(expected)
-            )
+    self.assertSigsEqual(
+        specifiers.signature(forw),
+        support.s(expected)
+        )
 
-    if expected_get is not None:
-        self.assertSigsEqual(
-            specifiers.signature(_util.safe_get(forw, object(), object)),
-            support.s(expected_get)
-            )
+    self.assertSigsEqual(
+        specifiers.signature(_util.safe_get(forw, object(), object)),
+        support.s(expected_get)
+        )
 
 @forwards_tests
 class ForwardsTest(object):
@@ -87,7 +86,7 @@ def sig_equal(self, obj, sig_str):
 class _Coop(object):
     @modifiers.kwoargs('cb')
     def method(self, ca, cb, *cr, **ck):
-        pass
+        raise NotImplementedError
 
 @sig_equal
 class ForwardsAttributeTests(object):
@@ -149,7 +148,7 @@ class ForwardsAttributeTests(object):
 
         @specifiers.forwards_to_super()
         def fts(self, s, *args, **kwargs):
-            super() # pramga: no cover
+            super() # pragma: no cover
 
         def afts(self, asup, *args, **kwargs):
             raise NotImplementedError
@@ -182,16 +181,14 @@ class ForwardsAttributeTests(object):
     sub_ivar = _sub_inst.fti, 'x, *, y'
 
     def test_fts(self):
-        if not_py33:
-            return
-
-        self._test_func(self._sub_inst.fts, 's, l, *, m')
+        if sys.version_info >= (3,3):
+            self._test_func(self._sub_inst.fts, 's, l, *, m')
 
     sub_afts_cls = _Derivate.afts, 'self, asup, *args, **kwargs'
     sub_afts = _sub_inst.afts, 'asup, n, *, o'
 
     def test_chain_fts(self):
-        if not_py33:
+        if sys.version_info < (3,3):
             return
 
         self._test_func(self._Derivate.chain_fts,
@@ -205,15 +202,15 @@ class ForwardsAttributeTests(object):
     def test_transform(self):
         class _callable(object):
             def __call__(self):
-                pass
+                raise NotImplementedError
 
         class Cls(object):
             @specifiers.forwards_to_method('__init__', emulate=True)
             def __new__(cls):
-                pass
+                raise NotImplementedError
 
             def __init__(self):
-                pass
+                raise NotImplementedError
 
             abc = None
             if sys.version_info >= (3,):
@@ -245,17 +242,14 @@ class ForwardsAttributeTests(object):
             func = _func
 
             def abc(self, x):
-                pass
+                raise NotImplementedError
         method = Cls().func
         func = specifiers.forwards_to_method('abc')(method)
         self.assertTrue(isinstance(func, specifiers._ForgerWrapper))
         self.assertEquals(func.__wrapped__, method)
-        try:
-            specifiers.forwards_to_method('abc', emulate=False)(Cls().func)
-        except AttributeError:
-            pass
-        else:
-            self.fail('Did not raise AttributeError')
+        self.assertRaises(
+            AttributeError,
+            specifiers.forwards_to_method('abc', emulate=False), Cls().func)
 
         class Emulator(object):
             def __init__(self, obj, forger):
@@ -273,16 +267,16 @@ class ForwardsAttributeTests(object):
     def test_super_fail(self):
         class Cls(object):
             def m(self):
-                pass
+                raise NotImplementedError
             def n(self):
-                pass
+                raise NotImplementedError
         class Sub(Cls):
             @specifiers.forwards_to_super()
             def m(self, *args, **kwargs):
-                pass
+                raise NotImplementedError
             @specifiers.forwards_to_super()
             def n(self, *args, **kwargs):
-                super(Sub, self).n(*args, **kwargs)
+                super(Sub, self).n(*args, **kwargs) # pragma: no cover
         self.assertRaises(ValueError, specifiers.signature, Sub().m)
         if sys.version_info < (3,):
             self.assertRaises(ValueError, specifiers.signature, Sub().n)
@@ -299,5 +293,41 @@ class PartialSigTests(object):
     kwposlast = partial(_func1, c=1), 'a, b, *, d, e, c=1, **kwargs'
     kwposlast = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
 
-if __name__ == '__main__':
-    unittest.main()
+
+class ForgerFunctionTests(unittest.TestCase):
+    def test_deco(self):
+        @specifiers.forger_function
+        def forger(obj):
+            return support.s('abc')
+        @forger()
+        def forged():
+            raise NotImplementedError
+        self.assertEqual(support.s('abc'), specifiers.signature(forged))
+
+    def test_directly_applied(self):
+        def forger(obj):
+            return support.s('abc')
+        def forged():
+            raise NotImplementedError
+        specifiers.set_signature_forger(forged, forger)
+        self.assertEqual(support.s('abc'), specifiers.signature(forged))
+
+    def test_forger_lazy(self):
+        class Flag(Exception): pass
+        @specifiers.forger_function
+        def forger(obj):
+            raise Flag
+        @forger()
+        def forged():
+            pass
+        self.assertEqual(forged(), None)
+        self.assertRaises(Flag, specifiers.signature, forged)
+
+    def test_orig_sig(self):
+        @specifiers.forger_function
+        def forger(obj):
+            return None
+        @forger()
+        def forged(alpha):
+            raise NotImplementedError
+        self.assertEqual(support.s('alpha'), specifiers.signature(forged))

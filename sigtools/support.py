@@ -352,7 +352,7 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
     """
     sig = specifiers.signature(func)
 
-    valid, invalid = sort_callsigs(sig, make_up_callsigs(sig, extra=0))
+    valid, invalid = sort_callsigs(sig, make_up_callsigs(sig, extra=2))
 
     for args, kwargs, expected_ret in valid:
         try:

@@ -21,11 +21,10 @@
 # THE SOFTWARE.
 
 
-import unittest
-
 from sigtools.signatures import embed, IncompatibleSignatures
 from sigtools.support import s
 from sigtools.tests.util import sigtester
+
 
 @sigtester
 def embed_tests(self, result, *signatures):
@@ -60,13 +59,7 @@ class EmbedTests(object):
 def embed_raise_tests(self, *signatures):
     assert len(signatures) >= 2
     sigs = [s(sig) for sig in signatures]
-    try:
-        embed(*sigs)
-    except IncompatibleSignatures as e:
-        str(e)
-    else:
-        self.fail('IncompatibleSignatures not raised when merging '
-            + ' '.join(str(sig) for sig in sigs))
+    self.assertRaises(IncompatibleSignatures, embed, *sigs)
 
 @embed_raise_tests
 class EmbedRaisesTests(object):
@@ -77,6 +70,3 @@ class EmbedRaisesTests(object):
     no_args_pos = '**kwargs', '<a>'
 
     dup_pos_pos = '<a>, *args, **kwargs', '<a>'
-
-if __name__ == '__main__':
-    unittest.main()
