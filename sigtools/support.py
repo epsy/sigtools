@@ -102,6 +102,7 @@ def read_sig(sig_str, ret=None):
             kwoarg_n.append(arg)
             if not default and default_index is not None:
                 params.insert(default_index, insert)
+                default_index += 1
             else:
                 if params and params[-1].startswith('*'):
                     params.insert(-1, insert)

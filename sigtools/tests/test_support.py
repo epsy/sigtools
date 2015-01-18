@@ -56,6 +56,7 @@ class RoundTripTests(object):
 
     kwo = '*args, a',
     kwo_novarargs = '*, a',
+    kwo_order = 'a, b=1, *args, c, d, e, f=4',
 
     defaults = 'a, b=1, *, c, d=1',
     default_after_star = 'a, b, *, c, d=1, e=2',
