@@ -38,6 +38,8 @@ from sigtools import specifiers, _util
 
 def process_signature(app, what, name, obj, options,
                       sig, return_annotation):
+    if what not in ['function', 'method', 'class']:
+        return sig, return_annotation
     parent, obj = fetch_dotted_name(name)
     if isinstance(parent, type) and callable(obj):
         obj = _util.safe_get(obj, object(), type(parent))
