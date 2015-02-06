@@ -36,11 +36,21 @@ from sphinx.ext import autodoc
 
 from sigtools import specifiers, _util
 
+
+class _cls(object):
+    def method(self):
+        raise NotImplementedError
+instancemethod = type(_cls().method)
+del _cls
+
+
 def process_signature(app, what, name, obj, options,
                       sig, return_annotation):
     if what not in ['function', 'method', 'class']:
         return sig, return_annotation
     parent, obj = fetch_dotted_name(name)
+    if isinstance(obj, instancemethod):
+        obj = obj.__func__
     if isinstance(parent, type) and callable(obj):
         obj = _util.safe_get(obj, object(), type(parent))
     try:

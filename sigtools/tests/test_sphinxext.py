@@ -23,7 +23,6 @@
 
 import unittest
 
-from sigtools import sphinxext
 from sigtools.tests import sphinxextfixt
 
 
@@ -31,32 +30,40 @@ app = object()
 
 
 class SphinxExtTests(unittest.TestCase):
+    def setUp(self):
+        try:
+            from sigtools import sphinxext
+        except SyntaxError: # sphinx does not work on py32
+            raise unittest.SkipTest("Sphinx could not be imported.")
+        else:
+            self.sphinxext = sphinxext
+
     def test_forge(self):
-        r = sphinxext.process_signature(
+        r = self.sphinxext.process_signature(
             app, 'function', 'sigtools.tests.sphinxextfixt.outer',
             sphinxextfixt.outer, {}, '(c, *args, **kwargs)', None)
         self.assertEqual(('(c, a, b)', ''), r)
 
     def test_method_forge(self):
-        r = sphinxext.process_signature(
+        r = self.sphinxext.process_signature(
             app, 'method', 'sigtools.tests.sphinxextfixt.AClass.outer',
             sphinxextfixt.AClass.outer, {}, '(c, *args, **kwargs)', None)
         self.assertEqual(('(c, a, b)', ''), r)
 
     def test_modifiers(self):
-        r = sphinxext.process_signature(
+        r = self.sphinxext.process_signature(
             app, 'function', 'sigtools.tests.sphinxextfixt.kwo',
             sphinxextfixt.AClass.outer, {}, '(a, b, c=1, d=2)', None)
         self.assertEqual(('(a, b, *, c=1, d=2)', ''), r)
 
     def test_attribute(self):
-        r = sphinxext.process_signature(
+        r = self.sphinxext.process_signature(
             app, 'attribute', 'sigtools.tests.sphinxextfixt.AClass.class_attr',
             sphinxextfixt.AClass.class_attr, {}, None, None)
         self.assertEqual((None, None), r)
 
     def test_inst_attr(self):
-        r = sphinxext.process_signature(
+        r = self.sphinxext.process_signature(
             app, 'attribute', 'sigtools.tests.sphinxextfixt.AClass.abc',
             None, {}, None, None)
         self.assertEqual((None, None), r)

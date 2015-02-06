@@ -36,6 +36,9 @@ not_py33 = sys.version_info < (3,3)
 def _func(*args, **kwargs):
     raise NotImplementedError
 
+def _free_func(x, y, z):
+    raise NotImplementedError
+
 class _cls(object):
     method = _func
 _inst = _cls()
@@ -97,6 +100,10 @@ class ForwardsAttributeTests(object):
 
         @modifiers.kwoargs('b')
         def inner(self, a, b):
+            raise NotImplementedError
+
+        @specifiers.forwards_to(_free_func)
+        def ft(self, *args, **kwargs):
             raise NotImplementedError
 
         @specifiers.forwards_to_method('inner')
@@ -164,6 +171,8 @@ class ForwardsAttributeTests(object):
     @modifiers.kwoargs('y')
     def _sub_inst(x, y):
         raise NotImplementedError
+
+    base_func = _base_inst.ft, 'x, y, z'
 
     base_method = _base_inst.ftm, 'a, *, b'
     base_method2 = _base_inst.ftm2, 'c, a, *, d, b'
