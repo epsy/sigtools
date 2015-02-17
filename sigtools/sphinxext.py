@@ -46,10 +46,11 @@ del _cls
 
 def process_signature(app, what, name, obj, options,
                       sig, return_annotation):
-    if what not in ['function', 'method', 'class']:
+    try:
+        parent, obj = fetch_dotted_name(name)
+    except AttributeError:
         return sig, return_annotation
-    parent, obj = fetch_dotted_name(name)
-    if isinstance(obj, instancemethod):
+    if isinstance(obj, instancemethod): # python 2 unbound methods
         obj = obj.__func__
     if isinstance(parent, type) and callable(obj):
         obj = _util.safe_get(obj, object(), type(parent))
