@@ -255,7 +255,7 @@ class ForwardsAttributeTests(object):
         method = Cls().func
         func = specifiers.forwards_to_method('abc')(method)
         self.assertTrue(isinstance(func, specifiers._ForgerWrapper))
-        self.assertEquals(func.__wrapped__, method)
+        self.assertEqual(func.__wrapped__, method)
         self.assertRaises(
             AttributeError,
             specifiers.forwards_to_method('abc', emulate=False), Cls().func)
