@@ -21,12 +21,11 @@
 # THE SOFTWARE.
 
 
-import unittest
 import sys
 from functools import partial
 
-from sigtools import modifiers, specifiers, support, _util
-from sigtools.tests.util import sigtester
+from sigtools import modifiers, specifiers, support, _util, signatures
+from sigtools.tests.util import sigtester, SignatureTests
 
 # bulk of the testing happens in test_merge and test_embed
 
@@ -303,7 +302,7 @@ class PartialSigTests(object):
     kwposlast = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
 
 
-class ForgerFunctionTests(unittest.TestCase):
+class ForgerFunctionTests(SignatureTests):
     def test_deco(self):
         @specifiers.forger_function
         def forger(obj):
@@ -311,7 +310,7 @@ class ForgerFunctionTests(unittest.TestCase):
         @forger()
         def forged():
             raise NotImplementedError
-        self.assertEqual(support.s('abc'), specifiers.signature(forged))
+        self.assertSigsEqual(support.s('abc'), specifiers.signature(forged))
 
     def test_directly_applied(self):
         def forger(obj):
@@ -319,7 +318,7 @@ class ForgerFunctionTests(unittest.TestCase):
         def forged():
             raise NotImplementedError
         specifiers.set_signature_forger(forged, forger)
-        self.assertEqual(support.s('abc'), specifiers.signature(forged))
+        self.assertSigsEqual(support.s('abc'), specifiers.signature(forged))
 
     def test_forger_lazy(self):
         class Flag(Exception): pass
@@ -329,7 +328,7 @@ class ForgerFunctionTests(unittest.TestCase):
         @forger()
         def forged():
             pass
-        self.assertEqual(forged(), None)
+        self.assertSigsEqual(forged(), None)
         self.assertRaises(Flag, specifiers.signature, forged)
 
     def test_orig_sig(self):
@@ -339,4 +338,4 @@ class ForgerFunctionTests(unittest.TestCase):
         @forger()
         def forged(alpha):
             raise NotImplementedError
-        self.assertEqual(support.s('alpha'), specifiers.signature(forged))
+        self.assertSigsEqual(support.s('alpha'), specifiers.signature(forged))
