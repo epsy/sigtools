@@ -110,20 +110,18 @@ as_forged = _AsForged()
 """Descriptor that returns the computer signature for the object it is an
 attribute of. Most useful as ``__signature__``.
 
-Allows `inspect.signature` to read forged signatures of your own objects.
+Allows `inspect.signature` to read forged signatures from your own objects.
 
 .. code-block:: python
 
     >>> from sigtools import specifiers
     >>> import inspect
-    >>> def function(a, b, c):
-    ...     pass
-    ...
     >>> class MyClass(object):
     ...     __signature__ = specifiers.as_forged
-    ...     def __init__(self):
-    ...         specifiers.forwards_to_function(function)(self)
+    ...     @specifiers.forwards_to_method('method')
     ...     def __call__(self, x, *args, **kwargs):
+    ...         pass
+    ...     def method(self, a, b, c):
     ...         pass
     ...
     >>> print(inspect.signature(MyClass()))
