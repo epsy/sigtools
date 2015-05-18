@@ -403,9 +403,34 @@ def forged_signature(obj):
         #fixme
 
     """
-    forger = getattr(obj, '_sigtools__forger', None)
+    subject = obj
+    while True:
+        try:
+            subject.__code__
+            break
+        except AttributeError:
+            pass
+        try:
+            subject.__self__
+            break
+        except AttributeError:
+            pass
+        try:
+            subject._sigtools__forger
+            break
+        except AttributeError:
+            pass
+        try:
+            return subject.__signature__
+        except AttributeError:
+            pass
+        try:
+            subject = subject.__call__
+        except AttributeError:
+            break
+    forger = getattr(subject, '_sigtools__forger', None)
     if forger is not None:
-        ret = forger(obj=obj)
+        ret = forger(obj=subject)
         if ret is not None:
             return ret
     return signature(obj)

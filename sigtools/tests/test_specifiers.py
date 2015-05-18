@@ -364,3 +364,26 @@ class ForgerFunctionTests(SignatureTests):
                 raise NotImplementedError
         self.assertSigsEqual(signatures.signature(MyClass()),
                              support.s('x, a, b, c'))
+
+    def test_dunder_call(self):
+        sig = support.s('dunder, call')
+        @specifiers.forger_function
+        def forger(obj):
+            return sig
+        class MyClass(object):
+            def __init__(self):
+                forger()(self)
+            def __call__(self):
+                raise NotImplementedError
+        self.assertSigsEqual(specifiers.signature(MyClass()), sig)
+
+    def test_as_forged_dunder_call_method(self):
+        class MyClass(object):
+            __signature__ = specifiers.as_forged
+            @specifiers.forwards_to_method('method')
+            def __call__(self, x, *args, **kwags):
+                raise NotImplementedError
+            def method(self, a, b, c):
+                pass
+        self.assertSigsEqual(specifiers.signature(MyClass()),
+                             support.s('x, a, b, c'))
