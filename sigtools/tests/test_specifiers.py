@@ -339,3 +339,28 @@ class ForgerFunctionTests(SignatureTests):
         def forged(alpha):
             raise NotImplementedError
         self.assertSigsEqual(support.s('alpha'), specifiers.signature(forged))
+
+    def test_as_forged(self):
+        sig = support.s('this, isa, test')
+        @specifiers.forger_function
+        def forger(obj):
+            return sig
+        class MyClass(object):
+            __signature__ = specifiers.as_forged
+            def __init__(self):
+                forger()(self)
+            def __call__(self):
+                raise NotImplementedError
+        self.assertSigsEqual(signatures.signature(MyClass()), sig)
+
+    def test_as_forged_forwards(self):
+        def function(a, b, c):
+            raise NotImplementedError
+        class MyClass(object):
+            __signature__ = specifiers.as_forged
+            def __init__(self):
+                specifiers.forwards_to_function(function)(self)
+            def __call__(self, x, *args, **kwargs):
+                raise NotImplementedError
+        self.assertSigsEqual(signatures.signature(MyClass()),
+                             support.s('x, a, b, c'))

@@ -46,7 +46,7 @@ __all__ = [
     'forwards_to_function', 'forwards_to_method',
     'forwards_to_super', 'apply_forwards_to_super',
     'forwards',
-    'forger_function', 'set_signature_forger',
+    'forger_function', 'set_signature_forger', 'as_forged'
     ]
 
 
@@ -88,6 +88,47 @@ def _transform(obj, meta):
         return obj
     cls = meta('name', (object,), {name: obj})
     return cls.__dict__[name]
+
+
+class _AsForged(object):
+    def __init__(self):
+        self.currently_computing = set()
+
+    def __get__(self, instance, owner):
+        obj = owner if instance is None else instance
+        if obj in self.currently_computing:
+            raise AttributeError
+        try:
+            self.currently_computing.add(obj)
+            sig = signature(obj)
+        finally:
+            self.currently_computing.discard(obj)
+        return sig
+
+
+as_forged = _AsForged()
+"""Descriptor that returns the computer signature for the object it is an
+attribute of. Most useful as ``__signature__``.
+
+Allows `inspect.signature` to read forged signatures of your own objects.
+
+.. code-block:: python
+
+    >>> from sigtools import specifiers
+    >>> import inspect
+    >>> def function(a, b, c):
+    ...     pass
+    ...
+    >>> class MyClass(object):
+    ...     __signature__ = specifiers.as_forged
+    ...     def __init__(self):
+    ...         specifiers.forwards_to_function(function)(self)
+    ...     def __call__(self, x, *args, **kwargs):
+    ...         pass
+    ...
+    >>> print(inspect.signature(MyClass()))
+    (x, a, b, c)
+"""
 
 
 class _ForgerWrapper(object):
