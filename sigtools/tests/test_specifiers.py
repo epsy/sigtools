@@ -247,8 +247,8 @@ class ForwardsAttributeTests(object):
         self.assertTrue(_func is Cls().func.__func__)
 
         class Cls(object):
-            func = _func
-
+            def func(self, abc, *args, **kwargs):
+                raise NotImplementedError
             def abc(self, x):
                 raise NotImplementedError
         method = Cls().func
@@ -258,6 +258,9 @@ class ForwardsAttributeTests(object):
         self.assertRaises(
             AttributeError,
             specifiers.forwards_to_method('abc', emulate=False), Cls().func)
+        exp = support.s('abc, x')
+        self.assertSigsEqual(signatures.signature(func), exp)
+        self.assertSigsEqual(specifiers.signature(func), exp)
 
         class Emulator(object):
             def __init__(self, obj, forger):
@@ -384,6 +387,6 @@ class ForgerFunctionTests(SignatureTests):
             def __call__(self, x, *args, **kwags):
                 raise NotImplementedError
             def method(self, a, b, c):
-                pass
+                raise NotImplementedError
         self.assertSigsEqual(specifiers.signature(MyClass()),
                              support.s('x, a, b, c'))

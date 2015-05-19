@@ -56,40 +56,6 @@ _kwowr = modifiers.kwoargs('obj')
 signature = _signatures.forged_signature
 
 
-def set_signature_forger(obj, forger, emulate=None):
-    """Attempts to set the given signature forger on the supplied object.
-
-    This function first tries to set an attribute on ``obj`` and returns it.
-    If that fails, it wraps the object that advertises the correct signature (even to `inspect.signature`) and forwards calls.
-
-    :param emulate: If supplied, forces the function to adhere to one strategy:
-        either set the attribute or fail(``False``), or always wrap the
-        object(``True``). If something else is passed, it is called with
-        ``(obj, forger)`` and the return value is used.
-
-    """
-    if not emulate:
-        try:
-            obj._sigtools__forger = forger
-            return obj
-        except (AttributeError, TypeError):
-            if emulate is False:
-                raise
-    if emulate is None or emulate is True:
-        return _ForgerWrapper(obj, forger)
-    else:
-        return emulate(obj, forger)
-
-
-def _transform(obj, meta):
-    try:
-        name = obj.__name__
-    except AttributeError:
-        return obj
-    cls = meta('name', (object,), {name: obj})
-    return cls.__dict__[name]
-
-
 class _AsForged(object):
     def __init__(self):
         self.currently_computing = set()
@@ -129,18 +95,66 @@ Allows `inspect.signature` to read forged signatures from your own objects.
 """
 
 
+def set_signature_forger(obj, forger, emulate=None):
+    """Attempts to set the given signature forger on the supplied object.
+
+    This function first tries to set an attribute on ``obj`` and returns it.
+    If that fails, it wraps the object that advertises the correct signature (even to `inspect.signature`) and forwards calls.
+
+    :param emulate: If supplied, forces the function to adhere to one strategy:
+        either set the attribute or fail(``False``), or always wrap the
+        object(``True``). If something else is passed, it is called with
+        ``(obj, forger)`` and the return value is used.
+
+    """
+    if not emulate:
+        try:
+            obj._sigtools__forger = forger
+            return obj
+        except (AttributeError, TypeError):
+            if emulate is False:
+                raise
+    if emulate is None or emulate is True:
+        return _ForgerWrapper(obj, forger)
+    else:
+        return emulate(obj, forger)
+
+
+def _transform(obj, meta):
+    try:
+        name = obj.__name__
+    except AttributeError:
+        return obj
+    cls = meta('name', (object,), {name: obj})
+    return cls.__dict__[name]
+
+
 class _ForgerWrapper(object):
     def __init__(self, obj, forger):
         update_wrapper(self, obj)
         self.__wrapped__ = obj
         self._transformed = False
         self._signature_forger = forger
-        self.__signature__ = forger(obj=obj)
+        try:
+            del self.__signature__
+        except AttributeError:
+            pass
+        try:
+            del self._sigtools__forger
+        except AttributeError:
+            pass
+
+    __signature__ = as_forged
+
+    def _sigtools__forger(self, obj):
+        return self._signature_forger(obj=self.__wrapped__)
 
     def __call__(self, *args, **kwargs):
         return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
+        # apply __new__ staticmethod automatic transform
+        # and any other ones Python may come up with
         if not self._transformed:
             self.__wrapped__ = _transform(self.__wrapped__, type(owner))
             self._transformed = True
