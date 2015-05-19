@@ -24,10 +24,10 @@
 ------------------------------------------------------------------------------
 
 The functions in this module can be used as decorators to mark and enforce some
-parameters to be `keyword-only <kwoargs>` or `annotate` them, just like you can
-:ref:`using Python 3 syntax <def>`. You can also mark and enforce parameters to
-be `positional-only <posoarg>`. `autokwoargs` helps you quickly make your
-parameters with default values become keyword-only.
+parameters to be keyword-only (`kwoargs`) or annotate (`annotate`) them, just
+like you can :ref:`using Python 3 syntax <def>`. You can also mark and enforce
+parameters to be positional-only (`posoargs`). `autokwoargs` helps you quickly
+make your parameters with default values become keyword-only.
 
 """
 
