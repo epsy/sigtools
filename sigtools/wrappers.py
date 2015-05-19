@@ -128,14 +128,22 @@ class _WrapperDecorator(object):
 class _Wrapped(object):
     def __init__(self, deco, wrapper, wrapped):
         func = partial(wrapper, wrapped)
-        sig = specifiers.forwards(func, wrapped, *deco.f_args, **deco.f_kwargs)
         update_wrapper(self, wrapped)
         self.func = func
         self.wrapper = wrapper
         self._sigtools__wrappers = wrapper,
         self.decorator = deco
         self.__wrapped__ = wrapped
-        self.__signature__ = sig
+        try:
+            del self._sigtools__forger
+        except AttributeError:
+            pass
+        try:
+            del self.__signature__
+        except AttributeError:
+            pass
+
+    __signature__ = specifiers.as_forged
 
     def _sigtools__forger(self, obj):
         return specifiers.forwards(
