@@ -400,7 +400,10 @@ def forged_signature(obj):
         >>> @specifiers.forwards_to_function(inner, emulate=True)
         ... def outer(c, *args, **kwargs):
         ...     return c * inner(*args, **kwargs)
-        #fixme
+        >>> print(inspect.signature(outer))
+        (c, a, b)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
 
     """
     subject = obj
