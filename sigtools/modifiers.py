@@ -116,7 +116,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
         if not found_kws:
             params.extend(kwoparams)
         if to_use:
-            raise ValueError('leftovers ' + str(to_use)) #FIXME
+            raise ValueError("Parameters not found: " + ' '.join(to_use))
         self.__signature__ = sig.replace(parameters=params)
 
     def __call__(self, *args, **kwargs):
