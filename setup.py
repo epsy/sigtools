@@ -3,13 +3,13 @@ from setuptools import setup
 
 setup(
     name='sigtools',
-    version='0.1b3',
+    version='1.0',
     description="Utilities for working with 3.3's inspect.Signature objects.",
     license='MIT',
     author='Yann Kaiser',
     author_email='kaiser.yann@gmail.com',
     url='http://sigtools.readthedocs.org/',
-    packages=['sigtools'],
+    packages=['sigtools', 'sigtools.tests'],
     install_requires=['six'],
     extras_require={
         ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
@@ -18,7 +18,7 @@ setup(
     test_suite='sigtools.tests',
     keywords='introspection signature',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
