@@ -196,9 +196,10 @@ def forger_function(func):
             return set_signature_forger(
                 obj, partial(func, *args, **kwargs), emulate)
         return _applier
-    sig = forwards(_apply_forger, func, 0, 'obj')
     update_wrapper(_apply_forger, func, updated=())
-    _apply_forger.__signature__ = sig
+    set_signature_forger(
+        _apply_forger,
+        lambda obj: forwards(_apply_forger, func, 0, 'obj'))
     return _apply_forger
 
 
