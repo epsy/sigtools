@@ -30,9 +30,7 @@ individually. They are most notably used by the decorators from
 
 """
 
-import itertools
-
-from sigtools import _util, modifiers
+from sigtools import modifiers
 from sigtools._signatures import (
     signature,
     IncompatibleSignatures,
@@ -155,14 +153,18 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
 
 
 @modifiers.autokwoargs(exceptions=('num_args',))
-def mask(sig, num_args=0, hide_varargs=False,
-            hide_varkwargs=False, *named_args):
+def mask(sig, num_args=0,
+         hide_args=False, hide_kwargs=False,
+         hide_varargs=False, hide_varkwargs=False,
+         *named_args):
     """Removes the given amount of positional parameters and the given named
     parameters from ``sig``.
 
     :param inspect.Signature sig: The signature to operate on
     :param int num_args: The amount of positional arguments passed
     :param str named_args: The names of named arguments passed
+    :param hide_args: If true, mask all positional parameters
+    :param hide_kwargs: If true, mask all keyword parameters
     :param hide_varargs: If true, mask the ``*args``-like parameter
         completely if present.
     :param hide_varkwargs: If true, mask the ``*kwargs``-like parameter
@@ -182,7 +184,8 @@ def mask(sig, num_args=0, hide_varargs=False,
         (*, c)
 
     """
-    return _mask(sig, num_args, hide_varargs, hide_varkwargs, named_args)
+    return _mask(sig, num_args, hide_args, hide_kwargs,
+                 hide_varargs, hide_varkwargs, named_args)
 
 
 @modifiers.autokwoargs

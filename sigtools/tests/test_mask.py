@@ -26,12 +26,14 @@ from sigtools.tests.util import sigtester
 
 @sigtester
 def mask_tests(self, expected_str, sig_str, num_args=0, named_args=(),
-               hide_varargs=False, hide_varkwargs=False):
+               hide_varargs=False, hide_varkwargs=False,
+               hide_args=False, hide_kwargs=False):
     self.assertSigsEqual(
-        support.s(expected_str),
         signatures.mask(
             support.s(sig_str), num_args, *named_args,
-            hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs))
+            hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
+            hide_args=hide_args, hide_kwargs=hide_kwargs),
+        support.s(expected_str))
 
 @mask_tests
 class MaskTests(object):
@@ -55,6 +57,14 @@ class MaskTests(object):
 
     hide_varargs_absent = '', '', 0, '', True, False
     hide_varkwargs_absent = '', '', 0, '', False, True
+
+    hide_args = '*, x', 'a, /, b, *, x', 0, '', False, False, True, False
+    hide_args_starargs = (
+        '*, x', 'a, /, b, *args, x', 0, '', False, False, True, False)
+
+    hide_kwargs = (
+        'a, /, *args', 'a, /, b, *args, c, **kwargs',
+        0, '', False, False, False, True)
 
 
 @sigtester

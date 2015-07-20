@@ -300,14 +300,20 @@ def _pop_chain(*sequences):
             yield sequence.pop(0)
 
 
-def _mask(sig, num_args, hide_varargs, hide_varkwargs, named_args):
+def _mask(sig, num_args, hide_args, hide_kwargs,
+          hide_varargs, hide_varkwargs, named_args):
     posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
 
     pokargs_by_name = dict((p.name, p) for p in pokargs)
 
     consumed_names = set()
 
-    if num_args:
+    if hide_args:
+        consumed_names.update(p.name for p in posargs)
+        consumed_names.update(p.name for p in pokargs)
+        posargs = []
+        pokargs = []
+    elif num_args:
         consume = num_args
         for param in _pop_chain(posargs, pokargs):
             consume -= 1
@@ -320,10 +326,15 @@ def _mask(sig, num_args, hide_varargs, hide_varkwargs, named_args):
                     'Signature cannot be passed {0} arguments: {1}'
                     .format(num_args, sig))
 
-    if hide_varargs:
+    if hide_args or hide_varargs:
         varargs = None
 
     partial_mode = isinstance(named_args, abc.Mapping)
+
+    if hide_kwargs:
+        pokargs = []
+        kwoargs = {}
+        named_args = []
 
     for kwarg_name in named_args:
         if kwarg_name in consumed_names:
@@ -357,7 +368,7 @@ def _mask(sig, num_args, hide_varargs, hide_varkwargs, named_args):
                 default=named_args[kwarg_name])
         consumed_names.add(kwarg_name)
 
-    if hide_varkwargs:
+    if hide_kwargs or hide_varkwargs:
         varkwargs = None
 
     return apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
@@ -367,7 +378,8 @@ def _mask(sig, num_args, hide_varargs, hide_varkwargs, named_args):
 def signature(obj):
     if isinstance(obj, partial):
         sig = _util.funcsigs.signature(obj.func)
-        return _mask(sig, len(obj.args), False, False, obj.keywords or {})
+        return _mask(sig, len(obj.args), False, False, False, False,
+                     obj.keywords or {})
     return _util.funcsigs.signature(obj)
 
 
