@@ -39,7 +39,7 @@ This should cover most use cases, but you can use `forger_function` or
 
 from functools import partial, update_wrapper
 
-from sigtools import _util, modifiers, signatures, _signatures
+from sigtools import _util, modifiers, signatures, _specifiers
 
 __all__ = [
     'signature',
@@ -53,7 +53,7 @@ __all__ = [
 _kwowr = modifiers.kwoargs('obj')
 
 
-signature = _signatures.forged_signature
+signature = _specifiers.forged_signature
 
 
 class _AsForged(object):

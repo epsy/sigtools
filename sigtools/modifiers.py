@@ -35,7 +35,7 @@ from functools import partial, update_wrapper
 
 import six
 
-from sigtools import _util, _signatures
+from sigtools import _util, _specifiers
 
 __all__ = ['annotate', 'kwoargs', 'autokwoargs', 'posoargs']
 
@@ -80,7 +80,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
                 + ' '.join(repr(name) for name in intersection))
         to_use = self.posoarg_names | self.kwoarg_names
 
-        sig = _signatures.forged_signature(self.func)
+        sig = _specifiers.forged_signature(self.func)
         params = []
         kwoparams = []
         kwopos = self.kwopos = []
@@ -187,7 +187,7 @@ def kwoargs(start=None, *kwoarg_names):
 def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
     kwoarg_names = set(_kwoargs)
     found = False
-    sig = _signatures.forged_signature(func).parameters.values()
+    sig = _specifiers.forged_signature(func).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if found or param.name == start:
@@ -241,7 +241,7 @@ def posoargs(end=None, *posoarg_names):
 def _posoargs_end(end, _posoargs, func, *args, **kwargs):
     posoarg_names = set(_posoargs)
     found = False
-    sig = _signatures.forged_signature(func).parameters.values()
+    sig = _specifiers.forged_signature(func).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if not found:
@@ -284,7 +284,7 @@ def autokwoargs(func=None, exceptions=()):
         return partial(_autokwoargs, exceptions)
 
 def _autokwoargs(exceptions, func):
-    sig = _signatures.forged_signature(func)
+    sig = _specifiers.forged_signature(func)
     args = []
     exceptions = set(exceptions)
     for param in sig.parameters.values():
@@ -332,7 +332,7 @@ class annotate(object):
         while isinstance(func, _PokTranslator):
             poks.append(func)
             func = func.func
-        sig = _signatures.forged_signature(func)
+        sig = _specifiers.forged_signature(func)
         parameters = []
         to_use = self.to_use.copy()
         for name, parameter in sig.parameters.items():

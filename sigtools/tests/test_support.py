@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 
-from sigtools import support, _signatures
+from sigtools import support, _specifiers
 from sigtools.tests.util import sigtester
 
 
@@ -34,7 +34,7 @@ def test_roundtrip(self, sig_str, old_fmt=None):
         if old_fmt is None: raise
         self.assertEqual('(' + old_fmt + ')', p_sig_str)
 
-    pf_sig_str = str(_signatures.forged_signature(support.func_from_sig(sig)))
+    pf_sig_str = str(_specifiers.forged_signature(support.func_from_sig(sig)))
     try:
         self.assertEqual('(' + sig_str + ')', pf_sig_str)
     except AssertionError:
