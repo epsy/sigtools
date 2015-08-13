@@ -20,13 +20,13 @@
 # THE SOFTWARE.
 
 
-import unittest
+import unittest2
 
 from sigtools.support import s
 from sigtools.tests import util as tutil
 
 
-class UtilTests(unittest.TestCase):
+class UtilTests(unittest2.TestCase):
     def test_conv_first_posarg(self):
         self.assertEqual(s(''), tutil.conv_first_posarg(s('')))
         self.assertEqual(

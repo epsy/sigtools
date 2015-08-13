@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 
-import unittest
+import unittest2
 from functools import partial
 
 def conv_first_posarg(sig):
@@ -31,7 +31,7 @@ def conv_first_posarg(sig):
     return sig.replace(
         parameters=(first,) + tuple(sig.parameters.values())[1:])
 
-class SignatureTests(unittest.TestCase):
+class SignatureTests(unittest2.TestCase):
     def assertSigsEqual(self, found, expected, *args, **kwargs):
         conv = kwargs.pop('conv_first_posarg', False)
         if expected != found:
@@ -43,11 +43,6 @@ class SignatureTests(unittest.TestCase):
             raise AssertionError(
                 'Did not get expected signature({0}), got {1} instead.'
                 .format(expected, found))
-
-    def assertIs(self, left, right):
-        return self.assertTrue(left is right)
-    if hasattr(unittest.TestCase, 'assertIs'):
-        del assertIs
 
 def make_run_test(func, value, **kwargs):
     def _func(self):
@@ -63,7 +58,7 @@ def build_sigtests(func, cls):
             members[key] = value
         else:
             members['test_' + key] = make_run_test(func, value)
-    return type(cls.__name__, (SignatureTests, unittest.TestCase), members)
+    return type(cls.__name__, (SignatureTests, unittest2.TestCase), members)
 
 def sigtester(test_func):
     return partial(build_sigtests, test_func)
