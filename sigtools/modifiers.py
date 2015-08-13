@@ -32,8 +32,6 @@ make your parameters with default values become keyword-only.
 """
 
 from functools import partial, update_wrapper
-import inspect
-import ast
 
 import six
 
@@ -122,16 +120,11 @@ class _PokTranslator(_util.OverrideableDataDesc):
         self.__signature__ = sig.replace(parameters=params)
 
     def _sigtools__autoforwards_hint(self, func):
-        try:
-            rawsource = inspect.getsource(self.func.__code__)
-        except OSError:
-            return
-        source = inspect.cleandoc('\n' + rawsource)
-        module = ast.parse(source)
-        func_ast = module.body[0]
+        ast = _util.get_ast(self.func)
+        if ast is None:
+            return None
         sig = self.__signature__
-        return self.func, func_ast, sig
-
+        return self.func, ast, sig
 
     def __call__(self, *args, **kwargs):
         intersect = self.posoarg_names.intersection(kwargs)

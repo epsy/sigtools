@@ -19,6 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import inspect
+import ast
 from functools import update_wrapper, partial
 from weakref import WeakKeyDictionary
 
@@ -144,3 +146,16 @@ def get_introspectable(obj, forged=True, af_hint=True):
             except AttributeError:
                 pass
     return obj
+
+def get_ast(func):
+    try:
+        code = func.__code__
+    except AttributeError:
+        return None
+    try:
+        rawsource = inspect.getsource(code)
+    except (OSError, IOError):
+        return None
+    source = inspect.cleandoc('\n' + rawsource)
+    module = ast.parse(source)
+    return module.body[0]

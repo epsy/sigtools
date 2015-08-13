@@ -1,11 +1,15 @@
-import inspect
+import sys
 import ast
 import collections
-from collections.abc import MutableMapping
 import functools
 
-from sigtools import _signatures
+from sigtools import _signatures, _util
 from sigtools._specifiers import forged_signature
+
+try:
+    from collections.abc import MutableMapping
+except ImportError:
+    from collections import MutableMapping
 
 
 class Name(object):
@@ -76,6 +80,21 @@ Call = collections.namedtuple(
     'hide_args hide_kwargs')
 
 
+if sys.version_info < (3,4):
+    def get_vararg(arg):
+        return arg
+else:
+    def get_vararg(arg):
+        return arg.arg
+
+if sys.version_info < (3,):
+    def get_param(arg):
+        return arg.id
+else:
+    def get_param(arg):
+        return arg.arg
+
+
 class CallListerVisitor(ast.NodeVisitor):
     def __init__(self, func):
         self.func = func
@@ -94,15 +113,17 @@ class CallListerVisitor(ast.NodeVisitor):
 
     def process_parameters(self, args, main=False):
         for arg in args.args:
-            self.namespace[arg.arg] = Arg(arg.arg) if main else Unknown(arg)
-        for arg in args.kwonlyargs:
-            self.namespace[arg.arg] = Arg(arg.arg) if main else Unknown(arg)
+            name = get_param(arg)
+            self.namespace[name] = Arg(name) if main else Unknown(arg)
+        if sys.version_info > (3,):
+            for arg in args.kwonlyargs:
+               self.namespace[arg.arg] = Arg(arg.arg) if main else Unknown(arg)
 
         varargs = varkwargs = None
         if args.vararg:
-            varargs = self.namespace[args.vararg.arg] = Varargs()
+            varargs = self.namespace[get_vararg(args.vararg)] = Varargs()
         if args.kwarg:
-            varkwargs = self.namespace[args.kwarg.arg] = Varkwargs()
+            varkwargs = self.namespace[get_vararg(args.kwarg)] = Varkwargs()
         if main:
             self.varargs = varargs
             self.varkwargs = varkwargs
@@ -171,9 +192,17 @@ class UnresolvableCall(ValueError):
     pass
 
 
+class EmptyBoundArguments(object):
+    def __init__(self):
+        self.arguments = {}
+
+
 def forward_signatures(func, calls, args, kwargs, sig=None):
     sig = _signatures.signature(func) if sig is None else sig
-    bap = sig.bind_partial(*args, **kwargs)
+    if args or kwargs:
+        bap = sig.bind_partial(*args, **kwargs)
+    else:
+        bap = EmptyBoundArguments()
     for (
             wrapped, num_args, keywords,
             use_varargs, use_varkwargs,
@@ -226,17 +255,9 @@ def autoforwards_function(func, args, kwargs):
     sig = _signatures.signature(func)
     if not any_params_star(sig):
         return None
-    try:
-        code = func.__code__
-    except AttributeError:
+    func_ast = _util.get_ast(func)
+    if func_ast is None:
         return None
-    try:
-        rawsource = inspect.getsource(code)
-    except OSError:
-        return None
-    source = inspect.cleandoc('\n' + rawsource)
-    module = ast.parse(source)
-    func_ast = module.body[0]
     return autoforwards_ast(func, func_ast, None, args, kwargs)
 
 

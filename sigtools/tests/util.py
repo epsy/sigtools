@@ -23,6 +23,11 @@
 import unittest2
 from functools import partial
 
+
+def tup(*args):
+    return lambda wrapped: (wrapped,) + args
+
+
 def conv_first_posarg(sig):
     if not sig.parameters:
         return sig

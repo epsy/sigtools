@@ -1,11 +1,15 @@
 from functools import partial
 
 from sigtools import support, modifiers, specifiers
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import sigtester, tup
 
 
-def tup(*args):
-    return lambda wrapped: (wrapped,) + args
+try:
+    from sigtools.tests import autoforwards_py3
+except SyntaxError:
+    pass
+else:
+    Py3AutoforwardsTests = autoforwards_py3.Py3AutoforwardsTests
 
 
 _wrapped = support.f('x, y, *, z')
@@ -76,7 +80,8 @@ class AutoforwardsTests(object):
             _wrapped(*args, **kwargs)
 
     @tup('x, y, /, *, kwop')
-    def kwo(*args, kwop):
+    @modifiers.kwoargs('kwop')
+    def kwo(kwop, *args):
         _wrapped(*args, z=kwop)
 
     @tup('a, b, y, *, z')
@@ -96,15 +101,6 @@ class AutoforwardsTests(object):
             _wrapped(42, *args, **kwargs)
         _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, **kwargs')
-    def rebind_subdef_nonlocal(a, b, *args, **kwargs):
-        def func():
-            nonlocal args, kwargs
-            args = ()
-            kwargs = {}
-            _wrapped(42, *args, **kwargs)
-        _wrapped(*args, **kwargs)
-
     @tup('a, b, x, y, *, z')
     def rebind_subdef_param(a, b, *args, **kwargs):
         def func(*args, **kwargs):
@@ -115,23 +111,6 @@ class AutoforwardsTests(object):
     def rebind_subdef_lambda_param(a, b, *args, **kwargs):
         lambda *args, **kwargs: _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, **kwargs')
-    def nonlocal_backchange(a, b, *args, **kwargs):
-        def ret1():
-            _wrapped(*args, **kwargs)
-        def ret2():
-            nonlocal args, kwargs
-            args = ()
-            kwargs = {}
-
-    @tup('a, *args, **kwargs')
-    def nonlocal_deep(a, *args, **kwargs):
-        def l1():
-            def l2():
-                nonlocal args, kwargs
-                args = ()
-                kwargs = {}
-        _wrapped(*args, **kwargs)
 
     # @tup('a, b, x, y, *, z')
     # def nonlocal_already_executed(a, b, *args, **kwargs):
@@ -149,6 +128,7 @@ class AutoforwardsTests(object):
 
     partial_ = partial(_wrapper, _wrapped), 'a, x, y, *, z'
 
+    @staticmethod
     @modifiers.kwoargs('wrapped')
     def _wrapped_kwoarg(a, wrapped, *args, **kwargs):
         return wrapped(*args, **kwargs)
