@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from functools import update_wrapper
+from functools import update_wrapper, partial
 from weakref import WeakKeyDictionary
 
 
@@ -39,6 +39,9 @@ try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
+
+
+OrderedDict # quiet pyflakes
 
 
 class _Unset(object):
@@ -101,3 +104,43 @@ def safe_get(obj, instance, owner):
     except (AttributeError, KeyError):
         return obj
     return get(obj, instance, owner)
+
+
+MethodWrapper = type(format.__call__)
+
+
+def iter_call(obj):
+    while True:
+        yield obj
+        try:
+            obj = obj.__call__
+        except AttributeError:
+            return
+        if isinstance(obj, MethodWrapper):
+            # this is the __call__ method of a builtin object
+            return
+
+
+partial_ = partial
+
+
+def get_introspectable(obj, forged=True, af_hint=True):
+    for obj in iter_call(obj):
+        try:
+            obj.__signature__
+            return obj
+        except AttributeError:
+            pass
+        if forged:
+            try:
+                obj._sigtools__forger
+                return obj
+            except AttributeError:
+                pass
+        if af_hint:
+            try:
+                obj._sigtools__autoforwards_hint
+                return obj
+            except AttributeError:
+                pass
+    return obj

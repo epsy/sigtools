@@ -107,6 +107,10 @@ def set_signature_forger(obj, forger, emulate=None):
         ``(obj, forger)`` and the return value is used.
 
     """
+    if isinstance(obj, modifiers._PokTranslator) and False:
+        obj.func = set_signature_forger(obj.func, forger, emulate=emulate)
+        obj._prepare()
+        return obj
     if not emulate:
         try:
             obj._sigtools__forger = forger
@@ -220,7 +224,6 @@ def forwards(wrapper, wrapped, *args, **kwargs):
     return signatures.forwards(
         signatures.signature(wrapper), signature(wrapped),
         *args, **kwargs)
-forwards.__signature__ = forwards(forwards, signatures.forwards, 2)
 
 
 @_kwowr
@@ -248,8 +251,6 @@ def forwards_to_function(obj, *args, **kwargs):
     """
     ret = forwards(obj, *args, **kwargs)
     return ret
-forwards_to_function.__signature__ = forwards(forwards_to_function,
-                                              forwards, 1)
 forwards_to_function = forger_function(forwards_to_function)
 
 
@@ -257,7 +258,6 @@ forwards_to = forwards_to_function
 
 
 @forger_function
-@forwards_to_function(forwards, 2)
 @_kwowr
 def forwards_to_method(obj, wrapped_name, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature
@@ -310,7 +310,6 @@ def _get_origin_class(obj, cls):
 
 
 @forger_function
-@forwards_to_function(forwards, 2)
 @modifiers.kwoargs('obj', 'cls')
 def forwards_to_super(obj, cls=None, *args, **kwargs):
     """Wraps the decorated method to give it the effective signature it has
@@ -354,7 +353,6 @@ def forwards_to_super(obj, cls=None, *args, **kwargs):
     return forwards(obj, inner, *args, **kwargs)
 
 
-@forwards_to_function(forwards_to_super, 1, 'cls', use_varargs=False)
 @modifiers.autokwoargs
 def apply_forwards_to_super(num_args=0, named_args=(), *member_names,
                             **kwargs):

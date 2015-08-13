@@ -20,10 +20,10 @@
 # THE SOFTWARE.
 
 
-from sigtools._signatures import signature
+from sigtools import _signatures, _util
 
 
-def forged_signature(obj):
+def forged_signature(obj, autoforward=True):
     """Retrieve the signature of ``obj``, taking into account any specifier
     from this module.
 
@@ -55,34 +55,33 @@ def forged_signature(obj):
         (c, a, b)
 
     """
-    subject = obj
-    while True:
+    subject = _util.get_introspectable(obj, af_hint=autoforward)
+    if autoforward:
         try:
-            subject.__code__
-            break
+            subject._sigtools__autoforwards_hint
         except AttributeError:
             pass
-        try:
-            subject.__self__
-            break
-        except AttributeError:
-            pass
-        try:
-            subject._sigtools__forger
-            break
-        except AttributeError:
-            pass
-        try:
-            return subject.__signature__
-        except AttributeError:
-            pass
-        try:
-            subject = subject.__call__
-        except AttributeError:
-            break
+        else:
+            h = subject._sigtools__autoforwards_hint(subject)
+            if h is not None:
+                sig = _autoforwards.autoforwards_ast(*h)
+                if sig is not None:
+                    return sig
+            subject = _util.get_introspectable(subject, af_hint=False)
     forger = getattr(subject, '_sigtools__forger', None)
     if forger is not None:
         ret = forger(obj=subject)
         if ret is not None:
             return ret
-    return signature(obj)
+    sig = None
+    if autoforward:
+        try:
+            sig = _autoforwards.autoforwards(subject)
+        except _autoforwards.UnresolvableCall:
+            pass
+    if sig is not None:
+        return sig
+    return _signatures.signature(obj)
+
+
+from sigtools import _autoforwards

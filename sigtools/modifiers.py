@@ -32,6 +32,8 @@ make your parameters with default values become keyword-only.
 """
 
 from functools import partial, update_wrapper
+import inspect
+import ast
 
 import six
 
@@ -80,7 +82,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
                 + ' '.join(repr(name) for name in intersection))
         to_use = self.posoarg_names | self.kwoarg_names
 
-        sig = _specifiers.forged_signature(self.func)
+        sig = _specifiers.forged_signature(self.func, autoforward=False)
         params = []
         kwoparams = []
         kwopos = self.kwopos = []
@@ -118,6 +120,18 @@ class _PokTranslator(_util.OverrideableDataDesc):
         if to_use:
             raise ValueError("Parameters not found: " + ' '.join(to_use))
         self.__signature__ = sig.replace(parameters=params)
+
+    def _sigtools__autoforwards_hint(self, func):
+        try:
+            rawsource = inspect.getsource(self.func.__code__)
+        except OSError:
+            return
+        source = inspect.cleandoc('\n' + rawsource)
+        module = ast.parse(source)
+        func_ast = module.body[0]
+        sig = self.__signature__
+        return self.func, func_ast, sig
+
 
     def __call__(self, *args, **kwargs):
         intersect = self.posoarg_names.intersection(kwargs)
@@ -187,7 +201,8 @@ def kwoargs(start=None, *kwoarg_names):
 def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
     kwoarg_names = set(_kwoargs)
     found = False
-    sig = _specifiers.forged_signature(func).parameters.values()
+    sig = _specifiers.forged_signature(func, autoforward=False
+            ).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if found or param.name == start:
@@ -241,7 +256,8 @@ def posoargs(end=None, *posoarg_names):
 def _posoargs_end(end, _posoargs, func, *args, **kwargs):
     posoarg_names = set(_posoargs)
     found = False
-    sig = _specifiers.forged_signature(func).parameters.values()
+    sig = _specifiers.forged_signature(func, autoforward=False
+            ).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if not found:
@@ -284,7 +300,7 @@ def autokwoargs(func=None, exceptions=()):
         return partial(_autokwoargs, exceptions)
 
 def _autokwoargs(exceptions, func):
-    sig = _specifiers.forged_signature(func)
+    sig = _specifiers.forged_signature(func, autoforward=False)
     args = []
     exceptions = set(exceptions)
     for param in sig.parameters.values():
@@ -332,7 +348,7 @@ class annotate(object):
         while isinstance(func, _PokTranslator):
             poks.append(func)
             func = func.func
-        sig = _specifiers.forged_signature(func)
+        sig = _specifiers.forged_signature(func, autoforward=False)
         parameters = []
         to_use = self.to_use.copy()
         for name, parameter in sig.parameters.items():
