@@ -23,7 +23,7 @@
 from sigtools import _signatures, _util
 
 
-def forged_signature(obj, autoforward=True):
+def forged_signature(obj, autoforward=True, args=(), kwargs={}):
     """Retrieve the signature of ``obj``, taking into account any specifier
     from this module.
 
@@ -64,8 +64,12 @@ def forged_signature(obj, autoforward=True):
         else:
             h = subject._sigtools__autoforwards_hint(subject)
             if h is not None:
-                sig = _autoforwards.autoforwards_ast(*h)
-                if sig is not None:
+                try:
+                    sig = _autoforwards.autoforwards_ast(
+                        *h, args=args, kwargs=kwargs)
+                except _autoforwards.UnknownForwards:
+                    pass
+                else:
                     return sig
             subject = _util.get_introspectable(subject, af_hint=False)
     forger = getattr(subject, '_sigtools__forger', None)
@@ -73,14 +77,13 @@ def forged_signature(obj, autoforward=True):
         ret = forger(obj=subject)
         if ret is not None:
             return ret
-    sig = None
     if autoforward:
         try:
-            sig = _autoforwards.autoforwards(subject)
-        except _autoforwards.UnresolvableCall:
+            sig = _autoforwards.autoforwards(subject, args, kwargs)
+        except _autoforwards.UnknownForwards:
             pass
-    if sig is not None:
-        return sig
+        else:
+            return sig
     return _signatures.signature(obj)
 
 

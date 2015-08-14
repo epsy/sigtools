@@ -2,6 +2,7 @@ import sys
 import ast
 import collections
 import functools
+import types
 
 from sigtools import _signatures, _util
 from sigtools._specifiers import forged_signature
@@ -12,22 +13,47 @@ except ImportError:
     from collections import MutableMapping
 
 
+class UnknownForwards(ValueError):
+    pass
+
+
+class UnresolvableName(ValueError):
+    pass
+
+
 class Name(object):
     def __init__(self, name):
         self.name = name
+
+class Attribute(object):
+    def __init__(self, value, attr):
+        self.value = value
+        self.attr = attr
 
 class Arg(object):
     def __init__(self, name):
         self.name = name
 
+    def __repr__(self):
+        return '<argument {0!r}>'.format(self.name)
+
 class Unknown(object):
     def __init__(self, source=None):
         self.source = source
 
+    def __iter__(self):
+        return iter(())
+
+    def items(self):
+        return ()
+
     def __repr__(self):
         if self.source is None:
             return "<irrelevant>"
-        return "<unknown until runtime: {0}>".format(ast.dump(self.source))
+        source = self.source
+        if isinstance(source, ast.AST):
+            source = ast.dump(source)
+        return "<unknown until runtime: {0}>".format(source)
 
 class Varargs(object): pass
 class Varkwargs(object): pass
@@ -75,7 +101,7 @@ class Namespace(MutableMapping):
 
 Call = collections.namedtuple(
     'Call',
-    'wrapped num_args named_args '
+    'wrapped args kwargs varargs varkwargs '
     'use_varargs use_varkwargs '
     'hide_args hide_kwargs')
 
@@ -121,9 +147,11 @@ class CallListerVisitor(ast.NodeVisitor):
 
         varargs = varkwargs = None
         if args.vararg:
-            varargs = self.namespace[get_vararg(args.vararg)] = Varargs()
+            name = get_vararg(args.vararg)
+            varargs = self.namespace[name] = Arg(name)
         if args.kwarg:
-            varkwargs = self.namespace[get_vararg(args.kwarg)] = Varkwargs()
+            name = get_vararg(args.kwarg)
+            varkwargs = self.namespace[name] = Arg(name)
         if main:
             self.varargs = varargs
             self.varkwargs = varkwargs
@@ -132,6 +160,9 @@ class CallListerVisitor(ast.NodeVisitor):
         if isinstance(name, ast.Name):
             id = name.id
             return self.namespace.get(id, Name(id))
+        elif isinstance(name, ast.Attribute):
+            value = self.resolve_name(name.value)
+            return Attribute(value, name.attr)
         return Unknown(name)
 
     def visit_FunctionDef(self, node):
@@ -158,8 +189,7 @@ class CallListerVisitor(ast.NodeVisitor):
 
     def has_hide_starargs(self, found, original):
         if found:
-            stararg = self.resolve_name(found)
-            if stararg == original:
+            if found == original:
                 return True, False
             return False, True
         else:
@@ -167,14 +197,16 @@ class CallListerVisitor(ast.NodeVisitor):
 
     def process_Call(self, node):
         wrapped = self.resolve_name(node.func)
-        num_args = len(node.args)
-        named_args = [kw.arg for kw in node.keywords]
+        args = [self.resolve_name(arg) for arg in node.args]
+        kwargs = {kw.arg: self.resolve_name(kw.value) for kw in node.keywords}
+        varargs = self.resolve_name(node.starargs) if node.starargs else None
+        varkwargs = self.resolve_name(node.kwargs) if node.kwargs else None
         use_varargs, hide_args = \
-            self.has_hide_starargs(node.starargs, self.varargs)
+            self.has_hide_starargs(varargs, self.varargs)
         use_varkwargs, hide_kwargs = \
-            self.has_hide_starargs(node.kwargs, self.varkwargs)
+            self.has_hide_starargs(varkwargs, self.varkwargs)
         self.calls.append(Call(
-            wrapped, num_args, named_args,
+            wrapped, args, kwargs, varargs, varkwargs,
             use_varargs, use_varkwargs,
             hide_args, hide_kwargs))
 
@@ -188,13 +220,36 @@ class CallListerVisitor(ast.NodeVisitor):
         return iter(self.calls)
 
 
-class UnresolvableCall(ValueError):
-    pass
-
-
 class EmptyBoundArguments(object):
     def __init__(self):
         self.arguments = {}
+
+
+def resolve_name(obj, func, args, unknown=False):
+    try:
+        if isinstance(obj, Name):
+            try:
+                index = func.__code__.co_freevars.index(obj.name)
+            except ValueError:
+                return func.__globals__[obj.name]
+            else:
+                return func.__closure__[index].cell_contents
+        elif isinstance(obj, Arg):
+            try:
+                arg = args[obj.name]
+                if not isinstance(arg, Unknown):
+                    return arg
+            except KeyError:
+                pass
+            raise UnresolvableName(obj)
+        elif isinstance(obj, Attribute):
+            return getattr(resolve_name(obj.value, func, args), obj.attr)
+        else:
+            raise UnresolvableName(obj)
+    except UnresolvableName:
+        if unknown:
+            return Unknown(obj)
+        raise
 
 
 def forward_signatures(func, calls, args, kwargs, sig=None):
@@ -203,45 +258,41 @@ def forward_signatures(func, calls, args, kwargs, sig=None):
         bap = sig.bind_partial(*args, **kwargs)
     else:
         bap = EmptyBoundArguments()
+    def rn(obj, unknown=True):
+        return resolve_name(obj, func, bap.arguments, unknown=unknown)
     for (
-            wrapped, num_args, keywords,
+            wrapped, fwdargs, fwdkwargs, fwdvarargs, fwdvarkwargs,
             use_varargs, use_varkwargs,
             hide_args, hide_kwargs) in calls:
         if not (use_varargs or use_varkwargs):
             continue
-        if isinstance(wrapped, Name):
-            try:
-                index = func.__code__.co_freevars.index(wrapped.name)
-            except ValueError:
-                wrapped_func = func.__globals__[wrapped.name]
-            else:
-                wrapped_func = func.__closure__[index].cell_contents
-        elif isinstance(wrapped, Arg):
-            try:
-                wrapped_func = bap.arguments[wrapped.name]
-            except KeyError:
-                raise UnresolvableCall(wrapped)
-        else:
-            raise UnresolvableCall(wrapped)
-        wrapped_sig = forged_signature(wrapped_func)
+        try:
+            wrapped_func = rn(wrapped, unknown=False)
+        except UnresolvableName:
+            raise UnknownForwards
+        fwdargsvals = [rn(arg) for arg in fwdargs]
+        fwdargsvals.extend(rn(fwdvarargs))
+        fwdkwargsvals = {n: rn(arg) for n, arg in fwdkwargs.items()}
+        fwdkwargsvals.update(rn(fwdvarkwargs))
+        wrapped_sig = forged_signature(
+            wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
         try:
             yield _signatures.forwards(
                 sig, wrapped_sig,
-                num_args,
+                len(fwdargs),
                 hide_args, hide_kwargs,
                 use_varargs, use_varkwargs,
-                *keywords)
+                *fwdkwargs)
         except ValueError:
-            raise UnresolvableCall()
+            raise UnknownForwards
 
 
 def autoforwards_partial(par, args, kwargs):
-    wsig = autoforwards(par.func, par.args, {})
-    if wsig is not None:
-        return _signatures._mask(
-            wsig, len(par.args),
-            False, False, False, False,
-            par.keywords or {})
+    return _signatures._mask(
+        autoforwards(par.func, par.args, {}),
+        len(par.args),
+        False, False, False, False,
+        par.keywords or {})
 
 
 def any_params_star(sig):
@@ -254,10 +305,10 @@ def any_params_star(sig):
 def autoforwards_function(func, args, kwargs):
     sig = _signatures.signature(func)
     if not any_params_star(sig):
-        return None
+        raise UnknownForwards
     func_ast = _util.get_ast(func)
     if func_ast is None:
-        return None
+        raise UnknownForwards
     return autoforwards_ast(func, func_ast, None, args, kwargs)
 
 
@@ -265,6 +316,8 @@ def autoforwards_hint(func, args, kwargs):
     h = func._sigtools__autoforwards_hint(func)
     if h is not None:
         return autoforwards_ast(h[0], h[1], h[2], args, kwargs)
+    else:
+        raise UnknownForwards()
 
 
 def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
@@ -273,6 +326,16 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
         args, kwargs, sig))
     if sigs:
         return _signatures.merge(*sigs)
+    else:
+        raise UnknownForwards('No forwarding of *args, **kwargs found')
+
+
+def autoforwards_method(method, args, kwargs):
+    if method.__self__ is False:
+        raise UnknownForwards
+    sig = autoforwards(
+        method.__func__, (method.__self__,) + tuple(args), kwargs)
+    return _signatures.mask(sig, 1)
 
 
 def autoforwards(obj, args=(), kwargs={}):
@@ -284,5 +347,7 @@ def autoforwards(obj, args=(), kwargs={}):
         return autoforwards_hint(obj, args, kwargs)
     if isinstance(obj, functools.partial):
         return autoforwards_partial(obj, args, kwargs)
+    elif isinstance(obj, types.MethodType):
+        return autoforwards_method(obj, args, kwargs)
     else:
         return autoforwards_function(obj, args, kwargs)

@@ -148,3 +148,49 @@ class AutoforwardsTests(object):
         expected = support.s('a, *args, wrapped=w, **kwargs',
                              locals={'w': _wrapped})
         self.assertSigsEqual(specifiers.signature(func), expected)
+
+
+    _wrapped = support.f('d, e, *, f')
+
+    @tup('a, d, e, *, f')
+    def global_attribute(a, *args, **kwargs):
+        AutoforwardsTests._wrapped(*args, **kwargs)
+
+    def test_instance_attribute(self):
+        class A(object):
+            def wrapped(self, x, y):
+                pass
+            def method(self, a, *args, **kwargs):
+                self.wrapped(a, *args, **kwargs)
+        a = A()
+        self.assertSigsEqual(specifiers.signature(a.method),
+                             support.s('a, y'))
+
+    @staticmethod
+    def _deeparg_l1(l2, *args, **kwargs):
+        l2(*args, **kwargs)
+
+    @staticmethod
+    def _deeparg_l2(l3, *args, **kwargs):
+        l3(*args, **kwargs)
+
+    @tup('x, y, *, z')
+    def deeparg(*args, **kwargs):
+        AutoforwardsTests._deeparg_l1(
+            AutoforwardsTests._deeparg_l2, _wrapped,
+            *args, **kwargs)
+
+    @staticmethod
+    @modifiers.kwoargs('l2')
+    def _deeparg_kwo_l1(l2, b, *args, **kwargs):
+        l2(*args, **kwargs)
+
+    @staticmethod
+    @modifiers.kwoargs('l3')
+    def _deeparg_kwo_l2(l3, c, *args, **kwargs):
+        l3(*args, **kwargs)
+
+    @tup('a, b, c, x, y, *, z')
+    def deeparg_kwo(a, *args, **kwargs):
+        AutoforwardsTests._deeparg_kwo_l1(
+            *args, l2=AutoforwardsTests._deeparg_kwo_l2, l3=_wrapped, **kwargs)

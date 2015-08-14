@@ -107,10 +107,6 @@ def set_signature_forger(obj, forger, emulate=None):
         ``(obj, forger)`` and the return value is used.
 
     """
-    if isinstance(obj, modifiers._PokTranslator) and False:
-        obj.func = set_signature_forger(obj.func, forger, emulate=emulate)
-        obj._prepare()
-        return obj
     if not emulate:
         try:
             obj._sigtools__forger = forger
