@@ -199,7 +199,9 @@ class CallListerVisitor(ast.NodeVisitor):
     def process_Call(self, node):
         wrapped = self.resolve_name(node.func)
         args = [self.resolve_name(arg) for arg in node.args]
-        kwargs = {kw.arg: self.resolve_name(kw.value) for kw in node.keywords}
+        kwargs = dict(
+            (kw.arg, self.resolve_name(kw.value))
+            for kw in node.keywords)
         varargs = self.resolve_name(node.starargs) if node.starargs else None
         varkwargs = self.resolve_name(node.kwargs) if node.kwargs else None
         use_varargs, hide_args = \
@@ -273,7 +275,7 @@ def forward_signatures(func, calls, args, kwargs, sig=None):
             raise UnknownForwards
         fwdargsvals = [rn(arg) for arg in fwdargs]
         fwdargsvals.extend(rn(fwdvarargs))
-        fwdkwargsvals = {n: rn(arg) for n, arg in fwdkwargs.items()}
+        fwdkwargsvals = dict((n, rn(arg)) for n, arg in fwdkwargs.items())
         fwdkwargsvals.update(rn(fwdvarkwargs))
         wrapped_sig = forged_signature(
             wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)

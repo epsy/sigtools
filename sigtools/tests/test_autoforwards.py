@@ -154,7 +154,7 @@ class AutoforwardsTests(object):
         self.assertSigsEqual(specifiers.signature(func), expected)
 
 
-    _wrapped = support.f('d, e, *, f')
+    _wrapped = staticmethod(support.f('d, e, *, f'))
 
     @tup('a, d, e, *, f')
     def global_attribute(a, *args, **kwargs):
