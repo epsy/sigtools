@@ -363,7 +363,7 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
 
 
 def autoforwards_method(method, args, kwargs):
-    if method.__self__ is False:
+    if method.__self__ is None:
         raise UnknownForwards
     sig = autoforwards(
         method.__func__, (method.__self__,) + tuple(args), kwargs)
