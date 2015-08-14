@@ -163,6 +163,7 @@ class CallListerVisitor(ast.NodeVisitor):
         elif isinstance(name, ast.Attribute):
             value = self.resolve_name(name.value)
             return Attribute(value, name.attr)
+        self.visit(name)
         return Unknown(name)
 
     def visit_FunctionDef(self, node):

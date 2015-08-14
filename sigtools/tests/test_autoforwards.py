@@ -15,6 +15,10 @@ else:
 _wrapped = support.f('x, y, *, z')
 
 
+def func(x):
+    pass
+
+
 @sigtester
 def autosigequal(self, func, expected):
     self.assertSigsEqual(
@@ -194,3 +198,19 @@ class AutoforwardsTests(object):
     def deeparg_kwo(a, *args, **kwargs):
         AutoforwardsTests._deeparg_kwo_l1(
             *args, l2=AutoforwardsTests._deeparg_kwo_l2, l3=_wrapped, **kwargs)
+
+    @tup('a, x, y, *, z')
+    def call_in_args(a, *args, **kwargs):
+        func(_wrapped(*args, **kwargs))
+
+    @tup('a, x, y, *, z')
+    def call_in_kwargs(a, *args, **kwargs):
+        func(kw=_wrapped(*args, **kwargs))
+
+    @tup('a, x, y, *, z')
+    def call_in_varargs(a, *args, **kwargs):
+        func(*_wrapped(*args, **kwargs))
+
+    @tup('a, x, y, *, z')
+    def call_in_varkwargs(a, *args, **kwargs):
+        func(**_wrapped(*args, **kwargs))
