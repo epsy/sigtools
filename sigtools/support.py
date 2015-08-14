@@ -155,7 +155,6 @@ def make_func(code, locals=None):
     exec(code, globals(), locals)
     return locals['func']
 
-@specifiers.forwards_to_function(read_sig)
 @modifiers.autokwoargs
 def f(pre='', locals=None, *args, **kwargs):
     """Creates a dummy function that has the signature represented by
@@ -182,7 +181,6 @@ def f(pre='', locals=None, *args, **kwargs):
         func_code(*read_sig(*args, **kwargs), pre=pre),
         locals=locals)
 
-@specifiers.forwards_to_function(f)
 def s(*args, **kwargs):
     """Creates a signature from the given string representation of one.
 
