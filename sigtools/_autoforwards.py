@@ -256,7 +256,9 @@ def resolve_name(obj, func, args, unknown=False):
 
 
 def forward_signatures(func, calls, args, kwargs, sig=None):
-    sig = _signatures.signature(func) if sig is None else sig
+    if sig is None:
+        with cleanup_functools_wrapper(func):
+            sig = _signatures.signature(func)
     if args or kwargs:
         bap = sig.bind_partial(*args, **kwargs)
     else:
@@ -305,14 +307,41 @@ def any_params_star(sig):
     return False
 
 
+class cleanup_functools_wrapper(object):
+    attrs = ['__wrapped__', '__signature__']
+
+    def __init__(self, func):
+        self.func = func
+
+    def __enter__(self):
+        try:
+            self.saved_attrs
+        except AttributeError:
+            pass
+        else:
+            raise RuntimeError('This context manager is not reentrant')
+        self.saved_attrs = {}
+        for attr in self.attrs:
+            try:
+                self.saved_attrs[attr] = getattr(self.func, attr)
+                delattr(self.func, attr)
+            except AttributeError:
+                pass
+
+    def __exit__(self, *exc):
+        for attr, val in self.saved_attrs.items():
+            setattr(self.func, attr, val)
+
+
 def autoforwards_function(func, args, kwargs):
-    sig = _signatures.signature(func)
+    with cleanup_functools_wrapper(func):
+        sig = _signatures.signature(func)
     if not any_params_star(sig):
         raise UnknownForwards
     func_ast = _util.get_ast(func)
     if func_ast is None:
         raise UnknownForwards
-    return autoforwards_ast(func, func_ast, None, args, kwargs)
+    return autoforwards_ast(func, func_ast, sig, args, kwargs)
 
 
 def autoforwards_hint(func, args, kwargs):

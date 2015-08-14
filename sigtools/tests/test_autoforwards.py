@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, wraps
 
 from sigtools import support, modifiers, specifiers
 from sigtools.tests.util import sigtester, tup
@@ -154,11 +154,11 @@ class AutoforwardsTests(object):
         self.assertSigsEqual(specifiers.signature(func), expected)
 
 
-    _wrapped = staticmethod(support.f('d, e, *, f'))
+    _wrapped_attr = staticmethod(support.f('d, e, *, f'))
 
     @tup('a, d, e, *, f')
     def global_attribute(a, *args, **kwargs):
-        AutoforwardsTests._wrapped(*args, **kwargs)
+        AutoforwardsTests._wrapped_attr(*args, **kwargs)
 
     def test_instance_attribute(self):
         class A(object):
@@ -214,3 +214,8 @@ class AutoforwardsTests(object):
     @tup('a, x, y, *, z')
     def call_in_varkwargs(a, *args, **kwargs):
         func(**_wrapped(*args, **kwargs))
+
+    @tup('y, *, z')
+    @wraps(_wrapped)
+    def functools_wrapped(*args, **kwargs):
+        _wrapped(1, *args, **kwargs)
