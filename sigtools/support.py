@@ -301,6 +301,10 @@ def bind_callsig(sig, args, kwargs):
 
     return assigned
 
+
+DEBUG_STDLIB=False
+
+
 def sort_callsigs(sig, callsigs):
     """Determines which ways to call ``sig`` in ``callsigs`` are valid or not.
 
@@ -322,21 +326,23 @@ def sort_callsigs(sig, callsigs):
         try:
             bound = bind_callsig(sig, args, kwargs)
         except TypeError:
-            try:
-                sig.bind(*args, **kwargs)
-            except TypeError:
-                pass
-            else:
-                warn('{0}.bind(*{1}, **{2}) didn\'t raise TypeError'
-                     .format(sig, args, kwargs))
+            if DEBUG_STDLIB:
+                try:
+                    sig.bind(*args, **kwargs)
+                except TypeError:
+                    pass
+                else:
+                    warn('{0}.bind(*{1}, **{2}) didn\'t raise TypeError'
+                         .format(sig, args, kwargs))
             invalid.append((args, kwargs))
         else:
             valid.append((args, kwargs, bound))
-            try:
-                sig.bind(*args, **kwargs)
-            except TypeError as e:
-                warn('{0}.bind(*{1}, **{2}) raised TypeError: {3}'
-                     .format(sig, args, kwargs, e))
+            if DEBUG_STDLIB:
+                try:
+                    sig.bind(*args, **kwargs)
+                except TypeError as e:
+                    warn('{0}.bind(*{1}, **{2}) raised TypeError: {3}'
+                         .format(sig, args, kwargs, e))
 
     return valid, invalid
 
