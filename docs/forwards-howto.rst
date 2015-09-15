@@ -2,7 +2,7 @@
 .. _forwards-pick:
 
 Picking the appropriate arguments for ``forwards``
---------------------------------------------------
+==================================================
 
 When filling the parameters for the various declinations of
 `~.signatures.forwards`, you are telling it how your wrapper function is
@@ -30,11 +30,12 @@ Here's an overview of the parameters for the family of `~.signatures.forwards` f
 
 
 Examples
-''''''''
+--------
 
 We will be using the ``~specifiers.forwards_to_function`` decorator for these examples.
 
-.. rubric:: ``*args`` and ``**kwargs`` are forwarded directly if present
+``*args`` and ``**kwargs`` are forwarded directly if present
+............................................................
 
 You do not need to signal anything about the wrapper function's parameters::
 
@@ -48,7 +49,8 @@ This holds true even if you omit one of ``*args`` and ``**kwargs``::
     def outer(**kwargs):
         inner(**kwargs)
 
-.. rubric:: Passing positional arguments to the wrapped function
+Passing positional arguments to the wrapped function
+....................................................
 
 Indicate the number of arguments you are passing to the wrapped function::
 
@@ -62,7 +64,8 @@ This applies even if the argument comes from the wrapper::
     def outer(arg, *args, **kwargs):
         inner(arg, *args, **kwargs)
 
-.. rubric:: Passing named arguments to from the wrapper
+Passing named arguments to from the wrapper
+...........................................
 
 Pass the names of the arguments after ``num_args``::
 
@@ -84,7 +87,8 @@ well::
     def outer(two, *args, beta, **kwargs):
         inner(one, two=two, *args, alpha='abc', beta=beta, **kwargs)
 
-.. rubric:: When the outer function uses ``*args`` or ``**kwargs`` but doesn't
+When the outer function uses ``*args`` or ``**kwargs`` but doesn't
+..................................................................
     forward them to the inner function
 
 Pass ``use_varargs=False`` if you outer function has an ``*args``-like
@@ -100,6 +104,3 @@ parameter but doesn't use it on the inner function directly::
     @specifiers.forwards_to_function(wrapped, use_varkwargs=False)
     def outer(*args, **kwargs):
         inner(*args)
-
-..
-    # vim: syn=rst
