@@ -100,8 +100,9 @@ class SignatureDocumenter(autodoc.FunctionDocumenter):
         super(SignatureDocumenter, self).__init__(*args, **kwargs)
         self.options.noindex = not self.options.index
 
-    def add_content(self, *args, **kwargs):
-        pass
+    def add_content(self, *args, no_docstring=True, **kwargs):
+        return super(SignatureDocumenter, self).add_content(
+            *args, no_docstring=True, **kwargs)
 
 def setup(app):
     app.connect('autodoc-process-signature', process_signature)
