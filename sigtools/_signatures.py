@@ -36,6 +36,10 @@ except AttributeError: # pragma: no cover
 
 
 def signature(obj):
+    """Retrieves to unmodified signature from ``obj``, without taking
+    `sigtools.specifiers` decorators into account or attempting automatic
+    signature discovery.
+    """
     if isinstance(obj, partial):
         sig = _util.funcsigs.signature(obj.func)
         return _mask(sig, len(obj.args), False, False, False, False,
@@ -537,7 +541,8 @@ def forwards(outer, inner, num_args=0,
     :param inspect.Signature inner: The inner signature.
 
     ``use_varargs`` and ``use_varkwargs`` are the same parameters as in
-    `.embed`, and ``num_args``, ``named_args`` are parameters of `.mask`.
+    `.embed`, and ``num_args``, ``named_args``, ``hide_args`` and
+    ``hide_kwargs`` are parameters of `.mask`.
 
     :return: the resulting `inspect.Signature` object
     :raises: `IncompatibleSignatures`

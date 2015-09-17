@@ -28,14 +28,23 @@ Here's an overview of the parameters for the family of `~.signatures.forwards` f
         Tells if the wrapper's ``**kwargs`` is being passed to the wrapped
         function.
 
+    **hide_args=**
+        Tells if the wrapped function is given an ``*args`` parameter
+        (other than the wrapper function's) in such a way that all positional
+        parameters are consumed.
 
-Examples
---------
+    **hide_varargs=**
+        Tells if the wrapped function is given a ``**kargs`` parameter
+        (other than the wrapper function's) in such a way that all keyword
+        parameters are consumed.
 
-We will be using the ``~specifiers.forwards_to_function`` decorator for these examples.
+
+For the following examples, we will be using the
+`~specifiers.forwards_to_function` decorator, although these will work with
+other ``forwards_to_*`` decorators.
 
 ``*args`` and ``**kwargs`` are forwarded directly if present
-............................................................
+------------------------------------------------------------
 
 You do not need to signal anything about the wrapper function's parameters::
 
@@ -49,8 +58,11 @@ This holds true even if you omit one of ``*args`` and ``**kwargs``::
     def outer(**kwargs):
         inner(**kwargs)
 
+
+.. _fwd pos:
+
 Passing positional arguments to the wrapped function
-....................................................
+----------------------------------------------------
 
 Indicate the number of arguments you are passing to the wrapped function::
 
@@ -64,8 +76,11 @@ This applies even if the argument comes from the wrapper::
     def outer(arg, *args, **kwargs):
         inner(arg, *args, **kwargs)
 
+
+.. _fwd named:
+
 Passing named arguments to from the wrapper
-...........................................
+-------------------------------------------
 
 Pass the names of the arguments after ``num_args``::
 
@@ -87,11 +102,13 @@ well::
     def outer(two, *args, beta, **kwargs):
         inner(one, two=two, *args, alpha='abc', beta=beta, **kwargs)
 
-When the outer function uses ``*args`` or ``**kwargs`` but doesn't
-..................................................................
-    forward them to the inner function
 
-Pass ``use_varargs=False`` if you outer function has an ``*args``-like
+.. _fwd use:
+
+When the outer function uses ``*args`` or ``**kwargs`` but doesn't forward them to the inner function
+-----------------------------------------------------------------------------------------------------
+
+Pass ``use_varargs=False`` if your outer function has an ``*args``-like
 parameter but doesn't use it on the inner function directly::
 
     @specifiers.forwards_to_function(wrapped, use_varargs=False)
@@ -104,3 +121,37 @@ parameter but doesn't use it on the inner function directly::
     @specifiers.forwards_to_function(wrapped, use_varkwargs=False)
     def outer(*args, **kwargs):
         inner(*args)
+
+
+.. _fwd hide:
+
+When the outer function passes an arbitrary ``*args`` or ``**kwargs`` to the inner function
+-------------------------------------------------------------------------------------------
+
+Pass ``hide_args=True`` if your outer function uses an arbitrary ``*args`` when
+calling the inner function (whether one exists or not in the outer function)::
+
+    @specifiers.forwards_to_function(wrapped, hide_args=True)
+    def outer(**kwargs):
+        args = other_function(...)
+        inner(*args, **kwargs)
+
+If you know exactly how many items ``args`` will have, specify the amount of
+items in ``args`` instead, as in :ref:`fwd pos`.
+
+Conversely, pass ``hide_kwargs=True`` if your outer function uses an arbitrary
+``*kwargs`` when calling the inner function (whether one exists or not in the
+outer function)::
+
+    @specifiers.forwards_to_function(wrapped, hide_args=True)
+    def outer(*args):
+        kwargs = other_function(...)
+        inner(*args, **kwargs)
+
+If you know exactly which keys ``kwargs`` will potentially have, specify all
+possible named keys it might have, as in :ref:`fwd named`.
+
+.. note::
+
+   Neither are needed if the outer function hasn't got an ``*args`` nor
+   ``**kwargs`` parameter
