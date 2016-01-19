@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 
 import itertools
+import collections
 from functools import partial
 
 from sigtools import _util
@@ -45,6 +46,11 @@ def signature(obj):
         return _mask(sig, len(obj.args), False, False, False, False,
                      obj.keywords or {})
     return _util.funcsigs.signature(obj)
+
+
+SortedParameters = collections.namedtuple(
+    'SortedParameters',
+    'posargs pokargs varargs kwoargs varkwargs')
 
 
 def sort_params(sig):
@@ -86,7 +92,7 @@ def sort_params(sig):
             varkwas = param
         else:
             raise AssertionError('Unknown param kind {0}'.format(param.kind))
-    return posargs, pokargs, varargs, kwoargs, varkwas
+    return SortedParameters(posargs, pokargs, varargs, kwoargs, varkwas)
 
 
 def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs):
