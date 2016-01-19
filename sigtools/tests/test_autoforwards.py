@@ -202,16 +202,19 @@ class AutoforwardsTests(object):
                              support.s('a, y'))
 
     @staticmethod
-    def _deeparg_l1(l2, *args, b, **kwargs):
+    @modifiers.kwoargs('b')
+    def _deeparg_l1(l2, b, *args, **kwargs):
         l2(*args, **kwargs)
 
     @staticmethod
-    def _deeparg_l2(l3, *args, c, **kwargs):
+    @modifiers.kwoargs('c')
+    def _deeparg_l2(l3, c, *args, **kwargs):
         l3(*args, **kwargs)
 
     @tup('x, y, *, a, b, c, z', {
             0: 'a', '_deeparg_l1': 'b', '_deeparg_l2': 'c', _wrapped: 'xyz'})
-    def deeparg(*args, a, **kwargs):
+    @modifiers.kwoargs('a')
+    def deeparg(a, *args, **kwargs):
         AutoforwardsTests._deeparg_l1(
             AutoforwardsTests._deeparg_l2, _wrapped,
             *args, **kwargs)
