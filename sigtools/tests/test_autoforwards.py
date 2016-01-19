@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import partial, wraps
 
 from sigtools import support, modifiers, specifiers
@@ -13,22 +14,47 @@ else:
 
 
 _wrapped = support.f('x, y, *, z')
+_wrapped.__name__ = '_wrapped'
 
 
 def func(x):
     pass
 
 
+def transform_exp_sources(d, subject):
+    ret = defaultdict(list)
+    for func, params in d.items():
+        if func == 0:
+            func = subject
+        try:
+            func = func.__name__
+        except AttributeError:
+            pass
+        for param in params:
+            ret[param].append(func)
+    return dict(ret)
+
+
+def transform_real_sources(d):
+    ret = {}
+    for param, funcs in d.items():
+        ret[param] = [func.__name__ for func in funcs]
+    return ret
+
+
 @sigtester
-def autosigequal(self, func, expected):
-    self.assertSigsEqual(
-        specifiers.signature(func),
-        support.s(expected))
+def autosigequal(self, func, expected, sources):
+    sig, src = specifiers.forged_signature(func)
+    self.assertSigsEqual(sig, support.s(expected))
+    if sources is None: return
+    self.assertEqual(transform_real_sources(src),
+                     transform_exp_sources(sources, func))
 
 
 @autosigequal
 class AutoforwardsTests(object):
-    @tup('a, b, x, y, *, z')
+    @tup('a, b, x, y, *, z',
+         {'global_': ('a', 'b'), '_wrapped': ('x', 'y', 'z')})
     def global_(a, b, *args, **kwargs):
         pass
         return _wrapped(*args, **kwargs) # pragma: nocover
@@ -38,32 +64,35 @@ class AutoforwardsTests(object):
         def wrapper(b, a, *args, **kwargs):
             return wrapped(*args, **kwargs)
         return wrapper
-    closure = _make_closure(), 'b, a, x, y, *, z'
+    closure = (
+        _make_closure(),
+        'b, a, x, y, *, z', {'wrapper': 'ba', '_wrapped': 'xyz'})
 
-    @tup('a, b, y')
+    @tup('a, b, y', {'args': 'ab', '_wrapped': 'y'})
     def args(a, b, *args, **kwargs):
         return _wrapped(a, *args, z=b, **kwargs)
 
-    @tup('a, b, *, z')
+    @tup('a, b, *, z', {'using_other_varargs': 'ab', '_wrapped': 'z'})
     def using_other_varargs(a, b, **kwargs):
         return _wrapped(a, *b, **kwargs)
 
-    @tup('a, b, *args, **kwargs')
+    @tup('a, b, *args, **kwargs', {'rebind_args': ['a', 'b', 'args', 'kwargs']})
     def rebind_args(a, b, *args, **kwargs):
         args = ()
         kwargs = {}
         return _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, z')
+    @tup('a, b, *args, z',
+         {'unknown_args': ['a', 'b', 'args'], '_wrapped': 'z'})
     def unknown_args(a, b, *args, **kwargs):
         args = None
         return _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, z')
+    @tup('a, b, *args, z', {'expr_args': ['a', 'b', 'args'], '_wrapped': 'z'})
     def expr_args(a, b, *args, **kwargs):
         return _wrapped(*(range(10)), **kwargs)
 
-    @tup('a, b, **kwargs')
+    @tup('a, b, **kwargs', {'unknown_kwargs': ['a', 'b', 'kwargs']})
     def unknown_kwargs(a, b, *args, **kwargs):
         kwargs = None
         return _wrapped(*args, **kwargs)
@@ -77,27 +106,27 @@ class AutoforwardsTests(object):
     #         return l2
     #     self._test_func(l1(), '*, z')
 
-    @tup('*args, z')
+    @tup('*args, z', {'rebind_using_with': ['args'], '_wrapped': ['z']})
     def rebind_using_with(*args, **kwargs):
         cm = None
         with cm() as args:
             _wrapped(*args, **kwargs)
 
-    @tup('x, y, /, *, kwop')
+    @tup('x, y, /, *, kwop', {'kwo': ['kwop'], '_wrapped': 'xy'})
     @modifiers.kwoargs('kwop')
     def kwo(kwop, *args):
         _wrapped(*args, z=kwop)
 
-    @tup('a, b, y, *, z')
+    @tup('a, b, y, *, z', {'subdef': 'ab', '_wrapped': 'yz'})
     def subdef(a, b, *args, **kwargs):
         def func():
             _wrapped(42, *args, **kwargs)
 
-    @tup('a, b, y, *, z')
+    @tup('a, b, y, *, z', {'subdef_lambda': 'ab', '_wrapped': 'yz'})
     def subdef_lambda(a, b, *args, **kwargs):
         lambda: _wrapped(42, *args, **kwargs)
 
-    @tup('a, b, x, y, *, z')
+    @tup('a, b, x, y, *, z', {'rebind_subdef': 'ab', '_wrapped': 'xyz'})
     def rebind_subdef(a, b, *args, **kwargs):
         def func():
             args = ()
@@ -105,13 +134,14 @@ class AutoforwardsTests(object):
             _wrapped(42, *args, **kwargs)
         _wrapped(*args, **kwargs)
 
-    @tup('a, b, x, y, *, z')
+    @tup('a, b, x, y, *, z', {'rebind_subdef_param': 'ab', '_wrapped': 'xyz'})
     def rebind_subdef_param(a, b, *args, **kwargs):
         def func(*args, **kwargs):
             _wrapped(42, *args, **kwargs)
         _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, **kwargs')
+    @tup('a, b, *args, **kwargs',
+         {'rebind_subdef_lambda_param': ['a', 'b', 'args', 'kwargs']})
     def rebind_subdef_lambda_param(a, b, *args, **kwargs):
         lambda *args, **kwargs: _wrapped(*args, **kwargs)
 
@@ -130,7 +160,8 @@ class AutoforwardsTests(object):
     def _wrapper(wrapped, a, *args, **kwargs):
         return wrapped(*args, **kwargs)
 
-    partial_ = partial(_wrapper, _wrapped), 'a, x, y, *, z'
+    partial_ = partial(_wrapper, _wrapped), 'a, x, y, *, z', {
+            _wrapper: 'a', _wrapped: 'xyz'}
 
     @staticmethod
     @modifiers.kwoargs('wrapped')
@@ -156,7 +187,7 @@ class AutoforwardsTests(object):
 
     _wrapped_attr = staticmethod(support.f('d, e, *, f'))
 
-    @tup('a, d, e, *, f')
+    @tup('a, d, e, *, f', {0: 'a', 'func': 'def'})
     def global_attribute(a, *args, **kwargs):
         AutoforwardsTests._wrapped_attr(*args, **kwargs)
 
@@ -171,15 +202,16 @@ class AutoforwardsTests(object):
                              support.s('a, y'))
 
     @staticmethod
-    def _deeparg_l1(l2, *args, **kwargs):
+    def _deeparg_l1(l2, *args, b, **kwargs):
         l2(*args, **kwargs)
 
     @staticmethod
-    def _deeparg_l2(l3, *args, **kwargs):
+    def _deeparg_l2(l3, *args, c, **kwargs):
         l3(*args, **kwargs)
 
-    @tup('x, y, *, z')
-    def deeparg(*args, **kwargs):
+    @tup('x, y, *, a, b, c, z', {
+            0: 'a', '_deeparg_l1': 'b', '_deeparg_l2': 'c', _wrapped: 'xyz'})
+    def deeparg(*args, a, **kwargs):
         AutoforwardsTests._deeparg_l1(
             AutoforwardsTests._deeparg_l2, _wrapped,
             *args, **kwargs)
@@ -194,28 +226,29 @@ class AutoforwardsTests(object):
     def _deeparg_kwo_l2(l3, c, *args, **kwargs):
         l3(*args, **kwargs)
 
-    @tup('a, b, c, x, y, *, z')
+    @tup('a, b, c, x, y, *, z', {
+        0: 'a', '_deeparg_kwo_l1': 'b', '_deeparg_kwo_l2': 'c', _wrapped: 'xyz'})
     def deeparg_kwo(a, *args, **kwargs):
         AutoforwardsTests._deeparg_kwo_l1(
             *args, l2=AutoforwardsTests._deeparg_kwo_l2, l3=_wrapped, **kwargs)
 
-    @tup('a, x, y, *, z')
+    @tup('a, x, y, *, z', {0: 'a', _wrapped: 'xyz'})
     def call_in_args(a, *args, **kwargs):
         func(_wrapped(*args, **kwargs))
 
-    @tup('a, x, y, *, z')
+    @tup('a, x, y, *, z', {0: 'a', _wrapped: 'xyz'})
     def call_in_kwargs(a, *args, **kwargs):
         func(kw=_wrapped(*args, **kwargs))
 
-    @tup('a, x, y, *, z')
+    @tup('a, x, y, *, z', {0: 'a', _wrapped: 'xyz'})
     def call_in_varargs(a, *args, **kwargs):
         func(*_wrapped(*args, **kwargs))
 
-    @tup('a, x, y, *, z')
+    @tup('a, x, y, *, z', {0: 'a', _wrapped: 'xyz'})
     def call_in_varkwargs(a, *args, **kwargs):
         func(**_wrapped(*args, **kwargs))
 
-    @tup('y, *, z')
+    @tup('y, *, z', {_wrapped: 'yz'})
     @wraps(_wrapped)
     def functools_wrapped(*args, **kwargs):
         _wrapped(1, *args, **kwargs)

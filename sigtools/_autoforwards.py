@@ -255,10 +255,24 @@ def resolve_name(obj, func, args, unknown=False):
         raise
 
 
+def add_params(params, func, sig):
+    for param in sig.parameters.values():
+        params[param.name].add(func)
+
+
 def forward_signatures(func, calls, args, kwargs, sig=None):
+    params = collections.defaultdict(set)
     if sig is None:
         with cleanup_functools_wrapper(func):
             sig = _signatures.signature(func)
+    wrapper_varargs = wrapper_varkwargs = None
+    for param in sig.parameters.values():
+        if param.kind == param.VAR_POSITIONAL:
+            wrapper_varargs = param.name
+        elif param.kind == param.VAR_KEYWORD:
+            wrapper_varkwargs = param.name
+        else:
+            params[param.name].add(func)
     if args or kwargs:
         bap = sig.bind_partial(*args, **kwargs)
     else:
@@ -271,6 +285,8 @@ def forward_signatures(func, calls, args, kwargs, sig=None):
             hide_args, hide_kwargs) in calls:
         if not (use_varargs or use_varkwargs):
             continue
+        wrapper_varargs = None if use_varargs else wrapper_varargs
+        wrapper_varkwargs = None if use_varkwargs else wrapper_varkwargs
         try:
             wrapped_func = rn(wrapped, unknown=False)
         except UnresolvableName:
@@ -279,25 +295,42 @@ def forward_signatures(func, calls, args, kwargs, sig=None):
         fwdargsvals.extend(rn(fwdvarargs))
         fwdkwargsvals = dict((n, rn(arg)) for n, arg in fwdkwargs.items())
         fwdkwargsvals.update(rn(fwdvarkwargs))
-        wrapped_sig = forged_signature(
+        wrapped_sig, wrapped_params = forged_signature(
             wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
         try:
-            yield _signatures.forwards(
+            ausig = _signatures.forwards(
                 sig, wrapped_sig,
                 len(fwdargs),
                 hide_args, hide_kwargs,
                 use_varargs, use_varkwargs,
                 *fwdkwargs)
+            from_outer, from_inner = _signatures.forwards_sources(
+                sig, wrapped_sig,
+                len(fwdargs),
+                hide_args, hide_kwargs,
+                use_varargs, use_varkwargs,
+                *fwdkwargs)
+            for pname, funcs in wrapped_params.items():
+                if pname in from_inner:
+                    params[pname].update(funcs)
+            yield ausig
         except ValueError:
             raise UnknownForwards
+    if wrapper_varargs is not None:
+        params[wrapper_varargs].add(func)
+    if wrapper_varkwargs is not None:
+        params[wrapper_varkwargs].add(func)
+    yield params
 
 
 def autoforwards_partial(par, args, kwargs):
+    sig, src = autoforwards(par.func, par.args, {})
+    for param, _ in zip(sig.parameters, par.args):
+        del src[param]
     return _signatures._mask(
-        autoforwards(par.func, par.args, {}),
-        len(par.args),
+        sig, len(par.args),
         False, False, False, False,
-        par.keywords or {})
+        par.keywords or {}), src
 
 
 def any_params_star(sig):
@@ -356,8 +389,13 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
     sigs = list(forward_signatures(
         func, CallListerVisitor(func_ast),
         args, kwargs, sig))
+    src = sigs.pop()
     if sigs:
-        return _signatures.merge(*sigs)
+        sig = _signatures.merge(*sigs)
+        for param in list(src):
+            if param not in sig.parameters:
+                pass # del src[param] # FIXME crutch
+        return sig, src
     else:
         raise UnknownForwards('No forwarding of *args, **kwargs found')
 
@@ -365,9 +403,9 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
 def autoforwards_method(method, args, kwargs):
     if method.__self__ is None:
         raise UnknownForwards
-    sig = autoforwards(
+    sig, src = autoforwards(
         method.__func__, (method.__self__,) + tuple(args), kwargs)
-    return _signatures.mask(sig, 1)
+    return _signatures.mask(sig, 1), src
 
 
 def autoforwards(obj, args=(), kwargs={}):
