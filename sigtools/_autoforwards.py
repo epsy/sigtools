@@ -106,6 +106,31 @@ Call = collections.namedtuple(
     'hide_args hide_kwargs')
 
 
+if sys.version_info < (3,5):
+    Starred = type(None)
+    def get_starargs(call):
+        return call.starargs
+    def get_kwargs(call):
+        return call.kwargs
+else:
+    Starred = ast.Starred
+    def get_starargs(call):
+        ret = [n for n in call.args if isinstance(n, Starred)]
+        if not ret:
+            return None
+        elif len(ret) == 1:
+            return ret[0].value
+        else:
+            return Unknown(ret)
+    def get_kwargs(call):
+        ret = [n for n in call.keywords if n.arg is None]
+        if not ret:
+            return None
+        elif len(ret) == 1:
+            return ret[0].value
+        else:
+            return Unknown(ret)
+
 if sys.version_info < (3,4):
     def get_vararg(arg):
         return arg
@@ -163,6 +188,8 @@ class CallListerVisitor(ast.NodeVisitor):
         elif isinstance(name, ast.Attribute):
             value = self.resolve_name(name.value)
             return Attribute(value, name.attr)
+        elif isinstance(name, Unknown):
+            return name
         self.visit(name)
         return Unknown(name)
 
@@ -198,12 +225,15 @@ class CallListerVisitor(ast.NodeVisitor):
 
     def process_Call(self, node):
         wrapped = self.resolve_name(node.func)
-        args = [self.resolve_name(arg) for arg in node.args]
+        args = [self.resolve_name(arg) for arg in node.args
+                if not isinstance(arg, Starred)]
         kwargs = dict(
             (kw.arg, self.resolve_name(kw.value))
-            for kw in node.keywords)
-        varargs = self.resolve_name(node.starargs) if node.starargs else None
-        varkwargs = self.resolve_name(node.kwargs) if node.kwargs else None
+            for kw in node.keywords if kw.arg is not None)
+        starargs = get_starargs(node)
+        starkwargs = get_kwargs(node)
+        varargs = self.resolve_name(starargs) if starargs else None
+        varkwargs = self.resolve_name(starkwargs) if starkwargs else None
         use_varargs, hide_args = \
             self.has_hide_starargs(varargs, self.varargs)
         use_varkwargs, hide_kwargs = \
