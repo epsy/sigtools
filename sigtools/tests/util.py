@@ -22,6 +22,7 @@
 
 import unittest2
 from functools import partial
+from collections import defaultdict
 
 
 def tup(*args):
@@ -36,6 +37,28 @@ def conv_first_posarg(sig):
     return sig.replace(
         parameters=(first,) + tuple(sig.parameters.values())[1:])
 
+
+def transform_exp_sources(d, subject):
+    ret = defaultdict(list)
+    for func, params in d.items():
+        if func == 0:
+            func = subject
+        try:
+            func = func.__name__
+        except AttributeError:
+            pass
+        for param in params:
+            ret[param].append(str(func))
+    return dict(ret)
+
+
+def transform_real_sources(d):
+    ret = {}
+    for param, funcs in d.items():
+        ret[param] = [func.__name__ for func in funcs]
+    return ret
+
+
 class SignatureTests(unittest2.TestCase):
     def assertSigsEqual(self, found, expected, *args, **kwargs):
         conv = kwargs.pop('conv_first_posarg', False)
@@ -48,6 +71,11 @@ class SignatureTests(unittest2.TestCase):
             raise AssertionError(
                 'Did not get expected signature({0}), got {1} instead.'
                 .format(expected, found))
+
+    def assertSourcesEqual(self, func, found, expected):
+        self.assertEqual(transform_real_sources(found),
+                         transform_exp_sources(expected, func))
+
 
 def make_run_test(func, value, **kwargs):
     def _func(self):

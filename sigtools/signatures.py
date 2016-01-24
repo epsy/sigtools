@@ -45,6 +45,36 @@ __all__ = [
     ]
 
 
+merge = modifiers.autokwoargs(merge)
 embed = modifiers.autokwoargs(embed)
 mask = modifiers.autokwoargs(exceptions=('num_args',))(mask)
-forwards = modifiers.autokwoargs(exceptions=('num_args',))(forwards)
+forwards_sources = modifiers.autokwoargs(exceptions=('num_args',))(forwards)
+
+def forwards(*args, **kwargs):
+    """Calls `mask` on ``inner``, then returns the result of calling
+    `embed` with ``outer`` and the result of `mask`.
+
+    :param inspect.Signature outer: The outermost signature.
+    :param inspect.Signature inner: The inner signature.
+
+    ``use_varargs`` and ``use_varkwargs`` are the same parameters as in
+    `.embed`, and ``num_args``, ``named_args``, ``hide_args`` and
+    ``hide_kwargs`` are parameters of `.mask`.
+
+    :return: the resulting `inspect.Signature` object
+    :raises: `IncompatibleSignatures`
+
+    ::
+
+        >>> from sigtools import support, signatures
+        >>> print(signatures.forwards(
+        ...     support.s('a, *args, x, **kwargs'),
+        ...     support.s('b, c, *, y, z'),
+        ...     1, 'y'))
+        (a, c, *, x, z)
+
+    .. seealso::
+        :ref:`forwards-pick`
+
+    """
+    return forwards_sources(*args, **kwargs)

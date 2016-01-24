@@ -132,153 +132,234 @@ class IncompatibleSignatures(ValueError):
             )
 
 
-def _concile_meta(left, right):
-    default = left.empty
-    if left.default != left.empty and right.default != right.empty:
-        if left.default == right.default:
-            default = left.default
-        else:
-            # The defaults are different. Short of using an "It's complicated"
-            # constant, None is the best replacement available, as a lot of
-            # python code already uses None as default then processes an
-            # actual default in the function body
-            default = None
-    annotation = left.empty
-    if left.annotation != left.empty and right.annotation != right.empty:
-        if left.annotation == right.annotation:
-            annotation = left.annotation
-    elif left.annotation != left.empty:
-        annotation = left.annotation
-    elif right.annotation != right.empty:
-        annotation = right.annotation
-    return left.replace(default=default, annotation=annotation)
 
-def _merge(left, right):
-    l_posargs, l_pokargs, l_varargs, l_kwoargs, l_varkwargs = left
-    r_posargs, r_pokargs, r_varargs, r_kwoargs, r_varkwargs = right
+def _add_sources(ret_src, name, *from_sources):
+    target = ret_src.setdefault(name, [])
+    target.extend(itertools.chain.from_iterable(
+        src.get(name, ()) for src in from_sources))
 
-    posargs = []
-    pokargs = []
-    varargs = r_varargs and l_varargs
-    kwoargs = _util.OrderedDict()
-    varkwargs = r_varkwargs and l_varkwargs
+def _add_all_sources(ret_src, params, from_source):
+    """Adds the sources from from_source of all given parameters into the
+    lhs sources multidict"""
+    for param in params:
+        ret_src.setdefault(param.name, []).extend(
+            from_source.get(param.name, ()))
 
-    l_kwoargs_limbo = _util.OrderedDict()
-    for l_kwoarg in l_kwoargs.values():
-        if l_kwoarg.name in r_kwoargs:
-            kwoargs[l_kwoarg.name] = _concile_meta(
-                l_kwoarg, r_kwoargs[l_kwoarg.name])
-        else:
-            l_kwoargs_limbo[l_kwoarg.name] = l_kwoarg
+def _exclude_from_seq(seq, el):
+    for i, x in enumerate(seq):
+        if el is x:
+            seq[i] = None
+            break
 
-    r_kwoargs_limbo = _util.OrderedDict()
-    for r_kwoarg in r_kwoargs.values():
-        if r_kwoarg.name not in l_kwoargs:
-            r_kwoargs_limbo[r_kwoarg.name] = r_kwoarg
 
-    il_pokargs = iter(l_pokargs)
-    ir_pokargs = iter(r_pokargs)
+class _Merger(object):
+    def __init__(self, left, right, left_sources, right_sources):
+        self.l = left
+        self.r = right
+        self.lsrc = left_sources
+        self.rsrc = right_sources
+        self.performed = False
 
-    for l_posarg, r_posarg in zip_longest(l_posargs, r_posargs):
-        if l_posarg and r_posarg:
-            posargs.append(_concile_meta(l_posarg, r_posarg))
-        else:
-            if l_posarg:
-                _merge_unbalanced_pos(l_posarg, ir_pokargs, r_varargs, posargs)
-            else:
-                _merge_unbalanced_pos(r_posarg, il_pokargs, l_varargs, posargs,
-                                      prefer_o=True)
+    def perform_once(self):
+        self.performed = True
+        self._merge()
 
-    for l_pokarg, r_pokarg in zip_longest(il_pokargs, ir_pokargs):
-        if l_pokarg and r_pokarg:
-            if l_pokarg.name == r_pokarg.name:
-                pokargs.append(_concile_meta(l_pokarg, r_pokarg))
-            else:
-                for i, pokarg in enumerate(pokargs):
-                    pokargs[i] = pokarg.replace(kind=pokarg.POSITIONAL_ONLY)
-                pokargs.append(
-                    _concile_meta(l_pokarg, r_pokarg)
-                    .replace(kind=l_pokarg.POSITIONAL_ONLY))
-        else:
-            if l_pokarg:
-                _merge_unbalanced_pok(
-                    l_pokarg, r_varargs, r_varkwargs, r_kwoargs_limbo,
-                    posargs, pokargs, kwoargs)
-            else:
-                _merge_unbalanced_pok(
-                    r_pokarg, l_varargs, l_varkwargs, l_kwoargs_limbo,
-                    posargs, pokargs, kwoargs)
+    def __iter__(self):
+        self.perform_once()
+        ret = (
+            self.posargs, self.pokargs, self.varargs,
+            self.kwoargs, self.varkwargs,
+            self.src)
+        return iter(ret)
 
-    if l_kwoargs_limbo:
-        _merge_kwoargs_limbo(l_kwoargs_limbo, r_varkwargs, kwoargs)
-    if r_kwoargs_limbo:
-        _merge_kwoargs_limbo(r_kwoargs_limbo, l_varkwargs, kwoargs)
-
-    return posargs, pokargs, varargs, kwoargs, varkwargs
-
-def _merge_unbalanced_pos(existing, convert_from, o_varargs, posargs,
-                          prefer_o=False):
-    try:
-        other = next(convert_from)
-    except StopIteration:
-        if o_varargs:
-            posargs.append(existing)
-        elif existing.default == existing.empty:
-            raise ValueError('Unmatched positional parameter: {0}'.format(existing))
-    else:
-        if prefer_o:
-            posargs.append(
-                _concile_meta(other, existing).replace(kind=other.POSITIONAL_ONLY))
-        else:
-            posargs.append(_concile_meta(existing, other))
-
-def _merge_unbalanced_pok(
-        existing,
-        o_varargs, o_varkwargs, o_kwargs_limbo,
-        posargs, pokargs, kwoargs
-        ):
-    if existing.name in o_kwargs_limbo:
-        kwoargs[existing.name] = _concile_meta(
-            existing, o_kwargs_limbo.pop(existing.name)
-            ).replace(kind=existing.KEYWORD_ONLY)
-    elif o_varargs and o_varkwargs:
-        pokargs.append(existing)
-    elif o_varkwargs:
-        # convert to keyword argument
-        kwoargs[existing.name] = existing.replace(
-            kind=existing.KEYWORD_ONLY)
-    elif o_varargs:
-        # convert along with all preceeding to positional args
-        posargs.extend(
-            a.replace(kind=a.POSITIONAL_ONLY)
-            for a in pokargs)
-        pokargs[:] = []
-        posargs.append(existing.replace(kind=existing.POSITIONAL_ONLY))
-    elif existing.default == existing.empty:
-        raise ValueError('Unmatched regular parameter: {0}'.format(existing))
-
-def _merge_kwoargs_limbo(kwoargs_limbo, o_varkwargs, kwoargs):
-    if o_varkwargs:
-        kwoargs.update(kwoargs_limbo)
-    else:
-        non_defaulted = [
-            arg
-            for arg in kwoargs_limbo.values()
-            if arg.default == arg.empty
+    def _merge(self):
+        self.posargs = []
+        self.pokargs = []
+        self.varargs_src = [self.l.varargs, self.r.varargs]
+        self.kwoargs = _util.OrderedDict()
+        self.varkwargs_src = [
+            self.l.varkwargs,
+            self.r.varkwargs
             ]
-        if non_defaulted:
-            raise ValueError(
-                'Unmatched keyword parameters: {0}'.format(
-                ' '.join(str(arg) for arg in non_defaulted)))
+        self.src = {}
 
-def _check_no_dupes(collect, params):
-    names = [param.name for param in params]
-    dupes = collect.intersection(names)
-    if dupes:
-        raise ValueError('Duplicate parameter names: ' + ' '.join(dupes))
-    collect.update(names)
 
-def merge(*signatures):
+        self.l_unmatched_kwoargs = _util.OrderedDict()
+        for param in self.l.kwoargs.values():
+            name = param.name
+            if name in self.r.kwoargs:
+                self.kwoargs[name] = self._concile_meta(
+                    param, self.r.kwoargs[name])
+                self.src[name] = list(itertools.chain(
+                    self.lsrc.get(name, ()), self.rsrc.get(name, ())))
+            else:
+                self.l_unmatched_kwoargs[param.name] = param
+
+        self.r_unmatched_kwoargs = _util.OrderedDict()
+        for param in self.r.kwoargs.values():
+            if param.name not in self.l.kwoargs:
+                self.r_unmatched_kwoargs[param.name] = param
+
+        il_pokargs = iter(self.l.pokargs)
+        ir_pokargs = iter(self.r.pokargs)
+
+        for l_param, r_param in zip_longest(self.l.posargs, self.r.posargs):
+            if l_param and r_param:
+                p = self._concile_meta(l_param, r_param)
+                self.posargs.append(p)
+                if l_param.name == r_param.name:
+                    _add_sources(self.src, l_param.name, self.lsrc, self.rsrc)
+                else:
+                    _add_sources(self.src, l_param.name, self.lsrc)
+            else:
+                if l_param:
+                    self._merge_unbalanced_pos(
+                        l_param, self.lsrc,
+                        ir_pokargs, self.r.varargs, self.rsrc)
+                else:
+                    self._merge_unbalanced_pos(
+                        r_param, self.rsrc,
+                        il_pokargs, self.l.varargs, self.lsrc)
+
+        for l_param, r_param in zip_longest(il_pokargs, ir_pokargs):
+            if l_param and r_param:
+                if l_param.name == r_param.name:
+                    self.pokargs.append(self._concile_meta(l_param, r_param))
+                    _add_sources(self.src, l_param.name, self.lsrc, self.rsrc)
+                else:
+                    for i, pokarg in enumerate(self.pokargs):
+                        self.pokargs[i] = pokarg.replace(
+                            kind=pokarg.POSITIONAL_ONLY)
+                    self.pokargs.append(
+                        self._concile_meta(l_param, r_param)
+                        .replace(kind=l_param.POSITIONAL_ONLY))
+                    _add_sources(self.src, l_param.name, self.lsrc)
+            else:
+                if l_param:
+                    self._merge_unbalanced_pok(
+                        l_param, self.lsrc,
+                        self.r.varargs, self.r.varkwargs,
+                        self.r_unmatched_kwoargs, self.rsrc)
+                else:
+                    self._merge_unbalanced_pok(
+                        r_param, self.rsrc,
+                        self.l.varargs, self.l.varkwargs,
+                        self.l_unmatched_kwoargs, self.lsrc)
+
+        if self.l_unmatched_kwoargs:
+            self._merge_unmatched_kwoargs(
+                self.l_unmatched_kwoargs, self.r.varkwargs, self.lsrc)
+        if self.r_unmatched_kwoargs:
+            self._merge_unmatched_kwoargs(
+                self.r_unmatched_kwoargs, self.l.varkwargs, self.rsrc)
+
+        self.varargs = self._add_starargs(
+            self.varargs_src, self.l.varargs, self.r.varargs)
+        self.varkwargs = self._add_starargs(
+            self.varkwargs_src, self.l.varkwargs, self.r.varkwargs)
+
+    def _add_starargs(self, which, left, right):
+        if not left or not right:
+            return None
+        if all(which):
+            ret = self._concile_meta(left, right)
+            if left.name == right.name:
+                _add_sources(self.src, ret.name, self.lsrc, self.rsrc)
+            else:
+                _add_sources(self.src, ret.name, self.lsrc)
+        elif which[0]:
+            ret = left
+            _add_sources(self.src, ret.name, self.lsrc)
+        else:
+            ret = right
+            _add_sources(self.src, ret.name, self.rsrc)
+        return ret
+
+    def _merge_unbalanced_pos(self, existing, src,
+                              convert_from, o_varargs, o_src):
+        try:
+            other = next(convert_from)
+        except StopIteration:
+            if o_varargs:
+                self.posargs.append(existing)
+                _add_sources(self.src, existing.name, src)
+                _exclude_from_seq(self.varargs_src, o_varargs)
+            elif existing.default == existing.empty:
+                raise ValueError('Unmatched positional parameter: {0}'
+                                 .format(existing))
+        else:
+            self.posargs.append(self._concile_meta(existing, other))
+            _add_sources(self.src, existing.name, src)
+
+    def _merge_unbalanced_pok(
+            self, existing, src,
+            o_varargs, o_varkwargs, o_kwargs_limbo, o_src):
+        """tries to insert positional-or-keyword parameters for which there were
+        no matched positional parameter"""
+        if existing.name in o_kwargs_limbo:
+            self.kwoargs[existing.name] = self._concile_meta(
+                existing, o_kwargs_limbo.pop(existing.name)
+                ).replace(kind=existing.KEYWORD_ONLY)
+            _add_sources(self.src, existing.name, o_src, src)
+        elif o_varargs and o_varkwargs:
+            self.pokargs.append(existing)
+            _add_sources(self.src, existing.name, src)
+        elif o_varkwargs:
+            # convert to keyword argument
+            self.kwoargs[existing.name] = existing.replace(
+                kind=existing.KEYWORD_ONLY)
+            _add_sources(self.src, existing.name, src)
+        elif o_varargs:
+            # convert along with all preceeding to positional args
+            self.posargs.extend(
+                a.replace(kind=a.POSITIONAL_ONLY)
+                for a in self.pokargs)
+            self.pokargs[:] = []
+            self.posargs.append(existing.replace(kind=existing.POSITIONAL_ONLY))
+            _add_sources(self.src, existing.name, src)
+        elif existing.default == existing.empty:
+            raise ValueError('Unmatched regular parameter: {0}'
+                             .format(existing))
+
+    def _merge_unmatched_kwoargs(self, unmatched_kwoargs, o_varkwargs, from_src):
+        if o_varkwargs:
+            self.kwoargs.update(unmatched_kwoargs)
+            _add_all_sources(self.src, unmatched_kwoargs.values(), from_src)
+            _exclude_from_seq(self.varkwargs_src, o_varkwargs)
+        else:
+            non_defaulted = [
+                arg
+                for arg in unmatched_kwoargs.values()
+                if arg.default == arg.empty
+                ]
+            if non_defaulted:
+                raise ValueError(
+                    'Unmatched keyword parameters: {0}'.format(
+                    ' '.join(str(arg) for arg in non_defaulted)))
+
+    def _concile_meta(self, left, right):
+        default = left.empty
+        if left.default != left.empty and right.default != right.empty:
+            if left.default == right.default:
+                default = left.default
+            else:
+                # The defaults are different. Short of using an "It's complicated"
+                # constant, None is the best replacement available, as a lot of
+                # python code already uses None as default then processes an
+                # actual default in the function body
+                default = None
+        annotation = left.empty
+        if left.annotation != left.empty and right.annotation != right.empty:
+            if left.annotation == right.annotation:
+                annotation = left.annotation
+        elif left.annotation != left.empty:
+            annotation = left.annotation
+        elif right.annotation != right.empty:
+            annotation = right.annotation
+        return left.replace(default=default, annotation=annotation)
+
+
+def merge(sources=None, *signatures):
     """Tries to compute a signature for which a valid call would also validate
     the given signatures.
 
@@ -337,21 +418,41 @@ def merge(*signatures):
     """
     assert signatures, "Expected at least one signature"
     ret = sort_params(signatures[0])
+    sources_given = True
+    if sources is None:
+        sources_given = False
+        sources = [{} for _ in signatures]
+    ret_src = sources[0]
     for i, sig in enumerate(signatures[1:], 1):
         sorted_params = sort_params(sig)
         try:
-            ret = _merge(ret, sorted_params)
+            ret_ = tuple(_Merger(ret, sorted_params, ret_src, sources[i]))
+            ret, ret_src = SortedParameters(*ret_[:-1]), ret_[-1]
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    return apply_params(signatures[0], *ret)
+    ret_sig = apply_params(signatures[0], *ret)
+    if sources_given:
+        return ret_sig, ret_src
+    return ret_sig
+
+
+def _check_no_dupes(collect, params):
+    names = [param.name for param in params]
+    dupes = collect.intersection(names)
+    if dupes:
+        raise ValueError('Duplicate parameter names: ' + ' '.join(dupes))
+    collect.update(names)
 
 
 def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs = outer
 
-    i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs = _merge(
-        inner, ([], [], use_varargs and o_varargs,
-                {}, use_varkwargs and o_varkwargs))
+    stars_sig = SortedParameters(
+        [], [], use_varargs and o_varargs,
+        {}, use_varkwargs and o_varkwargs)
+
+    i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs, i_src = _Merger(
+        inner, stars_sig, {}, {})
 
     names = set()
 

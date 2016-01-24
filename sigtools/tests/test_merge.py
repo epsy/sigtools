@@ -24,16 +24,29 @@
 from sigtools.signatures import merge, IncompatibleSignatures
 from sigtools.support import s
 from sigtools.tests.util import sigtester
+from sigtools._util import OrderedDict as Od
 
+
+def dummy_func(name):
+    def func():
+        raise NotImplementedError
+    func.__name__ = str(name)
+    return func
 
 @sigtester
-def merge_tests(self, result, *signatures):
+def merge_tests(self, result, exp_sources, *signatures):
     assert len(signatures) >= 2
     sigs = [s(sig) for sig in signatures]
-    self.assertSigsEqual(
-        merge(*sigs),
-        s(result)
-        )
+    srcs = [dict((p.name, [dummy_func(i)]) for p in sig.parameters.values())
+            for i, sig in enumerate(sigs, 1)]
+
+    sig, out_src = merge(*sigs, sources=srcs)
+    sig2 = merge(*sigs)
+    result_sig = s(result)
+
+    self.assertSigsEqual(sig, result_sig)
+    self.assertSourcesEqual(None, out_src, exp_sources)
+    self.assertSigsEqual(sig2, result_sig)
 
 @sigtester
 def merge_raise_tests(self, *signatures):
@@ -43,48 +56,64 @@ def merge_raise_tests(self, *signatures):
 
 @merge_tests
 class MergeTests(object):
-    posarg_default_erase = '', '', '<a>=1'
-    posarg_stars = '<a>', '*args', '<a>'
+    posarg_default_erase = '', {}, '', '<a>=1'
+    posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'
 
-    posarg_convert = '<a>', '<a>', 'b'
-    posarg_convert_left = '<a>', 'a', '<b>'
+    posarg_convert = '<a>', {1: 'a'}, '<a>', 'b'
+    posarg_convert_left = '<b>', {2: 'b'}, 'a', '<b>'
 
-    pokarg_default_erase = '', '', 'a=1'
+    pokarg_default_erase = '', {}, '', 'a=1'
 
-    pokarg_star_convert_pos = '<a>', '*args', 'a'
-    pokarg_star_convert_kwo = '*, a', '**kwargs', 'a'
-    pokarg_star_keep = 'a', '*args, **kwargs', 'a'
+    pokarg_star_convert_pos = '<a>', {2: 'a'}, '*args', 'a'
+    pokarg_star_convert_kwo = '*, a', {2: 'a'}, '**kwargs', 'a'
+    pokarg_star_keep = 'a', {2: 'a'}, '*args, **kwargs', 'a'
 
-    pokarg_rename = '<a>', 'a', 'b'
-    pokarg_rename_second = '<a>, <b>', 'a, b', 'a, c'
+    pokarg_rename = '<a>', {1: 'a'}, 'a', 'b'
+    pokarg_rename_second = '<a>, <b>', {1: 'ab', 2: 'a'}, 'a, b', 'a, c'
 
-    pokarg_found_kwo = '*, a', '*, a', 'a'
-    pokarg_found_kwo_r = '*, a', 'a', '*, a'
+    pokarg_found_kwo = '*, a', Od([(1, 'a'), (2, 'a')]), '*, a', 'a'
+    pokarg_found_kwo_r = '*, a', Od([(2, 'a'), (1, 'a')]), 'a', '*, a'
 
-    kwarg_default_erase = '', '', '*, a=1'
-    kwarg_stars = '*, a=1', '**kwargs', '*, a=1'
+    kwarg_default_erase = '', {}, '', '*, a=1'
+    kwarg_stars = '*, a=1', {2: 'a'}, '**kwargs', '*, a=1'
 
-    kwoarg_same = '*, a', '*, a', '*, a'
-    posarg_same = '<a>', '<a>', '<a>'
-    pokarg_same = 'a', 'a', 'a'
+    kwoarg_same = '*, a', {1: 'a', 2: 'a'}, '*, a', '*, a'
+    posarg_same = '<a>', {1: 'a', 2: 'a'}, '<a>', '<a>'
+    posarg_name = '<a>', {1: 'a'}, '<a>', '<b>'
+    pokarg_same = 'a', {1: 'a', 2: 'a'}, 'a', 'a'
 
-    default_same = 'a=1', 'a=1', 'a=1'
-    default_diff = 'a=None', 'a=1', 'a=2'
-    default_one = 'a', 'a=1', 'a'
-    default_one_r = 'a', 'a', 'a=1'
+    default_same = 'a=1', {1: 'a', 2: 'a'}, 'a=1', 'a=1'
+    default_diff = 'a=None', {1: 'a', 2: 'a'}, 'a=1', 'a=2'
+    default_one = 'a', {1: 'a', 2: 'a'}, 'a=1', 'a'
+    default_one_r = 'a', {1: 'a', 2: 'a'}, 'a', 'a=1'
 
-    annotation_both_diff = 'a', 'a:1', 'a:2'
-    annotation_both_same = 'a:1', 'a:1', 'a:1'
-    annotation_left = 'a:1', 'a:1', 'a'
-    annotation_right = 'a:1', 'a', 'a:1'
+    annotation_both_diff = 'a', {1: 'a', 2: 'a'}, 'a:1', 'a:2'
+    annotation_both_same = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a:1'
+    annotation_left = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a'
+    annotation_right = 'a:1', {1: 'a', 2: 'a'}, 'a', 'a:1'
 
-    star_erase = '', '*args', ''
-    star_same = '*args', '*args', '*args'
-    star_extend = '<a>, *args', '*args', '<a>, *args'
+    star_erase = '', {}, '*args', ''
+    star_same = '*args', {1: ['args'], 2: ['args']}, '*args', '*args'
+    star_name = '*largs', {1: ['largs']}, '*largs', '*rargs'
+    star_same_pok = (
+        'a, *args', Od([(1, ['a', 'args']), (2, ['a', 'args'])]),
+        'a, *args', 'a, *args')
+    star_extend = '<a>, *args', {1: ['a', 'args']}, '<a>, *args', '*args'
+    star_extend_r = '<a>, *args', {2: ['a', 'args']}, '*args', '<a>, *args'
 
-    stars_erase = '', '**kwargs', ''
-    stars_same = '**kwargs', '**kwargs', '**kwargs'
-    star_extend = '*, a, **kwargs', '**kwargs', '*, a, **kwargs'
+    stars_erase = '', {}, '**kwargs', ''
+    stars_same = '**kwargs', {1: ['kwargs'], 2: ['kwargs']}, '**kwargs', '**kwargs'
+    stars_name = '**lkwargs', {1: ['lkwargs']}, '**lkwargs', '**rkwargs'
+    stars_extend = '*, a, **kwargs', {2: ['a', 'kwargs']}, '**kwargs', '*, a, **kwargs'
+    stars_extend_r = '*, a, **kwargs', {1: ['a', 'kwargs']}, '*, a, **kwargs', '**kwargs'
+
+    def test_omit_sources(self):
+        s1 = s('a, *args, **kwargs')
+        s2 = s('a, *args, **kwargs')
+        ret = merge(s1, s2)
+        self.assertSigsEqual(ret, s('a, *args, **kwargs'))
+
+    three = '*, a, b, c, **k', {1: 'a', 2: 'b', 3: 'ck'}, '*, a, **k', '*, b, **k', '*, c, **k'
 
 @merge_raise_tests
 class MergeRaiseTests(object):
