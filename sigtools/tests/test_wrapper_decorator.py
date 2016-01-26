@@ -22,21 +22,22 @@
 
 
 from sigtools import wrappers, support, signatures
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import tup, Fixtures
 
-def tup(*args):
-    return lambda wrapped: (wrapped,) + args
 
-@sigtester
-def wd_tests(self, func, sig_str, args, kwargs, ret, decorators):
-    self.assertSigsEqual(signatures.signature(func), support.s(sig_str))
-    self.assertEqual(func(*args, **kwargs), ret)
-    self.assertEqual(
-        list(wrappers.wrappers(func)),
-        [x.wrapper for x in decorators])
+class WrapperDecoratorTests(Fixtures):
+    def _test(self, func, sig_str, args, kwargs, ret, decorators):
+        """Tests .wrappers.wrapper_decorator
 
-@wd_tests
-class WdTests(object):
+        Checks its reported signature, that it chains functions correctly
+        and that it reports its decorators properly via .wrappers.wrappers
+        """
+        self.assertSigsEqual(signatures.signature(func), support.s(sig_str))
+        self.assertEqual(func(*args, **kwargs), ret)
+        self.assertEqual(
+            list(wrappers.wrappers(func)),
+            [x.wrapper for x in decorators])
+
     @wrappers.wrapper_decorator
     def _deco_all(func, a, b, *args, **kwargs):
         return a, b, func(*args, **kwargs)
@@ -57,7 +58,7 @@ class WdTests(object):
         repr(self._method)
 
     def test_bound(self):
-        self._test_func(
+        self._test(
             self._method, 'a, b, n, o',
             (1, 2, 3, 4), {}, (1, 2, (self, 3, 4)),
             [self._deco_all]

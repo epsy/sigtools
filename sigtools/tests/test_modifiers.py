@@ -25,12 +25,14 @@ from sigtools import modifiers
 from sigtools._util import funcsigs, safe_get
 from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params, signature
-from sigtools.tests.util import sigtester, SignatureTests
+from sigtools.tests.util import Fixtures, SignatureTests
+
 
 def replace_parameter(sig, param):
     params = sig.parameters.copy()
     params[param.name] = param
     return sig.replace(parameters=params.values())
+
 
 def defaults_variations(exp, orig):
     yield exp, orig
@@ -47,6 +49,7 @@ def defaults_variations(exp, orig):
                 orig_, orig_.parameters[key].replace(default=j))
         yield exp_, orig_
 
+
 def insert_varargs(sig, args, kwargs):
     posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
     if args:
@@ -58,14 +61,15 @@ def insert_varargs(sig, args, kwargs):
     ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
     return ret
 
+
 def stars_variations(exp, orig):
     yield exp, orig
     yield insert_varargs(exp, True, False), insert_varargs(orig, True, False)
     yield insert_varargs(exp, False, True), insert_varargs(orig, False, True)
     yield insert_varargs(exp, True, True), insert_varargs(orig, True, True)
 
-@sigtester
-def poktranslator_tests(self, expected_sig_str, orig_sig_str,
+
+def poktranslator_test(self, expected_sig_str, orig_sig_str,
                         posoargs, kwoargs):
     expected_sig = s(expected_sig_str)
     orig_sig = s(orig_sig_str)
@@ -77,8 +81,10 @@ def poktranslator_tests(self, expected_sig_str, orig_sig_str,
             test_func_sig_coherent(func)
             repr(func) # must not cause an error
 
-@poktranslator_tests
-class PokTranslatorTestsOneArg(object):
+
+class PokTranslatorTestsOneArg(Fixtures):
+    _test = poktranslator_test
+
     _sig = 'a'
 
     regular = 'a', _sig, '', ''
@@ -118,8 +124,8 @@ class PokTranslatorTestsOneArg(object):
         self.assertIs(pt.attr, modifiers.kwoargs('a')(bpt).attr)
 
 
-@poktranslator_tests
-class PokTranslatorTestsTwoArgs(object):
+class PokTranslatorTestsTwoArgs(Fixtures):
+    _test = poktranslator_test
     _sig = 'a, b'
 
     regular = 'a, b', _sig, '', ''
@@ -139,8 +145,9 @@ class PokTranslatorTestsTwoArgs(object):
         func = modifiers.kwoargs('b')(modifiers.posoargs(end='a')(orig_func))
         self.assertSigsEqual(s('<a>, *, b'), signature(func))
 
-@poktranslator_tests
-class PokTranslatorTestsThreeArgs(object):
+
+class PokTranslatorTestsThreeArgs(Fixtures):
+    _test = poktranslator_test
     _sig = 'a, b, c'
 
     regular = 'a, b, c', _sig, '', ''
@@ -180,13 +187,12 @@ class PokTranslatorTestsThreeArgs(object):
             signature(safe_get(tr, object(), object))
             )
 
-@sigtester
-def poktranslator_raise_tests(self, sig_str, posoargs, kwoargs):
-    self.assertRaises(
-        ValueError, modifiers._PokTranslator, f(sig_str), posoargs, kwoargs)
+class PokTranslatorRaiseTests(Fixtures):
+    def _test(self, sig_str, posoargs, kwoargs):
+        self.assertRaises(
+            ValueError,
+            modifiers._PokTranslator, f(sig_str), posoargs, kwoargs)
 
-@poktranslator_raise_tests
-class PokTranslatorRaiseTests(object):
     missing_pos = '', 'a', ''
     missing_kwo = '', '', 'a'
 
@@ -214,14 +220,13 @@ class PokTranslatorRaiseTests(object):
         func = f('')
         self.assertRaises(ValueError, modifiers.kwoargs(start='a'), func)
 
-@sigtester
-def kwoarg_start_tests(self, expected_sig_str, orig_sig_str, start):
-    orig_func = f(orig_sig_str)
-    func = modifiers.kwoargs(start=start)(orig_func)
-    self.assertSigsEqual(s(expected_sig_str), signature(func))
 
-@kwoarg_start_tests
-class KwoargStartTests(object):
+class KwoargStartTests(Fixtures):
+    def _test(self, expected_sig_str, orig_sig_str, start):
+        orig_func = f(orig_sig_str)
+        func = modifiers.kwoargs(start=start)(orig_func)
+        self.assertSigsEqual(s(expected_sig_str), signature(func))
+
     _sig = 'a, b, c'
 
     first = '*, a, b, c', _sig, 'a'
@@ -239,14 +244,13 @@ class KwoargStartTests(object):
     already_posoarg_second = '<a>, *, b, c', _sig, 'b'
     already_posoarg_third = '<a>, b, *, c', _sig, 'c'
 
-@sigtester
-def posoargs_end_tests(self, expected_sig_str, orig_sig_str, end):
-    orig_func = f(orig_sig_str)
-    func = modifiers.posoargs(end=end)(orig_func)
-    self.assertSigsEqual(s(expected_sig_str), signature(func))
 
-@posoargs_end_tests
-class PosoargEndTests(object):
+class PosoargEndTests(Fixtures):
+    def _test(self, expected_sig_str, orig_sig_str, end):
+        orig_func = f(orig_sig_str)
+        func = modifiers.posoargs(end=end)(orig_func)
+        self.assertSigsEqual(s(expected_sig_str), signature(func))
+
     _sig = 'a, b, c'
 
     first = '<a>, b, c', _sig, 'a'
@@ -264,20 +268,19 @@ class PosoargEndTests(object):
     already_posoarg_second = '<a>, <b>, c', _sig, 'b'
     already_posoarg_third = '<a>, <b>, <c>', _sig, 'c'
 
-@sigtester
-def autokwoargs_tests(self, expected_sig_str, orig_sig_str, exceptions):
-    orig_func = f(orig_sig_str)
-    expected_sig = s(expected_sig_str)
 
-    func = modifiers.autokwoargs(exceptions=exceptions)(orig_func)
-    self.assertSigsEqual(expected_sig, signature(func))
+class AutokwoargsTests(Fixtures):
+    def _test(self, expected_sig_str, orig_sig_str, exceptions):
+        orig_func = f(orig_sig_str)
+        expected_sig = s(expected_sig_str)
 
-    if not exceptions: # test the arg-less form of @autokwargs
-        func = modifiers.autokwoargs(orig_func)
+        func = modifiers.autokwoargs(exceptions=exceptions)(orig_func)
         self.assertSigsEqual(expected_sig, signature(func))
 
-@autokwoargs_tests
-class AutokwoargsTests(object):
+        if not exceptions: # test the arg-less form of @autokwargs
+            func = modifiers.autokwoargs(orig_func)
+            self.assertSigsEqual(expected_sig, signature(func))
+
     none = 'a, b, c', 'a, b, c', ''
     one_arg = 'a, b, *, c=1', 'a, b, c=1', ''
     exception = 'a, b, c=1, *, d=2', 'a, b, c=1, d=2', 'c'

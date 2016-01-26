@@ -21,30 +21,29 @@
 
 
 from sigtools import support, _specifiers
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import Fixtures
 
 
-@sigtester
-def test_roundtrip(self, sig_str, old_fmt=None):
-    sig = support.s(sig_str)
-    p_sig_str = str(sig)
-    try:
-        self.assertEqual('(' + sig_str + ')', p_sig_str)
-    except AssertionError:
-        if old_fmt is None: raise
-        self.assertEqual('(' + old_fmt + ')', p_sig_str)
-
-    pf_sig_str = str(
-        _specifiers.forged_signature(support.func_from_sig(sig))[0])
-    try:
-        self.assertEqual('(' + sig_str + ')', pf_sig_str)
-    except AssertionError:
-        if old_fmt is None: raise
-        self.assertEqual('(' + old_fmt + ')', pf_sig_str)
 
 
-@test_roundtrip
-class RoundTripTests(object):
+class RoundTripTests(Fixtures):
+    def _test(self, sig_str, old_fmt=None):
+        sig = support.s(sig_str)
+        p_sig_str = str(sig)
+        try:
+            self.assertEqual('(' + sig_str + ')', p_sig_str)
+        except AssertionError:
+            if old_fmt is None: raise
+            self.assertEqual('(' + old_fmt + ')', p_sig_str)
+
+        pf_sig_str = str(
+            _specifiers.forged_signature(support.func_from_sig(sig))[0])
+        try:
+            self.assertEqual('(' + sig_str + ')', pf_sig_str)
+        except AssertionError:
+            if old_fmt is None: raise
+            self.assertEqual('(' + old_fmt + ')', pf_sig_str)
+
     empty = '',
 
     pok = 'a, b',

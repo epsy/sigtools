@@ -22,21 +22,20 @@
 
 
 from sigtools import signatures, support
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import Fixtures
 
-@sigtester
-def mask_tests(self, expected_str, sig_str, num_args=0, named_args=(),
-               hide_varargs=False, hide_varkwargs=False,
-               hide_args=False, hide_kwargs=False):
-    self.assertSigsEqual(
-        signatures.mask(
-            support.s(sig_str), num_args, *named_args,
-            hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
-            hide_args=hide_args, hide_kwargs=hide_kwargs),
-        support.s(expected_str))
 
-@mask_tests
-class MaskTests(object):
+class MaskTests(Fixtures):
+    def _test(self, expected_str, sig_str, num_args=0, named_args=(),
+                   hide_varargs=False, hide_varkwargs=False,
+                   hide_args=False, hide_kwargs=False):
+        self.assertSigsEqual(
+            signatures.mask(
+                support.s(sig_str), num_args, *named_args,
+                hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
+                hide_args=hide_args, hide_kwargs=hide_kwargs),
+            support.s(expected_str))
+
     hide_pos = '<b>', '<a>, <b>', 1
     hide_pos_pok = 'c', '<a>, b, c', 2
 
@@ -67,17 +66,15 @@ class MaskTests(object):
         0, '', False, False, False, True)
 
 
-@sigtester
-def mask_raise_tests(self, sig_str, num_args, named_args=(),
-                     hide_varargs=False, hide_varkwargs=False):
-    sig = support.s(sig_str)
-    self.assertRaises(
-        ValueError, signatures.mask,
-        sig, num_args, *named_args,
-        hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs)
+class MaskRaiseTests(Fixtures):
+    def _test(self, sig_str, num_args, named_args=(),
+              hide_varargs=False, hide_varkwargs=False):
+        sig = support.s(sig_str)
+        self.assertRaises(
+            ValueError, signatures.mask,
+            sig, num_args, *named_args,
+            hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs)
 
-@mask_raise_tests
-class MaskRaiseTests(object):
     no_pos_1 = '', 1
     no_pos_2 = '<a>', 2
 

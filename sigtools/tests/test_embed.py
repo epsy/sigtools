@@ -23,19 +23,17 @@
 
 from sigtools.signatures import embed, IncompatibleSignatures
 from sigtools.support import s
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import Fixtures
 
 
-@sigtester
-def embed_tests(self, result, *signatures):
-    assert len(signatures) >= 2
-    sigs = [s(sig) for sig in signatures]
-    self.assertSigsEqual(
-        embed(*sigs), s(result)
-        )
+class EmbedTests(Fixtures):
+    def _test(self, result, *signatures):
+        assert len(signatures) >= 2
+        sigs = [s(sig) for sig in signatures]
+        self.assertSigsEqual(
+            embed(*sigs), s(result)
+            )
 
-@embed_tests
-class EmbedTests(object):
     passthrough_pos = '<a>', '*args, **kwargs', '<a>'
     passthrough_pok = 'a', '*args, **kwargs', 'a'
     passthrough_kwo = '*, a', '*args, **kwargs', '*, a'
@@ -55,14 +53,13 @@ class EmbedTests(object):
     conv_pok_pos = '<a>', '*args', 'a'
     conv_pok_kwo = '*, a', '**kwargs', 'a'
 
-@sigtester
-def embed_raise_tests(self, *signatures):
-    assert len(signatures) >= 2
-    sigs = [s(sig) for sig in signatures]
-    self.assertRaises(IncompatibleSignatures, embed, *sigs)
 
-@embed_raise_tests
-class EmbedRaisesTests(object):
+class EmbedRaisesTests(Fixtures):
+    def _test(self, *signatures):
+        assert len(signatures) >= 2
+        sigs = [s(sig) for sig in signatures]
+        self.assertRaises(IncompatibleSignatures, embed, *sigs)
+
     no_placeholders_pos = '', '<a>'
     no_placeholders_pok = '', 'a'
     no_placeholders_kwo = '', '*, a'

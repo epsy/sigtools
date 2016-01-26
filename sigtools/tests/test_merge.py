@@ -23,7 +23,7 @@
 
 from sigtools.signatures import merge, IncompatibleSignatures
 from sigtools.support import s
-from sigtools.tests.util import sigtester
+from sigtools.tests.util import Fixtures
 from sigtools._util import OrderedDict as Od
 
 
@@ -33,29 +33,22 @@ def dummy_func(name):
     func.__name__ = str(name)
     return func
 
-@sigtester
-def merge_tests(self, result, exp_sources, *signatures):
-    assert len(signatures) >= 2
-    sigs = [s(sig) for sig in signatures]
-    srcs = [dict((p.name, [dummy_func(i)]) for p in sig.parameters.values())
-            for i, sig in enumerate(sigs, 1)]
 
-    sig, out_src = merge(*sigs, sources=srcs)
-    sig2 = merge(*sigs)
-    result_sig = s(result)
+class MergeTests(Fixtures):
+    def _test(self, result, exp_sources, *signatures):
+        assert len(signatures) >= 2
+        sigs = [s(sig) for sig in signatures]
+        srcs = [dict((p.name, [dummy_func(i)]) for p in sig.parameters.values())
+                for i, sig in enumerate(sigs, 1)]
 
-    self.assertSigsEqual(sig, result_sig)
-    self.assertSourcesEqual(None, out_src, exp_sources)
-    self.assertSigsEqual(sig2, result_sig)
+        sig, out_src = merge(*sigs, sources=srcs)
+        sig2 = merge(*sigs)
+        result_sig = s(result)
 
-@sigtester
-def merge_raise_tests(self, *signatures):
-    assert len(signatures) >= 2
-    sigs = [s(sig) for sig in signatures]
-    self.assertRaises(IncompatibleSignatures, merge, *sigs)
+        self.assertSigsEqual(sig, result_sig)
+        self.assertSourcesEqual(None, out_src, exp_sources)
+        self.assertSigsEqual(sig2, result_sig)
 
-@merge_tests
-class MergeTests(object):
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'
 
@@ -115,8 +108,13 @@ class MergeTests(object):
 
     three = '*, a, b, c, **k', {1: 'a', 2: 'b', 3: 'ck'}, '*, a, **k', '*, b, **k', '*, c, **k'
 
-@merge_raise_tests
-class MergeRaiseTests(object):
+
+class MergeRaiseTests(Fixtures):
+    def _test(self, *signatures):
+        assert len(signatures) >= 2
+        sigs = [s(sig) for sig in signatures]
+        self.assertRaises(IncompatibleSignatures, merge, *sigs)
+
     posarg_raise = '', '<a>'
     pokarg_raise = '', 'a'
 

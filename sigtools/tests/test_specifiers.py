@@ -25,7 +25,7 @@ import sys
 from functools import partial
 
 from sigtools import modifiers, specifiers, support, _util, signatures
-from sigtools.tests.util import sigtester, SignatureTests
+from sigtools.tests.util import Fixtures, SignatureTests
 
 # bulk of the testing happens in test_merge and test_embed
 
@@ -44,24 +44,22 @@ _inst = _cls()
 _im_type = type(_inst.method)
 
 
-@sigtester
-def forwards_tests(self, outer, inner, args, kwargs, expected, expected_get):
-    outer_f = support.f(outer)
-    inner_f = support.f(inner)
-    forw = specifiers.forwards_to_function(inner_f, *args, **kwargs)(outer_f)
+class ForwardsTest(Fixtures):
+    def _test(self, outer, inner, args, kwargs, expected, expected_get):
+        outer_f = support.f(outer)
+        inner_f = support.f(inner)
+        forw = specifiers.forwards_to_function(inner_f, *args, **kwargs)(outer_f)
 
-    self.assertSigsEqual(
-        specifiers.signature(forw),
-        support.s(expected)
-        )
+        self.assertSigsEqual(
+            specifiers.signature(forw),
+            support.s(expected)
+            )
 
-    self.assertSigsEqual(
-        specifiers.signature(_util.safe_get(forw, object(), object)),
-        support.s(expected_get)
-        )
+        self.assertSigsEqual(
+            specifiers.signature(_util.safe_get(forw, object(), object)),
+            support.s(expected_get)
+            )
 
-@forwards_tests
-class ForwardsTest(object):
     a = (
         'a, *p, b, **k', 'c, *, d', (), {},
         'a, c, *, b, d', 'c, *, b, d')
@@ -80,7 +78,6 @@ class ForwardsTest(object):
             {'args': (instance, 1), 'kwargs': {'b': 2}}
             )
 
-@sigtester
 def sig_equal(self, obj, sig_str):
     self.assertSigsEqual(specifiers.signature(obj), support.s(sig_str),
                          conv_first_posarg=True)
@@ -90,8 +87,9 @@ class _Coop(object):
     def method(self, ca, cb, *cr, **ck):
         raise NotImplementedError
 
-@sig_equal
-class ForwardsAttributeTests(object):
+class ForwardsAttributeTests(Fixtures):
+    _test = sig_equal
+
     class _Base(object):
         def __init__(self, decorated=None):
             self.decorated = decorated
@@ -190,7 +188,7 @@ class ForwardsAttributeTests(object):
 
     def test_fts(self):
         if sys.version_info >= (3,3):
-            self._test_func(self._sub_inst.fts, 's, l, *, m')
+            self._test(self._sub_inst.fts, 's, l, *, m')
 
     sub_afts_cls = _Derivate.afts, 'self, asup, *args, **kwargs'
     sub_afts = _sub_inst.afts, 'asup, n, *, o'
@@ -199,10 +197,10 @@ class ForwardsAttributeTests(object):
         if sys.version_info < (3,3):
             return
 
-        self._test_func(self._Derivate.chain_fts,
-                        'self, u, *args, **kwargs')
-        self._test_func(self._sub_inst.chain_fts,
-                        'u, p, c, e, a, *, d, b, q')
+        self._test(self._Derivate.chain_fts,
+                   'self, u, *args, **kwargs')
+        self._test(self._sub_inst.chain_fts,
+                   'u, p, c, e, a, *, d, b, q')
 
     chain_afts_cls = _Derivate.chain_afts, 'self, v, *args, **kwargs'
     chain_afts = _sub_inst.chain_afts, 'v, r, c, e, a, *, d, b, s'
@@ -293,8 +291,8 @@ class ForwardsAttributeTests(object):
             self.assertRaises(ValueError, specifiers.signature, Sub().n)
 
 
-@sig_equal
 class PartialSigTests(object):
+    _test = sig_equal
     _func1 = support.f('a, b, c, *args, d, e, **kwargs')
 
     pos = partial(_func1, 1), 'b, c, *args, d, e, **kwargs'

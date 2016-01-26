@@ -20,13 +20,17 @@
 # THE SOFTWARE.
 
 
-import unittest2
-from functools import partial
 from collections import defaultdict
 
+import unittest2
+from repeated_test import tup, WithTestClass
 
-def tup(*args):
-    return lambda wrapped: (wrapped,) + args
+
+__all__ = [
+    'conv_first_posarg',
+    'transform_exp_sources', 'transform_real_sources',
+    'SignatureTests', 'Fixtures', 'tup'
+    ]
 
 
 def conv_first_posarg(sig):
@@ -77,21 +81,4 @@ class SignatureTests(unittest2.TestCase):
                          transform_exp_sources(expected, func))
 
 
-def make_run_test(func, value, **kwargs):
-    def _func(self):
-        return func(self, *value, **kwargs)
-    return _func
-
-def build_sigtests(func, cls):
-    members = {
-            '_test_func': func,
-        }
-    for key, value in cls.__dict__.items():
-        if key.startswith('test_') or key.startswith('_'):
-            members[key] = value
-        else:
-            members['test_' + key] = make_run_test(func, value)
-    return type(cls.__name__, (SignatureTests, unittest2.TestCase), members)
-
-def sigtester(test_func):
-    return partial(build_sigtests, test_func)
+Fixtures = WithTestClass(SignatureTests)

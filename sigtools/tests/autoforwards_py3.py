@@ -1,19 +1,16 @@
 from sigtools import support, specifiers
-from sigtools.tests.util import sigtester, tup
+from sigtools.tests.util import Fixtures, tup
 
 
 _wrapped = support.f('x, y, *, z')
 
 
-@sigtester
-def autosigequal(self, func, expected):
-    self.assertSigsEqual(
-        specifiers.signature(func),
-        support.s(expected))
+class Py3AutoforwardsTests(Fixtures):
+    def _test(self, func, expected):
+        self.assertSigsEqual(
+            specifiers.signature(func),
+            support.s(expected))
 
-
-@autosigequal
-class Py3AutoforwardsTests(object):
     @tup('a, b, *args, **kwargs')
     def rebind_subdef_nonlocal(a, b, *args, **kwargs):
         def func():

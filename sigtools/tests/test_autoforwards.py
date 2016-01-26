@@ -2,7 +2,7 @@ from collections import defaultdict
 from functools import partial, wraps
 
 from sigtools import support, modifiers, specifiers
-from sigtools.tests.util import sigtester, tup
+from sigtools.tests.util import Fixtures, tup
 
 
 try:
@@ -42,17 +42,15 @@ def transform_real_sources(d):
     return ret
 
 
-@sigtester
-def autosigequal(self, func, expected, sources):
-    sig, src = specifiers.forged_signature(func)
-    self.assertSigsEqual(sig, support.s(expected))
-    if sources is None: return
-    self.assertEqual(transform_real_sources(src),
-                     transform_exp_sources(sources, func))
+class AutoforwardsTests(Fixtures):
+    def _test(self, func, expected, sources):
+        sig, src = specifiers.forged_signature(func)
+        self.assertSigsEqual(sig, support.s(expected))
+        if sources is None: return
+        self.assertEqual(transform_real_sources(src),
+                         transform_exp_sources(sources, func))
 
 
-@autosigequal
-class AutoforwardsTests(object):
     @tup('a, b, x, y, *, z',
          {'global_': ('a', 'b'), '_wrapped': ('x', 'y', 'z')})
     def global_(a, b, *args, **kwargs):
