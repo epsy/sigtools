@@ -291,18 +291,6 @@ class ForwardsAttributeTests(Fixtures):
             self.assertRaises(ValueError, specifiers.signature, Sub().n)
 
 
-class PartialSigTests(object):
-    _test = sig_equal
-    _func1 = support.f('a, b, c, *args, d, e, **kwargs')
-
-    pos = partial(_func1, 1), 'b, c, *args, d, e, **kwargs'
-    kwkw = partial(_func1, d=1), 'a, b, c, *args, e, d=1, **kwargs'
-    kwkws = partial(_func1, f=1), 'a, b, c, *args, d, e, f=1, **kwargs'
-
-    kwposlast = partial(_func1, c=1), 'a, b, *, d, e, c=1, **kwargs'
-    kwposlast = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
-
-
 class ForgerFunctionTests(SignatureTests):
     def test_deco(self):
         @specifiers.forger_function

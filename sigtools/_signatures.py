@@ -36,6 +36,30 @@ except AttributeError: # pragma: no cover
     zip_longest = itertools.zip_longest
 
 
+class Signature(_util.funcsigs.Signature):
+    __slots__ = _util.funcsigs.Signature.__slots__ + ('sources',)
+
+    def __init__(self, *args, **kwargs):
+        super(Signature, self).__init__(*args, **kwargs)
+        self.sources = kwargs.pop('sources', {}) 
+
+    @classmethod
+    def upgrade(cls, inst):
+        if isinstance(inst, cls):
+            return inst
+        return cls(inst.parameters.values(), return_annotation=inst.return_annotation)
+#FIXME implement replace()
+
+
+def set_default_sources(sig, obj):
+    """Assigns the source of every parameter of sig to obj"""
+    sig = Signature.upgrade(sig)
+    src = sig.sources = {}
+    for pname in sig.parameters:
+        src[pname] = [obj]
+    return sig
+
+
 def signature(obj):
     """Retrieves to unmodified signature from ``obj``, without taking
     `sigtools.specifiers` decorators into account or attempting automatic
@@ -43,9 +67,11 @@ def signature(obj):
     """
     if isinstance(obj, partial):
         sig = _util.funcsigs.signature(obj.func)
+        sig = set_default_sources(sig, obj.func)
         return _mask(sig, len(obj.args), False, False, False, False,
                      obj.keywords or {})
-    return _util.funcsigs.signature(obj)
+    sig =_util.funcsigs.signature(obj)
+    return set_default_sources(sig, obj)
 
 
 SortedParameters = collections.namedtuple(

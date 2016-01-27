@@ -20,12 +20,42 @@
 # THE SOFTWARE.
 
 
+from functools import partial
+
 from sigtools._signatures import (
-    sort_params, apply_params, IncompatibleSignatures)
-from sigtools.support import s
+    sort_params, apply_params, IncompatibleSignatures, signature)
+from sigtools.support import s, f
 from sigtools._util import OrderedDict
 
 from sigtools.tests.util import SignatureTests, Fixtures
+
+
+class SourceTests(Fixtures):
+    def _test(self, sig_str):
+        func = f(sig_str)
+        sig = signature(func)
+        self.assertEqual(
+            sig.sources,
+            dict((p, [func]) for p in sig.parameters))
+
+    f1 = 'a, b, c',
+    f2 = 'a, /, b, *, c',
+    f3 = 'a, b, *args, c, **kwargs',
+    f4 = '',
+
+
+class PartialSigTests(Fixtures):
+    def _test(self, obj, exp_sig):
+        self.assertSigsEqual(signature(obj), s(exp_sig))
+
+    _func1 = f('a, b, c, *args, d, e, **kwargs')
+
+    pos = partial(_func1, 1), 'b, c, *args, d, e, **kwargs'
+    kwkw = partial(_func1, d=1), 'a, b, c, *args, e, d=1, **kwargs'
+    kwkws = partial(_func1, f=1), 'a, b, c, *args, d, e, f=1, **kwargs'
+
+    kwposlast_1 = partial(_func1, c=1), 'a, b, *, d, e, c=1, **kwargs'
+    kwposlast_2 = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
 
 
 class SortParamsTests(SignatureTests):
