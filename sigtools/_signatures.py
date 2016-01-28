@@ -26,11 +26,6 @@ from functools import partial
 from sigtools import _util
 
 try:
-    from collections import abc
-except ImportError: # pragma: no cover
-    import collections as abc
-
-try:
     zip_longest = itertools.izip_longest
 except AttributeError: # pragma: no cover
     zip_longest = itertools.zip_longest
@@ -69,9 +64,13 @@ def signature(obj):
         sig = _util.funcsigs.signature(obj.func)
         sig = set_default_sources(sig, obj.func)
         return _mask(sig, len(obj.args), False, False, False, False,
-                     obj.keywords or {})
+                     obj.keywords or {}, obj)
     sig =_util.funcsigs.signature(obj)
     return set_default_sources(sig, obj)
+
+
+def copy_sources(src):
+    return dict((k, list(v)) for k, v in src.items())
 
 
 SortedParameters = collections.namedtuple(
@@ -555,12 +554,22 @@ def _pop_chain(*sequences):
             yield sequence.pop(0)
 
 
+def _remove_from_src(src, ita):
+    for name in ita:
+        src.pop(name, None)
+
+
+def _pnames(ita):
+    for p in ita:
+        yield p.name
+
+
 def _mask(sig, num_args, hide_args, hide_kwargs,
-          hide_varargs, hide_varkwargs, named_args):
+          hide_varargs, hide_varkwargs, named_args, partial_obj):
     posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
 
+    src = copy_sources(sig.sources)
     pokargs_by_name = dict((p.name, p) for p in pokargs)
-
     consumed_names = set()
 
     if hide_args:
@@ -581,12 +590,18 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
                     'Signature cannot be passed {0} arguments: {1}'
                     .format(num_args, sig))
 
+    _remove_from_src(src, consumed_names)
+
     if hide_args or hide_varargs:
+        if varargs:
+            del src[varargs.name]
         varargs = None
 
-    partial_mode = isinstance(named_args, abc.Mapping)
+    partial_mode = partial_obj is not None
 
     if hide_kwargs:
+        _remove_from_src(src, _pnames(pokargs))
+        _remove_from_src(src, kwoargs)
         pokargs = []
         kwoargs = {}
         named_args = []
@@ -604,7 +619,11 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
             if partial_mode:
                 kwoargs[param.name] = param.replace(
                     kind=param.KEYWORD_ONLY, default=named_args[param.name])
-            varargs = None
+            else:
+                src.pop(kwarg_name, None)
+            if varargs:
+                src.pop(varargs.name, None)
+                varargs = None
             pokargs_by_name.clear()
         elif kwarg_name in kwoargs:
             if partial_mode:
@@ -612,6 +631,7 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
                 kwoargs[kwarg_name] = param.replace(
                     kind=param.KEYWORD_ONLY, default=named_args[kwarg_name])
             else:
+                src.pop(kwarg_name, None)
                 kwoargs.pop(kwarg_name)
         elif not varkwargs:
             raise ValueError(
@@ -621,12 +641,18 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
             kwoargs[kwarg_name] = _util.funcsigs.Parameter(
                 kwarg_name, _util.funcsigs.Parameter.KEYWORD_ONLY,
                 default=named_args[kwarg_name])
+            src[kwarg_name] = [partial_obj]
         consumed_names.add(kwarg_name)
 
     if hide_kwargs or hide_varkwargs:
+        if varkwargs:
+            del src[varkwargs.name]
         varkwargs = None
 
-    return apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
+    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
+    ret.sources = src
+    return ret
+
 
 def mask(sig, num_args=0,
          hide_args=False, hide_kwargs=False,
@@ -660,7 +686,7 @@ def mask(sig, num_args=0,
 
     """
     return _mask(sig, num_args, hide_args, hide_kwargs,
-                 hide_varargs, hide_varkwargs, named_args)
+                 hide_varargs, hide_varkwargs, named_args, None)
 
 
 def forwards(outer, inner, num_args=0,

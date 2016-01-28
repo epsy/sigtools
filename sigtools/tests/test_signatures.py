@@ -45,17 +45,28 @@ class SourceTests(Fixtures):
 
 
 class PartialSigTests(Fixtures):
-    def _test(self, obj, exp_sig):
-        self.assertSigsEqual(signature(obj), s(exp_sig))
+    def _test(self, obj, exp_sig, exp_src=None):
+        sig = signature(obj)
+        self.assertSigsEqual(sig, s(exp_sig))
+        if exp_src is None:
+            exp_src = dict((p, [obj.func]) for p in sig.parameters)
+        self.assertEqual(sig.sources, exp_src)
 
     _func1 = f('a, b, c, *args, d, e, **kwargs')
 
     pos = partial(_func1, 1), 'b, c, *args, d, e, **kwargs'
     kwkw = partial(_func1, d=1), 'a, b, c, *args, e, d=1, **kwargs'
-    kwkws = partial(_func1, f=1), 'a, b, c, *args, d, e, f=1, **kwargs'
 
     kwposlast_1 = partial(_func1, c=1), 'a, b, *, d, e, c=1, **kwargs'
     kwposlast_2 = partial(_func1, b=1), 'a, *, d, e, c, b=1, **kwargs'
+
+    def _kw_create(_func1):
+        par = partial(_func1, f=1)
+        src = dict((p, [_func1]) for p in ['a', 'b', 'c', 'args',
+                                           'd', 'e', 'kwargs'])
+        src['f'] = [par]
+        return par, 'a, b, c, *args, d, e, f=1, **kwargs', src
+    kw_create = _kw_create(_func1)
 
 
 class SortParamsTests(SignatureTests):

@@ -64,6 +64,8 @@ def transform_real_sources(d):
 
 
 class SignatureTests(unittest2.TestCase):
+    maxDiff = None
+
     def assertSigsEqual(self, found, expected, *args, **kwargs):
         conv = kwargs.pop('conv_first_posarg', False)
         if expected != found:

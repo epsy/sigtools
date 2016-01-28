@@ -360,7 +360,7 @@ def autoforwards_partial(par, args, kwargs):
     return _signatures._mask(
         sig, len(par.args),
         False, False, False, False,
-        par.keywords or {}), src
+        par.keywords or {}, par), src
 
 
 def any_params_star(sig):
