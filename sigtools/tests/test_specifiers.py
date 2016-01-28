@@ -22,7 +22,6 @@
 
 
 import sys
-from functools import partial
 
 from sigtools import modifiers, specifiers, support, _util, signatures
 from sigtools.tests.util import Fixtures, SignatureTests
