@@ -21,37 +21,45 @@
 # THE SOFTWARE.
 
 
-from sigtools.signatures import embed, IncompatibleSignatures
-from sigtools.support import s
+from sigtools.signatures import signature, embed, IncompatibleSignatures
+from sigtools.support import f, s
 from sigtools.tests.util import Fixtures
 
 
 class EmbedTests(Fixtures):
-    def _test(self, result, *signatures):
+    def _test(self, result, exp_src, *signatures):
         assert len(signatures) >= 2
-        sigs = [s(sig) for sig in signatures]
-        self.assertSigsEqual(
-            embed(*sigs), s(result)
-            )
+        sigs = []
+        for i, sig_str in enumerate(signatures, 1):
+            func = f(sig_str)
+            func.__name__ = str(i)
+            sigs.append(signature(func))
+        sig = embed(*sigs)
+        self.assertSigsEqual(sig, s(result))
+        self.assertSourcesEqual(None, sig.sources, exp_src)
 
-    passthrough_pos = '<a>', '*args, **kwargs', '<a>'
-    passthrough_pok = 'a', '*args, **kwargs', 'a'
-    passthrough_kwo = '*, a', '*args, **kwargs', '*, a'
+    passthrough_pos = '<a>', {2: 'a'}, '*args, **kwargs', '<a>'
+    passthrough_pok = 'a', {2: 'a'}, '*args, **kwargs', 'a'
+    passthrough_kwo = '*, a', {2: 'a'}, '*args, **kwargs', '*, a'
 
-    add_pos_pos = '<a>, <b>', '<a>, *args, **kwargs', '<b>'
-    add_pos_pok = '<a>, b', '<a>, *args, **kwargs', 'b'
-    add_pos_kwo = '<a>, *, b', '<a>, *args, **kwargs', '*, b'
+    add_pos_pos = '<a>, <b>', {1: 'a', 2: 'b'}, '<a>, *args, **kwargs', '<b>'
+    add_pos_pok = '<a>, b', {1: 'a', 2: 'b'}, '<a>, *args, **kwargs', 'b'
+    add_pos_kwo = '<a>, *, b', {1: 'a', 2: 'b'}, '<a>, *args, **kwargs', '*, b'
 
-    add_pok_pos = '<a>, <b>', 'a, *args, **kwargs', '<b>'
-    add_pok_pok = 'a, b', 'a, *args, **kwargs', 'b'
-    add_pok_kwo = 'a, *, b', 'a, *args, **kwargs', '*, b'
+    add_pok_pos = '<a>, <b>', {1: 'a', 2: 'b'}, 'a, *args, **kwargs', '<b>'
+    add_pok_pok = 'a, b', {1: 'a', 2: 'b'}, 'a, *args, **kwargs', 'b'
+    add_pok_kwo = 'a, *, b', {1: 'a', 2: 'b'}, 'a, *args, **kwargs', '*, b'
 
-    add_kwo_pos = '<b>, *, a', '*args, a, **kwargs', '<b>'
-    add_kwo_pok = 'b, *, a', '*args, a, **kwargs', 'b'
-    add_kwo_kwo = '*, a, b', '*args, a, **kwargs', '*, b'
+    add_kwo_pos = '<b>, *, a', {1: 'a', 2: 'b'}, '*args, a, **kwargs', '<b>'
+    add_kwo_pok = 'b, *, a', {1: 'a', 2: 'b'}, '*args, a, **kwargs', 'b'
+    add_kwo_kwo = '*, a, b', {1: 'a', 2: 'b'}, '*args, a, **kwargs', '*, b'
 
-    conv_pok_pos = '<a>', '*args', 'a'
-    conv_pok_kwo = '*, a', '**kwargs', 'a'
+    conv_pok_pos = '<a>', {2: 'a'}, '*args', 'a'
+    conv_pok_kwo = '*, a', {2: 'a'}, '**kwargs', 'a'
+
+    three = (
+        'a, b, c', {1: 'a', 2: 'b', 3: 'c'},
+        'a, *args, **kwargs', 'b, *args, **kwargs', 'c')
 
 
 class EmbedRaisesTests(Fixtures):

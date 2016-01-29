@@ -469,15 +469,15 @@ def _check_no_dupes(collect, params):
     collect.update(names)
 
 
-def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
-    o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs = outer
+def _embed(outer, inner, i_src, use_varargs=True, use_varkwargs=True):
+    o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs, o_src  = outer
 
     stars_sig = SortedParameters(
         [], [], use_varargs and o_varargs,
         {}, use_varkwargs and o_varkwargs)
 
     i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs, i_src = _Merger(
-        inner, stars_sig, {}, {})
+        inner, stars_sig, i_src, {})
 
     names = set()
 
@@ -503,9 +503,16 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     _check_no_dupes(names, i_kwoargs.values())
     e_kwoargs.update(i_kwoargs)
 
+    src = dict(i_src, **o_src)
+    if o_varargs and use_varargs:
+        src.pop(o_varargs.name, None)
+    if o_varkwargs and use_varkwargs:
+        src.pop(o_varkwargs.name, None)
+
     return (
         e_posargs, e_pokargs, i_varargs if use_varargs else o_varargs,
-        e_kwoargs, i_varkwargs if use_varkwargs else o_varkwargs
+        e_kwoargs, i_varkwargs if use_varkwargs else o_varkwargs,
+        src
         )
 
 def embed(use_varargs=True, use_varkwargs=True, *signatures):
@@ -539,13 +546,17 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
         (self, *args, keyword, **kwargs)
     """
     assert signatures
-    ret = sort_params(signatures[0])
+    ret = sort_params(signatures[0]) + (signatures[0].sources,)
     for i, sig in enumerate(signatures[1:], 1):
         try:
-            ret = _embed(ret, sort_params(sig), use_varargs, use_varkwargs)
+            ret = _embed(ret, sort_params(sig), sig.sources,
+                         use_varargs, use_varkwargs)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    return apply_params(signatures[0], *ret)
+    ret, sources = ret[:-1], ret[-1]
+    sig = apply_params(signatures[0], *ret)
+    sig.sources = sources
+    return sig
 
 
 def _pop_chain(*sequences):
@@ -772,5 +783,4 @@ def forwards_sources(outer, inner, num_args=0,
 
     return (
         set(p.name for p in from_outer),
-        set(p.name for p in from_inner)
-        )
+        set(p.name for p in from_inner))
