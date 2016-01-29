@@ -35,7 +35,7 @@ class CombinationTests(SignatureTests):
 
     def test_sig(self):
         self.assertSigsEqual(
-            s('arg, *, a, b, c, **kwargs'), 
+            s('arg, *, a, b, c, **kwargs'),
             signature(Combination(
                 f('arg, *, a, **kwargs'),
                 f('arg, *, b, **kwargs'),

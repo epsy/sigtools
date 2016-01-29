@@ -244,7 +244,7 @@ def make_up_callsigs(sig, extra=2):
     return ret
 
 def bind_callsig(sig, args, kwargs):
-    """Returns a dict with each parameter name from ``sig`` mapped to 
+    """Returns a dict with each parameter name from ``sig`` mapped to
     values from ``args``, ``kwargs`` as if a function with ``sig``
     was called with ``(*args, **kwargs)``.
 

@@ -36,7 +36,7 @@ class Signature(_util.funcsigs.Signature):
 
     def __init__(self, *args, **kwargs):
         super(Signature, self).__init__(*args, **kwargs)
-        self.sources = kwargs.pop('sources', {}) 
+        self.sources = kwargs.pop('sources', {})
 
     @classmethod
     def upgrade(cls, inst):
@@ -423,14 +423,14 @@ def merge(sources=None, *signatures):
         >>> sig_left = signature(left)
         >>> sig_right = signature(right)
         >>> sig_merged = signatures.merge(sig_left, sig_right)
-        >>> 
+        >>>
         >>> print(sig_merged)
         (alpha, /, *args, **kwargs)
-        >>> 
+        >>>
         >>> kwargs = {'alpha': 'a', 'beta': 'b'}
         >>> left(**kwargs), right(**kwargs) # both functions accept the call
         ('a', 'b')
-        >>> 
+        >>>
         >>> sig_merged.bind(**kwargs) # the merged signature doesn't
         Traceback (most recent call last):
           File "<input>", line 1, in <module>

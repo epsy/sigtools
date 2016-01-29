@@ -33,7 +33,7 @@ This should cover most use cases, but you can use `forger_function` or
 `set_signature_forger` to create your own.
 
 .. |forwards_params| replace::
-    See :ref:`forwards-pick` for more information on the parameters. 
+    See :ref:`forwards-pick` for more information on the parameters.
 
 """
 
