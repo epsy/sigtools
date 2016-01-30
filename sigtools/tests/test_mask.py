@@ -29,15 +29,14 @@ class MaskTests(Fixtures):
     def _test(self, expected_str, sig_str, num_args=0, named_args=(),
                    hide_varargs=False, hide_varkwargs=False,
                    hide_args=False, hide_kwargs=False):
-        func = support.f(sig_str)
         expected_sig = support.s(expected_str)
         sig = signatures.mask(
-                signatures.signature(func), num_args, *named_args,
+                support.s(sig_str), num_args, *named_args,
                 hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
                 hide_args=hide_args, hide_kwargs=hide_kwargs)
         self.assertSigsEqual(sig, expected_sig)
-        expected_src = {func: expected_sig.parameters}
-        self.assertSourcesEqual(func, sig.sources, expected_src)
+        expected_src = {'func': expected_sig.parameters}
+        self.assertSourcesEqual('func', sig.sources, expected_src)
 
     hide_pos = '<b>', '<a>, <b>', 1
     hide_pos_pok = 'c', '<a>, b, c', 2
