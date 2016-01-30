@@ -13,8 +13,7 @@ else:
     Py3AutoforwardsTests = autoforwards_py3.Py3AutoforwardsTests
 
 
-_wrapped = support.f('x, y, *, z')
-_wrapped.__name__ = '_wrapped'
+_wrapped = support.f('x, y, *, z', name='_wrapped')
 
 
 def func(x):

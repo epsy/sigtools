@@ -27,27 +27,17 @@ from sigtools.tests.util import Fixtures
 from sigtools._util import OrderedDict as Od
 
 
-def dummy_func(name):
-    def func():
-        raise NotImplementedError
-    func.__name__ = str(name)
-    return func
-
-
 class MergeTests(Fixtures):
     def _test(self, result, exp_sources, *signatures):
         assert len(signatures) >= 2
-        sigs = [s(sig) for sig in signatures]
-        srcs = [dict((p.name, [dummy_func(i)]) for p in sig.parameters.values())
-                for i, sig in enumerate(sigs, 1)]
+        sigs = [s(sig, name='_' + str(i))
+                for i, sig in enumerate(signatures, 1)]
 
-        sig, out_src = merge(*sigs, sources=srcs)
-        sig2 = merge(*sigs)
-        result_sig = s(result)
+        sig, out_src= merge(*sigs, sources=[sig.sources for sig in sigs])
+        exp_sig = s(result)
 
-        self.assertSigsEqual(sig, result_sig)
+        self.assertSigsEqual(sig, exp_sig)
         self.assertSourcesEqual(None, out_src, exp_sources)
-        self.assertSigsEqual(sig2, result_sig)
 
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'

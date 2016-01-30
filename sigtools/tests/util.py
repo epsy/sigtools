@@ -50,7 +50,9 @@ def transform_exp_sources(d, subject):
         try:
             func = func.__name__
         except AttributeError:
-            pass
+            s = str(func)
+            if s != func:
+                func = '_' + s
         for param in params:
             ret[param].append(str(func))
     return dict(ret)

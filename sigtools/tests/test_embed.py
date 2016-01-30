@@ -21,19 +21,16 @@
 # THE SOFTWARE.
 
 
-from sigtools.signatures import signature, embed, IncompatibleSignatures
-from sigtools.support import f, s
+from sigtools.signatures import embed, IncompatibleSignatures
+from sigtools.support import s
 from sigtools.tests.util import Fixtures
 
 
 class EmbedTests(Fixtures):
     def _test(self, result, exp_src, *signatures):
         assert len(signatures) >= 2
-        sigs = []
-        for i, sig_str in enumerate(signatures, 1):
-            func = f(sig_str)
-            func.__name__ = str(i)
-            sigs.append(signature(func))
+        sigs = [s(sig_str, name='_' + str(i))
+                for i, sig_str in enumerate(signatures, 1)]
         sig = embed(*sigs)
         self.assertSigsEqual(sig, s(result))
         self.assertSourcesEqual(None, sig.sources, exp_src)
