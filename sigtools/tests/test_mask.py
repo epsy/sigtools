@@ -36,7 +36,7 @@ class MaskTests(Fixtures):
                 hide_args=hide_args, hide_kwargs=hide_kwargs)
         self.assertSigsEqual(sig, expected_sig)
         expected_src = {'func': expected_sig.parameters}
-        self.assertSourcesEqual('func', sig.sources, expected_src)
+        self.assertSourcesEqual(sig.sources, expected_src, func='func')
 
     hide_pos = '<b>', '<a>, <b>', 1
     hide_pos_pok = 'c', '<a>, b, c', 2

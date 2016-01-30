@@ -42,10 +42,13 @@ def conv_first_posarg(sig):
         parameters=(first,) + tuple(sig.parameters.values())[1:])
 
 
-def transform_exp_sources(d, subject):
+def transform_exp_sources(d, subject=None):
     ret = defaultdict(list)
     for func, params in d.items():
         if func == 0:
+            if subject is None:
+                raise ValueError(
+                    "Used implicit function with no provided subject")
             func = subject
         try:
             func = func.__name__
@@ -80,7 +83,7 @@ class SignatureTests(unittest2.TestCase):
                 'Did not get expected signature({0}), got {1} instead.'
                 .format(expected, found))
 
-    def assertSourcesEqual(self, func, found, expected):
+    def assertSourcesEqual(self, found, expected, func=None):
         self.assertEqual(transform_real_sources(found),
                          transform_exp_sources(expected, func))
 

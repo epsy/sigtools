@@ -37,7 +37,7 @@ class ForwardsTests(Fixtures):
                     hide_args=hide_args, hide_kwargs=hide_kwargs,
                     use_varargs=use_varargs, use_varkwargs=use_varkwargs)
         self.assertSigsEqual(sig, s(exp_sig))
-        self.assertSourcesEqual(None, sig.sources, {
+        self.assertSourcesEqual(sig.sources, {
                 'o': exp_src[0], 'i': exp_src[1]})
 
     a = 'a, b', ['a', 'b'], 'a, *args, **kwargs', 'b'
@@ -48,4 +48,3 @@ class ForwardsTests(Fixtures):
     dont_use_varargs = (
         'a, *p, b', ['ap', 'b'], 'a, *p, **k', 'b',
         0, (), False, False, False, True)
-

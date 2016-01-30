@@ -37,7 +37,7 @@ class MergeTests(Fixtures):
         exp_sig = s(result)
 
         self.assertSigsEqual(sig, exp_sig)
-        self.assertSourcesEqual(None, sig.sources, exp_sources)
+        self.assertSourcesEqual(sig.sources, exp_sources)
 
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'

@@ -33,7 +33,7 @@ class EmbedTests(Fixtures):
                 for i, sig_str in enumerate(signatures, 1)]
         sig = embed(*sigs)
         self.assertSigsEqual(sig, s(result))
-        self.assertSourcesEqual(None, sig.sources, exp_src)
+        self.assertSourcesEqual(sig.sources, exp_src)
 
     passthrough_pos = '<a>', {2: 'a'}, '*args, **kwargs', '<a>'
     passthrough_pok = 'a', {2: 'a'}, '*args, **kwargs', 'a'
