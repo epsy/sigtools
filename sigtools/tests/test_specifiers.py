@@ -79,9 +79,11 @@ class ForwardsTest(Fixtures):
             forw_get_prox(1, b=2),
             {'args': (instance, 1), 'kwargs': {'b': 2}})
 
-def sig_equal(self, obj, sig_str):
-    self.assertSigsEqual(specifiers.signature(obj), support.s(sig_str),
+def sig_equal(self, obj, sig_str, exp_src):
+    sig = specifiers.signature(obj)
+    self.assertSigsEqual(sig, support.s(sig_str),
                          conv_first_posarg=True)
+    self.assertSourcesEqual(sig.sources, exp_src)
 
 class _Coop(object):
     @modifiers.kwoargs('cb')
@@ -170,41 +172,91 @@ class ForwardsAttributeTests(Fixtures):
     def _sub_inst(x, y):
         raise NotImplementedError
 
-    base_func = _base_inst.ft, 'x, y, z'
+    base_func = _base_inst.ft, 'x, y, z', {'_free_func': 'xyz'}
 
-    base_method = _base_inst.ftm, 'a, *, b'
-    base_method2 = _base_inst.ftm2, 'c, a, *, d, b'
+    base_method = _base_inst.ftm, 'a, *, b', {'inner': 'ab'}
+    base_method2 = _base_inst.ftm2, 'c, a, *, d, b', {'ftm2': 'cd', 'inner': 'ab'}
 
-    base_method_cls = _Base.ftm, 'self, *args, **kwargs'
+    base_method_cls = _Base.ftm, 'self, *args, **kwargs', {
+        'ftm': ['self', 'args', 'kwargs']}
 
-    base_ivar = _base_inst.fti, 'a, *, b'
+    base_ivar = _base_inst.fti, 'a, *, b', {'_base_inst': 'ab'}
 
-    base_coop = _base_inst.ccm, 'ba, bb, ca, *cr, bc, cb, **ck'
+    base_coop = _base_inst.ccm, 'ba, bb, ca, *cr, bc, cb, **ck', {
+        'ccm': ['ba', 'bb', 'bc'], 'method': ['ca', 'cb', 'cr', 'ck'] }
 
-    sub_method = _sub_inst.ftm, 'e, a, *, b'
+    sub_method = _sub_inst.ftm, 'e, a, *, b', {'ftm': 'e', 'inner': 'ab'}
 
-    sub_method2 = _sub_inst.ftm2, 'c, e, a, *, d, b'
+    sub_method2 = _sub_inst.ftm2, 'c, e, a, *, d, b', {
+        'ftm2': 'cd', 'ftm': 'e', 'inner': 'ab'}
 
-    sub_ivar = _sub_inst.fti, 'x, *, y'
+    sub_ivar = _sub_inst.fti, 'x, *, y', {'_sub_inst': 'xy'}
+
+    def _test_raw_source(self, obj, exp_sig, exp_src):
+        sig = specifiers.signature(obj)
+        self.assertSigsEqual(sig, support.s(exp_sig), conv_first_posarg=True)
+        self.assertEqual(sig.sources, exp_src)
 
     def test_fts(self):
         if sys.version_info >= (3,3):
-            self._test(self._sub_inst.fts, 's, l, *, m')
+            sup = super(self._Derivate, self._sub_inst).fts
+            sig = specifiers.signature(self._sub_inst.fts)
+            self.assertSigsEqual(sig, support.s('s, l, *, m'))
+            self._test_raw_source(self._sub_inst.fts, 's, l, *, m', {
+                    's': [self._sub_inst.fts],
+                    'l': [sup], 'm': [sup]
+                })
 
-    sub_afts_cls = _Derivate.afts, 'self, asup, *args, **kwargs'
-    sub_afts = _sub_inst.afts, 'asup, n, *, o'
+    def test_sub_afts_cls(self):
+        fun = self._Derivate.afts
+        self._test_raw_source(
+            fun, 'self, asup, *args, **kwargs', {
+            'self': [fun], 'asup': [fun], 'args': [fun], 'kwargs': [fun]
+        })
+
+    def test_sub_afts(self):
+        fun = self._sub_inst.afts
+        sup = super(self._Derivate, self._sub_inst).afts
+        self._test_raw_source(
+            fun, 'asup, n, *, o',
+            {'asup': [fun], 'n': [sup], 'o': [sup]})
 
     def test_chain_fts(self):
         if sys.version_info < (3,3):
             return
 
-        self._test(self._Derivate.chain_fts,
-                   'self, u, *args, **kwargs')
-        self._test(self._sub_inst.chain_fts,
-                   'u, p, c, e, a, *, d, b, q')
+        fun = self._Derivate.chain_fts
+        self._test_raw_source(
+            fun, 'self, u, *args, **kwargs',
+            {'self': [fun], 'u': [fun], 'args': [fun], 'kwargs': [fun]})
 
-    chain_afts_cls = _Derivate.chain_afts, 'self, v, *args, **kwargs'
-    chain_afts = _sub_inst.chain_afts, 'v, r, c, e, a, *, d, b, s'
+        inst = self._sub_inst
+        sup = super(self._Derivate, self._sub_inst)
+        self._test_raw_source(
+            inst.chain_fts, 'u, p, c, e, a, *, d, b, q', {
+                'u': [inst.chain_fts],
+                'p': [sup.chain_fts], 'q': [sup.chain_fts],
+                'c': [inst.ftm2], 'd': [inst.ftm2],
+                'e': [inst.ftm],
+                'a': [inst.inner], 'b': [inst.inner]
+            })
+
+    def test_chain_afts_cls(self):
+        fun = self._Derivate.chain_afts
+        self._test_raw_source(
+            fun, 'self, v, *args, **kwargs',
+            {'self': [fun], 'v': [fun], 'args': [fun], 'kwargs': [fun]})
+
+    def test_chain_afts(self):
+        inst = self._sub_inst
+        sup = super(self._Derivate, self._sub_inst)
+        self._test_raw_source(
+            inst.chain_afts, 'v, r, c, e, a, *, d, b, s', {
+                'v': [inst.chain_afts],
+                'r': [sup.chain_afts], 's': [sup.chain_afts],
+                'c': [inst.ftm2], 'd': [inst.ftm2],
+                'e': [inst.ftm],
+                'a': [inst.inner], 'b': [inst.inner]})
 
     def test_transform(self):
         class _callable(object):
