@@ -44,27 +44,30 @@ _im_type = type(_inst.method)
 
 
 class ForwardsTest(Fixtures):
-    def _test(self, outer, inner, args, kwargs, expected, expected_get):
-        outer_f = support.f(outer)
-        inner_f = support.f(inner)
+    def _test(self, outer, inner, args, kwargs,
+                    expected, expected_get, exp_src, exp_src_get):
+        outer_f = support.f(outer, name='outer')
+        inner_f = support.f(inner, name='inner')
         forw = specifiers.forwards_to_function(inner_f, *args, **kwargs)(outer_f)
 
-        self.assertSigsEqual(
-            specifiers.signature(forw),
-            support.s(expected)
-            )
+        sig = specifiers.signature(forw)
+        self.assertSigsEqual(sig, support.s(expected))
 
-        self.assertSigsEqual(
-            specifiers.signature(_util.safe_get(forw, object(), object)),
-            support.s(expected_get)
-            )
+        self.assertSourcesEqual(sig.sources, {
+                'outer': exp_src[0], 'inner': exp_src[1]})
+
+        sig_get = specifiers.signature(_util.safe_get(forw, object(), object))
+        self.assertSigsEqual(sig_get, support.s(expected_get))
+
+        self.assertSourcesEqual(sig_get.sources, {
+                'outer': exp_src_get[0], 'inner': exp_src_get[1]})
 
     a = (
         'a, *p, b, **k', 'c, *, d', (), {},
-        'a, c, *, b, d', 'c, *, b, d')
+        'a, c, *, b, d', 'c, *, b, d', ['ab', 'cd'], ['b', 'cd'])
     b = (
         'a, *p, b, **k', 'a, c, *, b, d', (1, 'b'), {},
-        'a, c, *, b, d', 'c, *, b, d')
+        'a, c, *, b, d', 'c, *, b, d', ['ab', 'cd'], ['b', 'cd'])
 
     def test_call(self):
         outer = support.f('*args, **kwargs')
@@ -74,8 +77,7 @@ class ForwardsTest(Fixtures):
         forw_get_prox = _util.safe_get(forw, instance, object)
         self.assertEqual(
             forw_get_prox(1, b=2),
-            {'args': (instance, 1), 'kwargs': {'b': 2}}
-            )
+            {'args': (instance, 1), 'kwargs': {'b': 2}})
 
 def sig_equal(self, obj, sig_str):
     self.assertSigsEqual(specifiers.signature(obj), support.s(sig_str),
