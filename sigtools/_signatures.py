@@ -384,7 +384,7 @@ class _Merger(object):
         return left.replace(default=default, annotation=annotation)
 
 
-def merge(sources=None, *signatures):
+def merge(*signatures):
     """Tries to compute a signature for which a valid call would also validate
     the given signatures.
 
@@ -443,21 +443,16 @@ def merge(sources=None, *signatures):
     """
     assert signatures, "Expected at least one signature"
     ret = sort_params(signatures[0])
-    sources_given = True
-    if sources is None:
-        sources_given = False
-        sources = [{} for _ in signatures]
-    ret_src = sources[0]
+    ret_src = copy_sources(signatures[0].sources)
     for i, sig in enumerate(signatures[1:], 1):
         sorted_params = sort_params(sig)
         try:
-            ret_ = tuple(_Merger(ret, sorted_params, ret_src, sources[i]))
+            ret_ = tuple(_Merger(ret, sorted_params, ret_src, signatures[i].sources))
             ret, ret_src = SortedParameters(*ret_[:-1]), ret_[-1]
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     ret_sig = apply_params(signatures[0], *ret)
-    if sources_given:
-        return ret_sig, ret_src
+    ret_sig.sources = ret_src
     return ret_sig
 
 

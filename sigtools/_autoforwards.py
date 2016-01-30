@@ -421,7 +421,7 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
         args, kwargs, sig))
     src = sigs.pop()
     if sigs:
-        sig = _signatures.merge(None, *sigs)
+        sig = _signatures.merge(*sigs)
         for param in list(src):
             if param not in sig.parameters:
                 pass # del src[param] # FIXME crutch

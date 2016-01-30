@@ -33,11 +33,11 @@ class MergeTests(Fixtures):
         sigs = [s(sig, name='_' + str(i))
                 for i, sig in enumerate(signatures, 1)]
 
-        sig, out_src= merge(*sigs, sources=[sig.sources for sig in sigs])
+        sig = merge(*sigs)
         exp_sig = s(result)
 
         self.assertSigsEqual(sig, exp_sig)
-        self.assertSourcesEqual(None, out_src, exp_sources)
+        self.assertSourcesEqual(None, sig.sources, exp_sources)
 
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'
