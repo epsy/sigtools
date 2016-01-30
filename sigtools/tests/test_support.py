@@ -73,3 +73,7 @@ class RoundTripTests(Fixtures):
         obj = object()
         sig = support.s('a:o', locals={'o': obj})
         self.assertIs(obj, sig.parameters['a'].annotation)
+
+    def test_name(self):
+        func = support.f('a, b, c', name='test_name')
+        self.assertEqual(func.__name__, 'test_name')

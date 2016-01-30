@@ -121,9 +121,8 @@ def read_sig(sig_str, ret=None):
         ', '.join(params))
 
 def func_code(names, return_annotation, annotations, posoarg_n,
-              kwoarg_n, params, pre=''):
-    """Formats the code to construct a function to `read_sig`'s design.
-    """
+              kwoarg_n, params, pre='', name='func'):
+    """Formats the code to construct a function to `read_sig`'s design."""
     code = [pre]
     if return_annotation and annotations:
         code.append('@modifiers.annotate({0}, {1})'.format(
@@ -142,21 +141,21 @@ def func_code(names, return_annotation, annotations, posoarg_n,
     if kwoarg_n:
         code.append('@modifiers.kwoargs({0})'.format(
             ', '.join("'{0}'".format(name) for name in kwoarg_n)))
-    code.append('def func({0}):'.format(params))
+    code.append('def {0}({1}):'.format(name, params))
     code.append('    return {{{0}}}'.format(
         ', '.join('{0!r}: {0}'.format(name) for name in names)))
     return '\n'.join(code)
 
-def make_func(code, locals=None):
+def make_func(code, locals=None, name='func'):
     """Executes the given code and returns the object named func from
     the resulting namespace."""
     if locals is None:
         locals = {}
     exec(code, globals(), locals)
-    return locals['func']
+    return locals[name]
 
 @modifiers.autokwoargs
-def f(pre='', locals=None, *args, **kwargs):
+def f(pre='', locals=None, name='func', *args, **kwargs):
     """Creates a dummy function that has the signature represented by
     ``sig_str`` and returns a tuple containing the arguments passed,
     in order.
@@ -178,8 +177,8 @@ def f(pre='', locals=None, *args, **kwargs):
         {'b': 2, 'a': 1, 'kwargs': {'d': 6}, 'args': (3, 4)}
     """
     return make_func(
-        func_code(*read_sig(*args, **kwargs), pre=pre),
-        locals=locals)
+        func_code(*read_sig(*args, **kwargs), pre=pre, name=name),
+        locals=locals, name=name)
 
 def s(*args, **kwargs):
     """Creates a signature from the given string representation of one.
@@ -212,8 +211,7 @@ def func_from_sig(sig):
 
 def make_up_callsigs(sig, extra=2):
     """Figures out reasonably as many ways as possible to call a callable
-    with the given signature.
-    """
+    with the given signature."""
     pospars, pokpars, varargs, kwopars, varkwargs = signatures.sort_params(sig)
 
     names = [
@@ -248,8 +246,7 @@ def bind_callsig(sig, args, kwargs):
     values from ``args``, ``kwargs`` as if a function with ``sig``
     was called with ``(*args, **kwargs)``.
 
-    Similar to `inspect.Signature.bind`.
-    """
+    Similar to `inspect.Signature.bind`."""
     assigned = {}
 
     varkwargs = next(
