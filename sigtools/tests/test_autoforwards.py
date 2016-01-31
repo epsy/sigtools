@@ -1,4 +1,3 @@
-from collections import defaultdict
 from functools import partial, wraps
 
 from sigtools import support, modifiers, specifiers
@@ -20,35 +19,11 @@ def func(x):
     pass
 
 
-def transform_exp_sources(d, subject):
-    ret = defaultdict(list)
-    for func, params in d.items():
-        if func == 0:
-            func = subject
-        try:
-            func = func.__name__
-        except AttributeError:
-            pass
-        for param in params:
-            ret[param].append(func)
-    return dict(ret)
-
-
-def transform_real_sources(d):
-    ret = {}
-    for param, funcs in d.items():
-        ret[param] = [func.__name__ for func in funcs]
-    return ret
-
-
 class AutoforwardsTests(Fixtures):
     def _test(self, func, expected, sources):
-        sig, src = specifiers.forged_signature(func)
+        sig = specifiers.signature(func)
         self.assertSigsEqual(sig, support.s(expected))
-        if sources is None: return
-        self.assertEqual(transform_real_sources(src),
-                         transform_exp_sources(sources, func))
-
+        self.assertSourcesEqual(sig.sources, sources, func)
 
     @tup('a, b, x, y, *, z',
          {'global_': ('a', 'b'), '_wrapped': ('x', 'y', 'z')})

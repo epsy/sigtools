@@ -84,7 +84,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
                 + ' '.join(repr(name) for name in intersection))
         to_use = self.posoarg_names | self.kwoarg_names
 
-        sig = _specifiers.forged_signature(self.func, autoforward=False)[0]
+        sig = _specifiers.forged_signature(self.func, autoforward=False)
         params = []
         kwoparams = []
         kwopos = self.kwopos = []
@@ -203,7 +203,7 @@ def _kwoargs_start(start, _kwoargs, func, *args, **kwargs):
     kwoarg_names = set(_kwoargs)
     found = False
     sig = _specifiers.forged_signature(func, autoforward=False
-            )[0].parameters.values()
+            ).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if found or param.name == start:
@@ -258,7 +258,7 @@ def _posoargs_end(end, _posoargs, func, *args, **kwargs):
     posoarg_names = set(_posoargs)
     found = False
     sig = _specifiers.forged_signature(func, autoforward=False
-            )[0].parameters.values()
+            ).parameters.values()
     for param in sig:
         if param.kind == param.POSITIONAL_OR_KEYWORD:
             if not found:
@@ -301,7 +301,7 @@ def autokwoargs(func=None, exceptions=()):
         return partial(_autokwoargs, exceptions)
 
 def _autokwoargs(exceptions, func):
-    sig = _specifiers.forged_signature(func, autoforward=False)[0]
+    sig = _specifiers.forged_signature(func, autoforward=False)
     args = []
     exceptions = set(exceptions)
     for param in sig.parameters.values():
@@ -349,7 +349,7 @@ class annotate(object):
         while isinstance(func, _PokTranslator):
             poks.append(func)
             func = func.func
-        sig = _specifiers.forged_signature(func, autoforward=False)[0]
+        sig = _specifiers.forged_signature(func, autoforward=False)
         parameters = []
         to_use = self.to_use.copy()
         for name, parameter in sig.parameters.items():

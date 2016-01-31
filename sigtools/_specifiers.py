@@ -20,22 +20,51 @@
 # THE SOFTWARE.
 
 
-from collections import defaultdict
-
 from sigtools import _signatures, _util
 
 
-def _params_from_sig(func, sig):
-    params = defaultdict(set)
-    _autoforwards.add_params(params, func, sig)
-    return sig, params
-
 def forged_signature(obj, autoforward=True, args=(), kwargs={}):
-    """
-    Returns the signature of obj, along with a `dict` mapping each parameter
-    name to the function it comes from.
+    """Retrieve the signature of ``obj``, taking into account any specifier
+    from this module.
 
-    See `~sigtools.specifiers.signature` for an explanation of the parameters.
+    If ``autoforward`` is true, the signature will be automatically refined
+    based on how ``*args`` and ``**kwargs``.
+
+    If ``args`` and/or ``kwargs`` are specified, they are used by automatic
+    signature determination as arguments passed into the function. This is
+    useful if the function calls something passed in as a parameter.
+
+    You can use ``emulate=True`` as an argument to the specifiers from this
+    module if you wish them to work with `inspect.signature` or its
+    `funcsigs<funcsigs:signature>` backport directly.
+
+    ::
+
+        >>> from sigtools import specifiers
+        >>> import inspect
+        >>> def inner(a, b):
+        ...     return a + b
+        ...
+        >>> @specifiers.forwards_to_function(inner)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        ...
+        >>> print(inspect.signature(outer))
+        (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
+        >>> @specifiers.forwards_to_function(inner, emulate=True)
+        ... def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        >>> print(inspect.signature(outer))
+        (c, a, b)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
+
+    :param bool autoforward: Enable automatic signature determination.
+    :param sequence args: Positional arguments passed to the function.
+    :param mapping: Named arguments passed to the function.
+
     """
     subject = _util.get_introspectable(obj, af_hint=autoforward)
     if autoforward:
@@ -58,11 +87,7 @@ def forged_signature(obj, autoforward=True, args=(), kwargs={}):
     if forger is not None:
         ret = forger(obj=subject)
         if ret is not None:
-            try:
-                sig, src = ret
-            except (TypeError, ValueError):
-                return _params_from_sig(subject, ret)
-            return sig, src
+            return ret
     if autoforward:
         try:
             ret = _autoforwards.autoforwards(subject, args, kwargs)
@@ -70,7 +95,7 @@ def forged_signature(obj, autoforward=True, args=(), kwargs={}):
             pass
         else:
             return ret
-    return _params_from_sig(obj, _signatures.signature(obj))
+    return _signatures.signature(obj)
 
 
 from sigtools import _autoforwards

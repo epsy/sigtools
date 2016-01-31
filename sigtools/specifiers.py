@@ -42,7 +42,7 @@ from functools import partial, update_wrapper
 from sigtools import _util, modifiers, signatures, _specifiers
 
 __all__ = [
-    'signature', 'forged_signature',
+    'signature',
     'forwards_to_function', 'forwards_to_method',
     'forwards_to_super', 'apply_forwards_to_super',
     'forwards',
@@ -53,53 +53,7 @@ __all__ = [
 _kwowr = modifiers.kwoargs('obj')
 
 
-forged_signature = _specifiers.forged_signature
-
-
-def signature(*args, **kwargs):
-    """Retrieve the signature of ``obj``, taking into account any specifier
-    from this module.
-
-    If ``autoforward`` is true, the signature will be automatically refined
-    based on how ``*args`` and ``**kwargs``.
-
-    If ``args`` and/or ``kwargs`` are specified, they are used by automatic
-    signature determination as arguments passed into the function. This is
-    useful if the function calls something passed in as a parameter.
-
-    You can use ``emulate=True`` as an argument to the specifiers from this
-    module if you wish them to work with `inspect.signature` or its
-    `funcsigs<funcsigs:signature>` backport directly.
-
-    ::
-
-        >>> from sigtools import specifiers
-        >>> import inspect
-        >>> def inner(a, b):
-        ...     return a + b
-        ...
-        >>> @specifiers.forwards_to_function(inner)
-        ... def outer(c, *args, **kwargs):
-        ...     return c * inner(*args, **kwargs)
-        ...
-        >>> print(inspect.signature(outer))
-        (c, *args, **kwargs)
-        >>> print(specifiers.signature(outer))
-        (c, a, b)
-        >>> @specifiers.forwards_to_function(inner, emulate=True)
-        ... def outer(c, *args, **kwargs):
-        ...     return c * inner(*args, **kwargs)
-        >>> print(inspect.signature(outer))
-        (c, a, b)
-        >>> print(specifiers.signature(outer))
-        (c, a, b)
-
-    :param bool autoforward: Enable automatic signature determination.
-    :param sequence args: Positional arguments passed to the function.
-    :param mapping: Named arguments passed to the function.
-
-    """
-    return forged_signature(*args, **kwargs)[0]
+signature = _specifiers.forged_signature
 
 
 class _AsForged(object):

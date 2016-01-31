@@ -37,7 +37,7 @@ class RoundTripTests(Fixtures):
             self.assertEqual('(' + old_fmt + ')', p_sig_str)
 
         pf_sig_str = str(
-            _specifiers.forged_signature(support.func_from_sig(sig))[0])
+            _specifiers.forged_signature(support.func_from_sig(sig)))
         try:
             self.assertEqual('(' + sig_str + ')', pf_sig_str)
         except AssertionError:
