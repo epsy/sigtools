@@ -48,3 +48,8 @@ class ForwardsTests(Fixtures):
     dont_use_varargs = (
         'a, *p, b', ['ap', 'b'], 'a, *p, **k', 'b',
         0, (), False, False, False, True)
+
+    through_kw = (
+        'a, b, *, z', ['ab', 'z'], 'a, b, **k', 'x, y, *, z', 2, (), True)
+
+    kwo = 'x, y, /, *, k', ['k', 'xy'], '*args, k', 'x, y, *, z', 0, 'z'
