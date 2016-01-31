@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 
 
-from sigtools import modifiers
+from sigtools import modifiers, specifiers
 from sigtools._util import funcsigs, safe_get
 from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params, signature
@@ -122,6 +122,26 @@ class PokTranslatorTestsOneArg(Fixtures):
         bpt = pt.__get__(object(), object)
         self.assertIs(pt.attr, bpt.attr)
         self.assertIs(pt.attr, modifiers.kwoargs('a')(bpt).attr)
+
+    def test_specifiers_sig_before(self):
+        inner = f('a, b', name='inner')
+        outer = f('x, y, z, *args, **kwargs', name='outer')
+        outer = specifiers.forwards_to_function(inner)(outer)
+        pt = modifiers.kwoargs('z')(outer)
+        sig = specifiers.signature(pt)
+        self.assertSigsEqual(sig, s('x, y, a, b, *, z'))
+        self.assertSourcesEqual(sig.sources, {'inner': 'ab', 'outer': 'xyz'})
+        self.assertEqual(sig.sources['x'], [pt])
+
+    def test_specifiers_sig_after(self):
+        inner = f('a, b', name='inner')
+        outer = f('x, y, z, *args, **kwargs', name='outer')
+        pt = modifiers.kwoargs('z')(outer)
+        pt = specifiers.forwards_to_function(inner)(pt)
+        sig = specifiers.signature(pt)
+        self.assertSigsEqual(sig, s('x, y, a, b, *, z'))
+        self.assertSourcesEqual(sig.sources, {'inner': 'ab', 'outer': 'xyz'})
+        self.assertEqual(sig.sources['x'], [pt])
 
 
 class PokTranslatorTestsTwoArgs(Fixtures):
@@ -337,6 +357,3 @@ class AnnotateTests(SignatureTests):
             s('a:1, *, b:2'),
             signature(safe_get(annotated, object(), object))
             )
-
-
-

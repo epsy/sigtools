@@ -35,24 +35,32 @@ class Signature(_util.funcsigs.Signature):
     __slots__ = _util.funcsigs.Signature.__slots__ + ('sources',)
 
     def __init__(self, *args, **kwargs):
-        super(Signature, self).__init__(*args, **kwargs)
         self.sources = kwargs.pop('sources', {})
+        super(Signature, self).__init__(*args, **kwargs)
 
     @classmethod
-    def upgrade(cls, inst):
+    def upgrade(cls, inst, sources):
         if isinstance(inst, cls):
             return inst
-        return cls(inst.parameters.values(), return_annotation=inst.return_annotation)
-#FIXME implement replace()
+        return cls(
+            inst.parameters.values(),
+            return_annotation=inst.return_annotation,
+            sources=sources)
+
+    def replace(self, *args, **kwargs):
+        try:
+            sources = kwargs.pop('sources')
+        except KeyError:
+            sources = self.sources
+        ret = super(Signature, self).replace(*args, **kwargs)
+        ret.sources = sources
+        return ret
 
 
 def set_default_sources(sig, obj):
     """Assigns the source of every parameter of sig to obj"""
-    sig = Signature.upgrade(sig)
-    src = sig.sources = {}
-    for pname in sig.parameters:
-        src[pname] = [obj]
-    return sig
+    return Signature.upgrade(
+        sig, dict((pname, [obj]) for pname in sig.parameters))
 
 
 def signature(obj):

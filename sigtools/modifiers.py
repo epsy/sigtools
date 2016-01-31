@@ -55,6 +55,10 @@ class _PokTranslator(_util.OverrideableDataDesc):
             self.__self__ = func.__self__
         except AttributeError:
             pass
+        try:
+            del self._sigtools__forger
+        except AttributeError:
+            pass
         super(_PokTranslator, self).__init__(**kwargs)
         self.func = func
         self.posoarg_names = set(posoargs)
@@ -117,7 +121,11 @@ class _PokTranslator(_util.OverrideableDataDesc):
             params.extend(kwoparams)
         if to_use:
             raise ValueError("Parameters not found: " + ' '.join(to_use))
-        self.__signature__ = sig.replace(parameters=params)
+        src = dict(
+            (name, [self if f == self.func else f for f in sources])
+            for name, sources in sig.sources.items()
+            )
+        self.__signature__ = sig.replace(parameters=params, sources=src)
 
     def _sigtools__autoforwards_hint(self, func):
         ast = _util.get_ast(self.func)
