@@ -285,15 +285,7 @@ def resolve_name(obj, func, args, unknown=False):
         raise
 
 
-def add_params(params, func, sig):
-    for param in sig.parameters.values():
-        params[param.name].add(func)
-
-
-def forward_signatures(func, calls, args, kwargs, sig=None):
-    if sig is None:
-        with cleanup_functools_wrapper(func):
-            sig = _signatures.signature(func)
+def forward_signatures(func, calls, args, kwargs, sig):
     if args or kwargs:
         bap = sig.bind_partial(*args, **kwargs)
     else:
