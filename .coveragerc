@@ -6,7 +6,6 @@ exclude_lines =
     pragma: no cover
 
     raise NotImplementedError
-    raise AssertionError
     if __name__ == .__main__.:
     if sys.version_info
 
