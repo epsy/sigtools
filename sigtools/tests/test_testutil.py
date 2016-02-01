@@ -22,6 +22,7 @@
 
 import unittest2
 
+from sigtools._util import OrderedDict as od
 from sigtools.support import s
 from sigtools.tests import util as tutil
 
@@ -32,6 +33,70 @@ class UtilTests(unittest2.TestCase):
         self.assertEqual(
             s('one, /, two, *three, four, **five'),
             tutil.conv_first_posarg(s('one, two, *three, four, **five')))
+
+
+class TransformExpectedSourcesTests(unittest2.TestCase):
+    def test_empty(self):
+        self.assertEqual(tutil.transform_exp_sources({}), {})
+
+    def test_tf(self):
+        self.assertEqual(
+            tutil.transform_exp_sources({'func': 'abc', 'func2': 'def'}),
+            { 'a': ['func'], 'b': ['func'], 'c': ['func'],
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+
+    def test_order(self):
+        self.assertEqual(
+            tutil.transform_exp_sources(od([('func', 'abc'), ('func2', 'abc')])),
+            { 'a': ['func', 'func2'],
+              'b': ['func', 'func2'],
+              'c': ['func', 'func2'] })
+
+    def test_implicit(self):
+        self.assertEqual(
+            tutil.transform_exp_sources({0: 'abc', 'func2': 'def'}, subject='func'),
+            { 'a': ['func'], 'b': ['func'], 'c': ['func'],
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+
+    def test_implicit_missing(self):
+        with self.assertRaises(ValueError):
+            tutil.transform_exp_sources({0: 'abc', 'func2': 'def'})
+
+    def test_conv(self):
+        self.assertEqual(
+            tutil.transform_exp_sources({1: 'abc', 2: 'def'}),
+            { 'a': ['_1'], 'b': ['_1'], 'c': ['_1'],
+              'd': ['_2'], 'e': ['_2'], 'f': ['_2'] })
+
+    def test_func_name(self):
+        def f1():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_exp_sources({f1: 'abc', 'func2': 'def'}),
+            { 'a': ['f1'], 'b': ['f1'], 'c': ['f1'],
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+
+    def test_implicit_func(self):
+        def f1():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_exp_sources({0: 'abc', 'func2': 'def'}, subject=f1),
+            { 'a': ['f1'], 'b': ['f1'], 'c': ['f1'],
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+
+
+class TransformRealSourcesTests(unittest2.TestCase):
+    def test_empty(self):
+        self.assertEqual(tutil.transform_real_sources({}), {})
+
+    def test_tf(self):
+        def f1():
+            raise NotImplementedError
+        def f2():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_real_sources({'a': [f1, f2], 'b': [f1], 'c': [f2]}),
+            {'a': ['f1', 'f2'], 'b': ['f1'], 'c': ['f2']})
 
 
 class SignatureTestsTests(tutil.SignatureTests):
@@ -65,3 +130,14 @@ class SignatureTestsTests(tutil.SignatureTests):
         self.assertIs(*([],)*2)
         with self.assertRaises(AssertionError):
             self.assertIs([], [])
+
+    def test_src_eq(self):
+        def f1():
+            raise NotImplementedError
+        def f2():
+            raise NotImplementedError
+        self.assertSourcesEqual(
+            {'a': [f1], 'b': [f2], 'c': [f1]}, {'f1': 'ac', 'f2': 'b'})
+        with self.assertRaises(AssertionError):
+            self.assertSourcesEqual(
+                {'a': [f1], 'b': [f2], 'c': [f1]}, {'f1': 'a', 'f2': 'b'})
