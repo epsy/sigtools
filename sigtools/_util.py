@@ -108,25 +108,24 @@ def safe_get(obj, instance, owner):
     return get(obj, instance, owner)
 
 
-MethodWrapper = type(format.__call__)
-
-
 def iter_call(obj):
     while True:
         yield obj
         try:
             obj = obj.__call__
+            obj.__code__.co_filename
+            # raises if this is the __call__ method of a builtin object
         except AttributeError:
-            return
-        if isinstance(obj, MethodWrapper):
-            # this is the __call__ method of a builtin object
             return
 
 
 partial_ = partial
 
 
-def get_introspectable(obj, forged=True, af_hint=True):
+partial_ = partial
+
+
+def get_introspectable(obj, forged=True, af_hint=True, partial=True):
     for obj in iter_call(obj):
         try:
             obj.__signature__
@@ -145,6 +144,9 @@ def get_introspectable(obj, forged=True, af_hint=True):
                 return obj
             except AttributeError:
                 pass
+        if partial:
+            if isinstance(obj, partial_):
+                return obj
     return obj
 
 def get_ast(func):

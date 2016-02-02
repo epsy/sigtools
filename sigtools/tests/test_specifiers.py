@@ -427,5 +427,6 @@ class ForgerFunctionTests(SignatureTests):
                 raise NotImplementedError
             def method(self, a, b, c):
                 raise NotImplementedError
-        self.assertSigsEqual(specifiers.signature(MyClass()),
-                             support.s('x, a, b, c'))
+        exp = support.s('x, a, b, c')
+        self.assertSigsEqual(signatures.signature(MyClass()), exp)
+        self.assertSigsEqual(specifiers.signature(MyClass()), exp)
