@@ -354,6 +354,14 @@ class ForgerFunctionTests(SignatureTests):
             raise NotImplementedError
         self.assertSigsEqual(support.s('abc'), specifiers.signature(forged))
 
+    def test_forger_sig(self):
+        @specifiers.forger_function
+        def forger(p1, p2, p3, obj):
+            raise NotImplementedError
+        self.assertSigsEqual(
+            support.s('p1, p2, p3, *, emulate=None'),
+            specifiers.signature(forger))
+
     def test_directly_applied(self):
         def forger(obj):
             return support.s('abc')
@@ -430,3 +438,20 @@ class ForgerFunctionTests(SignatureTests):
         exp = support.s('x, a, b, c')
         self.assertSigsEqual(signatures.signature(MyClass()), exp)
         self.assertSigsEqual(specifiers.signature(MyClass()), exp)
+
+    def test_forger_priority_over_autoforwards_hint(self):
+        def make_func():
+            def real_inner(x, y, z):
+                pass
+            def inner(i, j):
+                raise NotImplementedError
+            @specifiers.forwards_to_function(inner)
+            @modifiers.kwoargs('a')
+            def outer(a, *args, **kwargs):
+                real_inner(*args, **kwargs)
+            return outer
+        func = make_func()
+        self.assertSigsEqual(
+            support.s('i, j, *, a'),
+            specifiers.signature(func))
+        func(1, 2, 3, a=4)

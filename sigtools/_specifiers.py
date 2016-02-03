@@ -67,6 +67,11 @@ def forged_signature(obj, autoforward=True, args=(), kwargs={}):
 
     """
     subject = _util.get_introspectable(obj, af_hint=autoforward)
+    forger = getattr(subject, '_sigtools__forger', None)
+    if forger is not None:
+        ret = forger(obj=subject)
+        if ret is not None:
+            return ret
     if autoforward:
         try:
             subject._sigtools__autoforwards_hint
@@ -83,12 +88,6 @@ def forged_signature(obj, autoforward=True, args=(), kwargs={}):
                 else:
                     return ret
             subject = _util.get_introspectable(subject, af_hint=False)
-    forger = getattr(subject, '_sigtools__forger', None)
-    if forger is not None:
-        ret = forger(obj=subject)
-        if ret is not None:
-            return ret
-    if autoforward:
         try:
             ret = _autoforwards.autoforwards(subject, args, kwargs)
         except _autoforwards.UnknownForwards:
