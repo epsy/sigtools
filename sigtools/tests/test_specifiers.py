@@ -24,7 +24,7 @@
 import sys
 
 from sigtools import modifiers, specifiers, support, _util, signatures
-from sigtools.tests.util import Fixtures, SignatureTests
+from sigtools.tests.util import Fixtures, SignatureTests, tup
 
 # bulk of the testing happens in test_merge and test_embed
 
@@ -83,7 +83,7 @@ def sig_equal(self, obj, sig_str, exp_src):
     sig = specifiers.signature(obj)
     self.assertSigsEqual(sig, support.s(sig_str),
                          conv_first_posarg=True)
-    self.assertSourcesEqual(sig.sources, exp_src)
+    self.assertSourcesEqual(sig.sources, exp_src, obj)
 
 class _Coop(object):
     @modifiers.kwoargs('cb')
@@ -191,6 +191,11 @@ class ForwardsAttributeTests(Fixtures):
         'ftm2': 'cd', 'ftm': 'e', 'inner': 'ab'}
 
     sub_ivar = _sub_inst.fti, 'x, *, y', {'_sub_inst': 'xy'}
+
+    @tup('a, y=None, z=None', {0: 'a', '_free_func': 'yz'})
+    @specifiers.forwards_to_function(_free_func, 1, partial=True)
+    def forwards_to_partial(a, *args, **kwargs):
+        raise NotImplementedError
 
     def _test_raw_source(self, obj, exp_sig, exp_src):
         sig = specifiers.signature(obj)

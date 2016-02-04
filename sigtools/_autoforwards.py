@@ -314,7 +314,7 @@ def forward_signatures(func, calls, args, kwargs, sig):
                 len(fwdargs),
                 hide_args, hide_kwargs,
                 use_varargs, use_varkwargs,
-                *fwdkwargs)
+                False, *fwdkwargs)
             yield ausig
         except ValueError:
             raise UnknownForwards

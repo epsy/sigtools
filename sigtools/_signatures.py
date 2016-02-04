@@ -706,12 +706,15 @@ def mask(sig, num_args=0,
 def forwards(outer, inner, num_args=0,
              hide_args=False, hide_kwargs=False,
              use_varargs=True, use_varkwargs=True,
-             *named_args):
+             partial=False, *named_args):
     """Calls `mask` on ``inner``, then returns the result of calling
     `embed` with ``outer`` and the result of `mask`.
 
     :param inspect.Signature outer: The outermost signature.
     :param inspect.Signature inner: The inner signature.
+    :param bool partial: Set to `True` if the arguments are passed to
+        ``partial(func_with_inner, *args, **kwargs)`` rather than
+        ``func_with_inner``.
 
     ``use_varargs`` and ``use_varkwargs`` are the same parameters as in
     `.embed`, and ``num_args``, ``named_args``, ``hide_args`` and
@@ -733,6 +736,14 @@ def forwards(outer, inner, num_args=0,
         :ref:`forwards-pick`
 
     """
+    if partial:
+        params = []
+        for param in inner.parameters.values():
+            if param.kind in [param.VAR_POSITIONAL, param.VAR_KEYWORD]:
+                params.append(param)
+            else:
+                params.append(param.replace(default=None))
+        inner = inner.replace(parameters=params)
     return embed(
         use_varargs, use_varkwargs,
         outer,
