@@ -213,3 +213,11 @@ class AutoforwardsTests(Fixtures):
     #     def sub(c, *args, **kwargs):
     #         _wrapped(*args, **kwargs)
     #     sub(1, *args, **kwargs)
+
+    @tup('a, b, x=None, y=None, *, z=None', {0: 'ab', '_wrapped': 'xyz'})
+    def partial(a, b, *args, **kwargs):
+        partial(_wrapped, *args, **kwargs)
+
+    @tup('a, b, y=None', {0: 'ab', '_wrapped': 'y'})
+    def partial_args(a, b, *args, **kwargs):
+        partial(_wrapped, a, *args, z=b, **kwargs)

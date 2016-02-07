@@ -306,15 +306,18 @@ def forward_signatures(func, calls, args, kwargs, sig):
         fwdargsvals.extend(rn(fwdvarargs))
         fwdkwargsvals = dict((n, rn(arg)) for n, arg in fwdkwargs.items())
         fwdkwargsvals.update(rn(fwdvarkwargs))
+        using_partial = wrapped_func == functools.partial
+        if using_partial:
+            wrapped_func = fwdargsvals.pop(0)
         wrapped_sig = forged_signature(
             wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
         try:
             ausig = _signatures.forwards(
                 sig, wrapped_sig,
-                len(fwdargs),
+                len(fwdargs) - using_partial,
                 hide_args, hide_kwargs,
                 use_varargs, use_varkwargs,
-                False, *fwdkwargs)
+                using_partial, *fwdkwargs)
             yield ausig
         except ValueError:
             raise UnknownForwards
