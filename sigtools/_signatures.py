@@ -83,10 +83,10 @@ def copy_sources(src):
 
 SortedParameters = collections.namedtuple(
     'SortedParameters',
-    'posargs pokargs varargs kwoargs varkwargs')
+    'posargs pokargs varargs kwoargs varkwargs sources')
 
 
-def sort_params(sig):
+def sort_params(sig, sources=False):
     """Classifies the parameters from sig.
 
     :param inspect.Signature sig: The signature to operate on
@@ -125,10 +125,16 @@ def sort_params(sig):
             varkwas = param
         else:
             raise AssertionError('Unknown param kind {0}'.format(param.kind))
-    return SortedParameters(posargs, pokargs, varargs, kwoargs, varkwas)
+    if sources:
+        src = getattr(sig, 'sources', {})
+        return SortedParameters(posargs, pokargs, varargs, kwoargs, varkwas,
+                                copy_sources(src))
+    else:
+        return posargs, pokargs, varargs, kwoargs, varkwas
 
 
-def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs):
+def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
+                 sources=None):
     """Reverses `sort_params`'s operation.
 
     :returns: A new `inspect.Signature` object based off sig,
@@ -142,7 +148,11 @@ def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs):
     parameters.extend(kwoargs.values())
     if varkwargs:
         parameters.append(varkwargs)
-    return sig.replace(parameters=parameters)
+    sig = sig.replace(parameters=parameters)
+    if sources is not None:
+        sig = Signature.upgrade(sig, sources)
+        sig.sources = sources
+    return sig
 
 
 class IncompatibleSignatures(ValueError):
@@ -186,11 +196,9 @@ def _exclude_from_seq(seq, el):
 
 
 class _Merger(object):
-    def __init__(self, left, right, left_sources, right_sources):
+    def __init__(self, left, right):
         self.l = left
         self.r = right
-        self.lsrc = left_sources
-        self.rsrc = right_sources
         self.performed = False
 
     def perform_once(self):
@@ -224,7 +232,7 @@ class _Merger(object):
                 self.kwoargs[name] = self._concile_meta(
                     param, self.r.kwoargs[name])
                 self.src[name] = list(itertools.chain(
-                    self.lsrc.get(name, ()), self.rsrc.get(name, ())))
+                    self.l.sources.get(name, ()), self.r.sources.get(name, ())))
             else:
                 self.l_unmatched_kwoargs[param.name] = param
 
@@ -241,24 +249,26 @@ class _Merger(object):
                 p = self._concile_meta(l_param, r_param)
                 self.posargs.append(p)
                 if l_param.name == r_param.name:
-                    _add_sources(self.src, l_param.name, self.lsrc, self.rsrc)
+                    _add_sources(self.src, l_param.name,
+                                 self.l.sources, self.r.sources)
                 else:
-                    _add_sources(self.src, l_param.name, self.lsrc)
+                    _add_sources(self.src, l_param.name, self.l.sources)
             else:
                 if l_param:
                     self._merge_unbalanced_pos(
-                        l_param, self.lsrc,
-                        ir_pokargs, self.r.varargs, self.rsrc)
+                        l_param, self.l.sources,
+                        ir_pokargs, self.r.varargs, self.r.sources)
                 else:
                     self._merge_unbalanced_pos(
-                        r_param, self.rsrc,
-                        il_pokargs, self.l.varargs, self.lsrc)
+                        r_param, self.r.sources,
+                        il_pokargs, self.l.varargs, self.l.sources)
 
         for l_param, r_param in zip_longest(il_pokargs, ir_pokargs):
             if l_param and r_param:
                 if l_param.name == r_param.name:
                     self.pokargs.append(self._concile_meta(l_param, r_param))
-                    _add_sources(self.src, l_param.name, self.lsrc, self.rsrc)
+                    _add_sources(self.src, l_param.name,
+                                 self.l.sources, self.r.sources)
                 else:
                     for i, pokarg in enumerate(self.pokargs):
                         self.pokargs[i] = pokarg.replace(
@@ -266,25 +276,25 @@ class _Merger(object):
                     self.pokargs.append(
                         self._concile_meta(l_param, r_param)
                         .replace(kind=l_param.POSITIONAL_ONLY))
-                    _add_sources(self.src, l_param.name, self.lsrc)
+                    _add_sources(self.src, l_param.name, self.l.sources)
             else:
                 if l_param:
                     self._merge_unbalanced_pok(
-                        l_param, self.lsrc,
+                        l_param, self.l.sources,
                         self.r.varargs, self.r.varkwargs,
-                        self.r_unmatched_kwoargs, self.rsrc)
+                        self.r_unmatched_kwoargs, self.r.sources)
                 else:
                     self._merge_unbalanced_pok(
-                        r_param, self.rsrc,
+                        r_param, self.r.sources,
                         self.l.varargs, self.l.varkwargs,
-                        self.l_unmatched_kwoargs, self.lsrc)
+                        self.l_unmatched_kwoargs, self.l.sources)
 
         if self.l_unmatched_kwoargs:
             self._merge_unmatched_kwoargs(
-                self.l_unmatched_kwoargs, self.r.varkwargs, self.lsrc)
+                self.l_unmatched_kwoargs, self.r.varkwargs, self.l.sources)
         if self.r_unmatched_kwoargs:
             self._merge_unmatched_kwoargs(
-                self.r_unmatched_kwoargs, self.l.varkwargs, self.rsrc)
+                self.r_unmatched_kwoargs, self.l.varkwargs, self.r.sources)
 
         self.varargs = self._add_starargs(
             self.varargs_src, self.l.varargs, self.r.varargs)
@@ -297,15 +307,16 @@ class _Merger(object):
         if all(which):
             ret = self._concile_meta(left, right)
             if left.name == right.name:
-                _add_sources(self.src, ret.name, self.lsrc, self.rsrc)
+                _add_sources(self.src, ret.name,
+                             self.l.sources, self.r.sources)
             else:
-                _add_sources(self.src, ret.name, self.lsrc)
+                _add_sources(self.src, ret.name, self.l.sources)
         elif which[0]:
             ret = left
-            _add_sources(self.src, ret.name, self.lsrc)
+            _add_sources(self.src, ret.name, self.l.sources)
         else:
             ret = right
-            _add_sources(self.src, ret.name, self.rsrc)
+            _add_sources(self.src, ret.name, self.r.sources)
         return ret
 
     def _merge_unbalanced_pos(self, existing, src,
@@ -450,17 +461,14 @@ def merge(*signatures):
 
     """
     assert signatures, "Expected at least one signature"
-    ret = sort_params(signatures[0])
-    ret_src = copy_sources(signatures[0].sources)
+    ret = sort_params(signatures[0], sources=True)
     for i, sig in enumerate(signatures[1:], 1):
-        sorted_params = sort_params(sig)
+        sorted_params = sort_params(sig, sources=True)
         try:
-            ret_ = tuple(_Merger(ret, sorted_params, ret_src, signatures[i].sources))
-            ret, ret_src = SortedParameters(*ret_[:-1]), ret_[-1]
+            ret = SortedParameters(*_Merger(ret, sorted_params))
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     ret_sig = apply_params(signatures[0], *ret)
-    ret_sig.sources = ret_src
     return ret_sig
 
 
@@ -472,15 +480,15 @@ def _check_no_dupes(collect, params):
     collect.update(names)
 
 
-def _embed(outer, inner, i_src, use_varargs=True, use_varkwargs=True):
-    o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs, o_src  = outer
+def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
+    o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs, o_src = outer
 
     stars_sig = SortedParameters(
         [], [], use_varargs and o_varargs,
-        {}, use_varkwargs and o_varkwargs)
+        {}, use_varkwargs and o_varkwargs, {})
 
-    i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs, i_src = _Merger(
-        inner, stars_sig, i_src, {})
+    i_posargs, i_pokargs, i_varargs, i_kwoargs, i_varkwargs, i_src = \
+        _Merger(inner, stars_sig)
 
     names = set()
 
@@ -549,17 +557,14 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
         (self, *args, keyword, **kwargs)
     """
     assert signatures
-    ret = sort_params(signatures[0]) + (signatures[0].sources,)
+    ret = sort_params(signatures[0], sources=True)
     for i, sig in enumerate(signatures[1:], 1):
         try:
-            ret = _embed(ret, sort_params(sig), sig.sources,
+            ret = _embed(ret, sort_params(sig, sources=True),
                          use_varargs, use_varkwargs)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    ret, sources = ret[:-1], ret[-1]
-    sig = apply_params(signatures[0], *ret)
-    sig.sources = sources
-    return sig
+    return apply_params(signatures[0], *ret)
 
 
 def _pop_chain(*sequences):
@@ -580,9 +585,9 @@ def _pnames(ita):
 
 def _mask(sig, num_args, hide_args, hide_kwargs,
           hide_varargs, hide_varkwargs, named_args, partial_obj):
-    posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
+    posargs, pokargs, varargs, kwoargs, varkwargs, src \
+        = sort_params(sig, sources=True)
 
-    src = copy_sources(sig.sources)
     pokargs_by_name = dict((p.name, p) for p in pokargs)
     consumed_names = set()
 
@@ -608,7 +613,7 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
 
     if hide_args or hide_varargs:
         if varargs:
-            del src[varargs.name]
+            src.pop(varargs.name, None)
         varargs = None
 
     partial_mode = partial_obj is not None
@@ -660,11 +665,10 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
 
     if hide_kwargs or hide_varkwargs:
         if varkwargs:
-            del src[varkwargs.name]
+            src.pop(varkwargs.name, None)
         varkwargs = None
 
-    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
-    ret.sources = src
+    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src)
     return ret
 
 

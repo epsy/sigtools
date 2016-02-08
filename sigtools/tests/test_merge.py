@@ -24,7 +24,7 @@
 from sigtools.signatures import merge, IncompatibleSignatures
 from sigtools.support import s
 from sigtools.tests.util import Fixtures
-from sigtools._util import OrderedDict as Od
+from sigtools._util import OrderedDict as Od, funcsigs
 
 
 class MergeTests(Fixtures):
@@ -38,6 +38,12 @@ class MergeTests(Fixtures):
 
         self.assertSigsEqual(sig, exp_sig)
         self.assertSourcesEqual(sig.sources, exp_sources)
+
+        sigs = [
+            funcsigs.Signature(sig.parameters.values(),
+                               return_annotation=sig.return_annotation)
+            for sig in sigs]
+        self.assertSigsEqual(merge(*sigs), exp_sig)
 
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'

@@ -22,6 +22,7 @@
 
 
 from sigtools import signatures, support
+from sigtools._util import funcsigs
 from sigtools.tests.util import Fixtures
 
 
@@ -30,13 +31,23 @@ class MaskTests(Fixtures):
                    hide_varargs=False, hide_varkwargs=False,
                    hide_args=False, hide_kwargs=False):
         expected_sig = support.s(expected_str)
+
         sig = signatures.mask(
                 support.s(sig_str), num_args, *named_args,
                 hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
                 hide_args=hide_args, hide_kwargs=hide_kwargs)
         self.assertSigsEqual(sig, expected_sig)
+
         expected_src = {'func': expected_sig.parameters}
         self.assertSourcesEqual(sig.sources, expected_src, func='func')
+
+        in_sig = support.s(sig_str)
+        in_sig = funcsigs.Signature(in_sig.parameters.values(),
+                                    return_annotation=in_sig.return_annotation)
+        sig = signatures.mask(
+                in_sig, num_args, *named_args,
+                hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
+                hide_args=hide_args, hide_kwargs=hide_kwargs)
 
     hide_pos = '<b>', '<a>, <b>', 1
     hide_pos_pok = 'c', '<a>, b, c', 2

@@ -32,8 +32,11 @@ class ForwardsTests(Fixtures):
                     hide_args=False, hide_kwargs=False,
                     use_varargs=True, use_varkwargs=True,
                     partial=False):
+        outer_sig = s(outer, name='o')
+        inner_sig = s(inner, name='i')
+
         sig = forwards(
-                    s(outer, name='o'), s(inner, name='i'),
+                    outer_sig, inner_sig,
                     num_args, *named_args,
                     hide_args=hide_args, hide_kwargs=hide_kwargs,
                     use_varargs=use_varargs, use_varkwargs=use_varkwargs,
@@ -42,6 +45,16 @@ class ForwardsTests(Fixtures):
         self.assertSourcesEqual(sig.sources, {
                 'o': exp_src[0], 'i': exp_src[1]})
 
+        outer_sig = self.downgrade_sig(outer_sig)
+        inner_sig = self.downgrade_sig(inner_sig)
+        sig = forwards(
+            outer_sig, inner_sig,
+            num_args, *named_args,
+            hide_args=hide_args, hide_kwargs=hide_kwargs,
+            use_varargs=use_varargs, use_varkwargs=use_varkwargs,
+            partial=partial)
+        self.assertSigsEqual(sig, s(exp_sig))
+ 
     a = 'a, b', ['a', 'b'], 'a, *args, **kwargs', 'b'
 
     pass_pos = 'a, c', ['a', 'c'], 'a, *p, **k', 'b, c', 1

@@ -25,6 +25,8 @@ from collections import defaultdict
 import unittest2
 from repeated_test import tup, WithTestClass
 
+from sigtools._util import funcsigs
+
 
 __all__ = [
     'conv_first_posarg',
@@ -86,6 +88,11 @@ class SignatureTests(unittest2.TestCase):
     def assertSourcesEqual(self, found, expected, func=None):
         self.assertEqual(transform_real_sources(found),
                          transform_exp_sources(expected, func))
+
+    def downgrade_sig(self, sig):
+        return funcsigs.Signature(
+            sig.parameters.values(),
+            return_annotation=sig.return_annotation)
 
 
 Fixtures = WithTestClass(SignatureTests)
