@@ -154,7 +154,7 @@ class AutoforwardsTests(Fixtures):
                 pass
             def method(self, a, *p, **k):
                 self.wrapped(a, *p, **k)
-        method = _util.safe_get(A.method, object(), type(A))
+        method = _util.safe_get(A.__dict__['method'], object(), type(A))
         self._test(method, 'a, *p, **k', {0: 'apk'}, incoherent=True)
 
     def test_unset_attribute(self):
