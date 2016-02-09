@@ -276,7 +276,13 @@ def resolve_name(obj, func, args, unknown=False):
                 pass
             raise UnresolvableName(obj)
         elif isinstance(obj, Attribute):
-            return getattr(resolve_name(obj.value, func, args), obj.attr)
+            attr_owner = resolve_name(obj.value, func, args)
+            if not isinstance(attr_owner, Unknown):
+                try:
+                    return getattr(attr_owner, obj.attr)
+                except AttributeError:
+                    pass
+            raise UnresolvableName(obj)
         else:
             raise UnresolvableName(obj)
     except UnresolvableName:

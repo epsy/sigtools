@@ -1,7 +1,7 @@
 import sys
 from functools import partial, wraps
 
-from sigtools import support, modifiers, specifiers
+from sigtools import support, modifiers, specifiers, _util
 from sigtools.tests.util import Fixtures, tup
 
 
@@ -18,12 +18,13 @@ def func(*args, **kwargs):
 
 
 class AutoforwardsTests(Fixtures):
-    def _test(self, func, expected, sources):
+    def _test(self, func, expected, sources, incoherent=False):
         sig = specifiers.signature(func)
         self.assertSigsEqual(sig, support.s(expected))
         self.assertSourcesEqual(sig.sources, sources, func)
-        support.test_func_sig_coherent(
-            func, check_return=False, check_invalid=False)
+        if not incoherent:
+            support.test_func_sig_coherent(
+                func, check_return=False, check_invalid=False)
 
     @tup('a, b, x, y, *, z',
          {'global_': ('a', 'b'), '_wrapped': ('x', 'y', 'z')})
@@ -146,6 +147,22 @@ class AutoforwardsTests(Fixtures):
                 self.wrapped(a, *args, **kwargs)
         a = A()
         self._test(a.method, 'a, y', {0: 'a', 'wrapped': 'y'})
+
+    def test_get_from_object(self):
+        class A(object):
+            def wrapped(self, x, y):
+                pass
+            def method(self, a, *p, **k):
+                self.wrapped(a, *p, **k)
+        method = _util.safe_get(A.method, object(), type(A))
+        self._test(method, 'a, *p, **k', {0: 'apk'}, incoherent=True)
+
+    def test_unset_attribute(self):
+        class A(object):
+            def method(self, a, *p, **k):
+                self.wrapped(a, *p, **k)
+        a = A()
+        self._test(a.method, 'a, *p, **k', {0: 'apk'}, incoherent=True)
 
     @staticmethod
     @modifiers.kwoargs('b')
