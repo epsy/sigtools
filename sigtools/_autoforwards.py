@@ -264,9 +264,15 @@ def resolve_name(obj, func, args, unknown=False):
             try:
                 index = func.__code__.co_freevars.index(obj.name)
             except ValueError:
-                return func.__globals__[obj.name]
+                try:
+                    return func.__globals__[obj.name]
+                except KeyError:
+                    raise UnresolvableName(obj)
             else:
-                return func.__closure__[index].cell_contents
+                try:
+                    return func.__closure__[index].cell_contents
+                except ValueError:
+                    raise UnresolvableName(obj)
         elif isinstance(obj, Arg):
             try:
                 arg = args[obj.name]
@@ -315,8 +321,11 @@ def forward_signatures(func, calls, args, kwargs, sig):
         using_partial = wrapped_func == functools.partial
         if using_partial:
             wrapped_func = fwdargsvals.pop(0)
-        wrapped_sig = forged_signature(
-            wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
+        try:
+            wrapped_sig = forged_signature(
+                wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
+        except (ValueError, TypeError):
+            raise UnknownForwards
         try:
             ausig = _signatures.forwards(
                 sig, wrapped_sig,

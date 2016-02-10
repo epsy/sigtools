@@ -1,4 +1,4 @@
-from sigtools import support, specifiers
+from sigtools import support, specifiers, signatures
 from sigtools.tests.util import Fixtures, tup
 
 
@@ -45,3 +45,15 @@ class Py3UnknownAutoforwardsTests(Fixtures):
             l2()
         l1()
         _wrapped(*args, **kwargs)
+
+    def test_missing_freevar(self):
+        def make_closure():
+            var = 1
+            del var
+            def func(a, *p, **k):
+                var(*p, **k) # pyflakes: silence
+            return func
+        func = make_closure()
+        self.assertSigsEqual(
+            specifiers.signature(func),
+            signatures.signature(func))

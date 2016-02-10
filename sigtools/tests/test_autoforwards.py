@@ -1,7 +1,8 @@
 import sys
 from functools import partial, wraps
+from mock import patch
 
-from sigtools import support, modifiers, specifiers, _util
+from sigtools import support, modifiers, specifiers, signatures, _util
 from sigtools.tests.util import Fixtures, tup
 
 
@@ -148,22 +149,6 @@ class AutoforwardsTests(Fixtures):
         a = A()
         self._test(a.method, 'a, y', {0: 'a', 'wrapped': 'y'})
 
-    def test_get_from_object(self):
-        class A(object):
-            def wrapped(self, x, y):
-                pass
-            def method(self, a, *p, **k):
-                self.wrapped(a, *p, **k)
-        method = _util.safe_get(A.__dict__['method'], object(), type(A))
-        self._test(method, 'a, *p, **k', {0: 'apk'}, incoherent=True)
-
-    def test_unset_attribute(self):
-        class A(object):
-            def method(self, a, *p, **k):
-                self.wrapped(a, *p, **k)
-        a = A()
-        self._test(a.method, 'a, *p, **k', {0: 'apk'}, incoherent=True)
-
     @staticmethod
     @modifiers.kwoargs('b')
     def _deeparg_l1(l2, b, *args, **kwargs):
@@ -238,3 +223,54 @@ class AutoforwardsTests(Fixtures):
     @tup('a, b, y=None', {0: 'ab', '_wrapped': 'y'})
     def partial_args(a, b, *args, **kwargs):
         partial(_wrapped, a, *args, z=b, **kwargs)
+
+
+not_callable = None
+
+
+class UnresolvableAutoforwardsTests(Fixtures):
+    def _test(self, func):
+        self.assertSigsEqual(
+            specifiers.signature(func),
+            signatures.signature(func))
+
+    @tup()
+    def missing_global(a, b, *p, **k):
+        return doesntexist(*p, **k) # pyflakes: silence
+
+    def test_get_from_object(self):
+        class A(object):
+            def wrapped(self, x, y):
+                pass
+            def method(self, a, *p, **k):
+                self.wrapped(a, *p, **k)
+        method = _util.safe_get(A.__dict__['method'], object(), type(A))
+        self._test(method)
+
+    def test_unset_attribute(self):
+        class A(object):
+            def method(self, a, *p, **k):
+                self.wrapped(a, *p, **k)
+        a = A()
+        self._test(a.method)
+
+    @tup()
+    def constant(a, *p, **k):
+        None(*p, **k)
+
+    @tup()
+    def not_callable(a, *p, **k):
+        not_callable(*p, **k)
+
+    def test_no_sig(self):
+        obj = object()
+        sig = support.s('a, *p, **k')
+        def sig_replace(obj_):
+            if obj is obj_:
+                raise ValueError("no sig for obj")
+            else:
+                return sig
+        def func(a, *p, **k):
+            obj(*p, **k)
+        with patch.multiple(_util.funcsigs, signature=sig_replace):
+            self.assertSigsEqual(specifiers.signature(func), sig)
