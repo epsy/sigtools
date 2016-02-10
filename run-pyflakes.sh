@@ -1,6 +1,7 @@
 #!/bin/sh
 
-PAT=$(grep -Hrn --binary-files=without-match 'pyflakes: silence' $1 | sed -ze 's/\([^:]*:[^:]*:\)[^\n]*\n/\1|/g' -e 's/.$//')
+PAT=$(grep -Hrn --binary-files=without-match 'pyflakes: silence' $1 |
+    sed -e ':a' -e 'N' -e '$!ba' -e 's/\([^:]*:[^:]*:\)[^\n]*\n\?/\1|/g' -e 's/.$//')
 
 if [ -n "$PAT" ]
 then
