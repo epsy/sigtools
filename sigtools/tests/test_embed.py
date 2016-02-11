@@ -73,6 +73,15 @@ class EmbedTests(Fixtures):
     dont_use_either_empty = (
         'a, *p, **k', {1: 'apk'}, ['a, *p, **k', ''], False, False)
 
+    outer_default = (
+        'a, b, c, d, e, f',
+        {1: 'abc', 2: 'def'}, ['a, b, c=0, *args, **kwargs', 'd, e, f'])
+    outer_default_pos = (
+        'a, b, c, /, d, e, f',
+        {1: 'abc', 2: 'def'}, ['a, b, c=0, /, *args, **kwargs', 'd, e, f'])
+    outer_default_inner_pos = (
+        'a, b, c, d, /, e, f',
+        {1: 'abc', 2: 'def'}, ['a, b, c=0, /, *args, **kwargs', 'd, /, e, f'])
 
 
 class EmbedRaisesTests(Fixtures):

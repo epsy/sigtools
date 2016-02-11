@@ -480,6 +480,11 @@ def _check_no_dupes(collect, params):
     collect.update(names)
 
 
+def _clear_defaults(ita):
+    for param in ita:
+        yield param.replace(default=param.empty)
+
+
 def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs, o_src = outer
 
@@ -501,11 +506,17 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     if i_posargs:
         _check_no_dupes(names, o_pokargs)
         e_posargs.extend(arg.replace(kind=arg.POSITIONAL_ONLY) for arg in o_pokargs)
+        if i_posargs[0].default is i_posargs[0].empty:
+            e_posargs = list(_clear_defaults(e_posargs))
         _check_no_dupes(names, i_posargs)
         e_posargs.extend(i_posargs)
     else:
         _check_no_dupes(names, o_pokargs)
-        e_pokargs.extend(o_pokargs)
+        if i_pokargs and i_pokargs[0].default == i_pokargs[0].empty:
+            e_posargs = list(_clear_defaults(e_posargs))
+            e_pokargs.extend(_clear_defaults(o_pokargs))
+        else:
+            e_pokargs.extend(o_pokargs)
     _check_no_dupes(names, i_pokargs)
     e_pokargs.extend(i_pokargs)
 
