@@ -23,18 +23,19 @@
 from sigtools import _signatures, _util
 
 
-def forged_signature(obj, autoforward=True, args=(), kwargs={}):
-    """Retrieve the signature of ``obj``, taking into account any specifier
-    from this module.
+def forged_signature(obj, auto=True, args=(), kwargs={}):
+    """Retrieves the full signature of ``obj``, either by taking note of
+    decorators from this module, or by performing automatic signature
+    discovery.
 
-    If ``autoforward`` is true, the signature will be automatically refined
-    based on how ``*args`` and ``**kwargs``.
+    If ``auto`` is true, the signature will be automatically refined based on
+    how ``*args`` and ``**kwargs`` are used throughout the function.
 
     If ``args`` and/or ``kwargs`` are specified, they are used by automatic
-    signature determination as arguments passed into the function. This is
+    signature discovery as arguments passed into the function. This is
     useful if the function calls something passed in as a parameter.
 
-    You can use ``emulate=True`` as an argument to the specifiers from this
+    You can use ``emulate=True`` as an argument to the decorators from this
     module if you wish them to work with `inspect.signature` or its
     `funcsigs<funcsigs:signature>` backport directly.
 
@@ -45,34 +46,51 @@ def forged_signature(obj, autoforward=True, args=(), kwargs={}):
         >>> def inner(a, b):
         ...     return a + b
         ...
+        >>> # Relying on automatic discovery
+        >>> def outer(c, *args, **kwargs):
+        ...     return c * inner(*args, **kwargs)
+        >>> print(inspect.signature(outer))
+        (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer, auto=False))
+        (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer))
+        (c, a, b)
+        >>>
+        >>> # Using a decorator from this module
         >>> @specifiers.forwards_to_function(inner)
         ... def outer(c, *args, **kwargs):
         ...     return c * inner(*args, **kwargs)
         ...
         >>> print(inspect.signature(outer))
         (c, *args, **kwargs)
+        >>> print(specifiers.signature(outer), auto=False)
+        (c, a, b)
         >>> print(specifiers.signature(outer))
         (c, a, b)
+        >>>
+        >>> # Using the emulate argument for compatibility with inspect
         >>> @specifiers.forwards_to_function(inner, emulate=True)
         ... def outer(c, *args, **kwargs):
         ...     return c * inner(*args, **kwargs)
         >>> print(inspect.signature(outer))
         (c, a, b)
+        >>> print(specifiers.signature(outer), auto=False)
+        (c, a, b)
         >>> print(specifiers.signature(outer))
         (c, a, b)
 
-    :param bool autoforward: Enable automatic signature determination.
+    :param bool auto: Enable automatic signature discovery.
     :param sequence args: Positional arguments passed to the function.
     :param mapping: Named arguments passed to the function.
 
     """
-    subject = _util.get_introspectable(obj, af_hint=autoforward)
+    subject = _util.get_introspectable(obj, af_hint=auto)
     forger = getattr(subject, '_sigtools__forger', None)
     if forger is not None:
         ret = forger(obj=subject)
         if ret is not None:
             return ret
-    if autoforward:
+    if auto:
         try:
             subject._sigtools__autoforwards_hint
         except AttributeError:
