@@ -106,17 +106,16 @@ class AutoforwardsTests(Fixtures):
     #         args = ()
     #         kwargs = {}
 
-    def _wrapper(wrapped, a, *args, **kwargs):
-        return wrapped(*args, **kwargs)
-
     def test_partial(self):
+        def _wrapper(wrapped, a, *args, **kwargs):
+            return wrapped(*args, **kwargs)
         func = partial(_wrapper, _wrapped)
         sig = specifiers.signature(func)
         self.assertSigsEqual(sig, support.s('a, x, y, *, z'))
         self.assertEqual(sig.sources, {
             'a': [_wrapper],
             'x': [_wrapped], 'y': [_wrapped], 'z': [_wrapped],
-            '+depths': {func: 0, _wrapped: 1, _wrapper: 2}
+            '+depths': {func: 0, _wrapper: 1, _wrapped: 2}
         })
         support.test_func_sig_coherent(
             func, check_return=False, check_invalid=False)
@@ -236,11 +235,11 @@ class AutoforwardsTests(Fixtures):
     #     sub(1, *args, **kwargs)
 
     @tup('a, b, x=None, y=None, *, z=None', {0: 'ab', '_wrapped': 'xyz'})
-    def partial(a, b, *args, **kwargs):
+    def pass_to_partial(a, b, *args, **kwargs):
         partial(_wrapped, *args, **kwargs)
 
     @tup('a, b, y=None', {0: 'ab', '_wrapped': 'y'})
-    def partial_args(a, b, *args, **kwargs):
+    def pass_to_partial_with_args(a, b, *args, **kwargs):
         partial(_wrapped, a, *args, z=b, **kwargs)
 
 
