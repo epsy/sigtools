@@ -37,26 +37,29 @@ class UtilTests(unittest2.TestCase):
 
 class TransformExpectedSourcesTests(unittest2.TestCase):
     def test_empty(self):
-        self.assertEqual(tutil.transform_exp_sources({}), {})
+        self.assertEqual(tutil.transform_exp_sources({}), {'+depths': {}})
 
     def test_tf(self):
         self.assertEqual(
             tutil.transform_exp_sources({'func': 'abc', 'func2': 'def'}),
             { 'a': ['func'], 'b': ['func'], 'c': ['func'],
-              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'],
+              '+depths': {'func': 0, 'func2': 1} })
 
     def test_order(self):
         self.assertEqual(
             tutil.transform_exp_sources(od([('func', 'abc'), ('func2', 'abc')])),
             { 'a': ['func', 'func2'],
               'b': ['func', 'func2'],
-              'c': ['func', 'func2'] })
+              'c': ['func', 'func2'],
+              '+depths': {'func': 0, 'func2': 1} })
 
     def test_implicit(self):
         self.assertEqual(
-            tutil.transform_exp_sources({0: 'abc', 'func2': 'def'}, subject='func'),
-            { 'a': ['func'], 'b': ['func'], 'c': ['func'],
-              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+            tutil.transform_exp_sources({0: 'abc', 'func1': 'def'}, subject='func2'),
+            { 'a': ['func2'], 'b': ['func2'], 'c': ['func2'],
+              'd': ['func1'], 'e': ['func1'], 'f': ['func1'],
+              '+depths': {'func2': 0, 'func1': 1} })
 
     def test_implicit_missing(self):
         with self.assertRaises(ValueError):
@@ -66,7 +69,8 @@ class TransformExpectedSourcesTests(unittest2.TestCase):
         self.assertEqual(
             tutil.transform_exp_sources({1: 'abc', 2: 'def'}),
             { 'a': ['_1'], 'b': ['_1'], 'c': ['_1'],
-              'd': ['_2'], 'e': ['_2'], 'f': ['_2'] })
+              'd': ['_2'], 'e': ['_2'], 'f': ['_2'],
+              '+depths': {'_1': 0, '_2': 1} })
 
     def test_func_name(self):
         def f1():
@@ -74,7 +78,8 @@ class TransformExpectedSourcesTests(unittest2.TestCase):
         self.assertEqual(
             tutil.transform_exp_sources({f1: 'abc', 'func2': 'def'}),
             { 'a': ['f1'], 'b': ['f1'], 'c': ['f1'],
-              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'],
+              '+depths': {'f1': 0, 'func2': 1} })
 
     def test_implicit_func(self):
         def f1():
@@ -82,7 +87,24 @@ class TransformExpectedSourcesTests(unittest2.TestCase):
         self.assertEqual(
             tutil.transform_exp_sources({0: 'abc', 'func2': 'def'}, subject=f1),
             { 'a': ['f1'], 'b': ['f1'], 'c': ['f1'],
-              'd': ['func2'], 'e': ['func2'], 'f': ['func2'] })
+              'd': ['func2'], 'e': ['func2'], 'f': ['func2'],
+              '+depths': {'f1': 0, 'func2': 1} })
+
+    def test_copy_depth(self):
+        def f1():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_exp_sources(
+                {'+depths': {f1: 0, 'f2': 0}, f1: 'a', 'f2': 'b'}),
+            { 'a': ['f1'] , 'b': ['f2'], '+depths': {'f1': 0, 'f2': 0} })
+
+    def test_depth_list(self):
+        def f1():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_exp_sources(
+                {'+depths': ['f2', f1], f1: 'a', 'f2': 'b'}),
+            { 'a': ['f1'] , 'b': ['f2'], '+depths': {'f2': 0, 'f1': 1} })
 
 
 class TransformRealSourcesTests(unittest2.TestCase):
@@ -97,6 +119,18 @@ class TransformRealSourcesTests(unittest2.TestCase):
         self.assertEqual(
             tutil.transform_real_sources({'a': [f1, f2], 'b': [f1], 'c': [f2]}),
             {'a': ['f1', 'f2'], 'b': ['f1'], 'c': ['f2']})
+
+    def test_depth(self):
+        def f1():
+            raise NotImplementedError
+        def f2():
+            raise NotImplementedError
+        self.assertEqual(
+            tutil.transform_real_sources(
+                {'+depths': {f1: 0, f2: 1},
+                'a': [f1, f2], 'b': [f1], 'c': [f2]}),
+            {'a': ['f1', 'f2'], 'b': ['f1'], 'c': ['f2'],
+             '+depths': {'f1': 0, 'f2': 1}})
 
 
 class SignatureTestsTests(tutil.SignatureTests):
@@ -137,7 +171,9 @@ class SignatureTestsTests(tutil.SignatureTests):
         def f2():
             raise NotImplementedError
         self.assertSourcesEqual(
-            {'a': [f1], 'b': [f2], 'c': [f1]}, {'f1': 'ac', 'f2': 'b'})
+            {'a': [f1], 'b': [f2], 'c': [f1], '+depths': {f1: 0, f2: 1}},
+            {'f1': 'ac', 'f2': 'b'})
         with self.assertRaises(AssertionError):
             self.assertSourcesEqual(
-                {'a': [f1], 'b': [f2], 'c': [f1]}, {'f1': 'a', 'f2': 'b'})
+                {'a': [f1], 'b': [f2], 'c': [f1], '+depths': {f1: 0, f2: 1}},
+                {'f1': 'a', 'f2': 'b'})

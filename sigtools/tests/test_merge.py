@@ -35,6 +35,8 @@ class MergeTests(Fixtures):
 
         sig = merge(*sigs)
         exp_sig = s(result)
+        exp_sources['+depths'] = dict(
+            ('_' + str(i + 1), 0) for i in range(len(signatures)))
 
         self.assertSigsEqual(sig, exp_sig)
         self.assertSourcesEqual(sig.sources, exp_sources)

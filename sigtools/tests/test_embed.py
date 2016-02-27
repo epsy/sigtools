@@ -32,6 +32,8 @@ class EmbedTests(Fixtures):
         assert len(signatures) >= 2
         sigs = [s(sig_str, name='_' + str(i))
                 for i, sig_str in enumerate(signatures, 1)]
+        exp_src.setdefault(
+            '+depths', ['_' + str(i+1) for i in range(len(signatures))])
 
         sig = embed(*sigs, use_varargs=use_varargs, use_varkwargs=use_varkwargs)
         exp_sig = s(result)

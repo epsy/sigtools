@@ -44,29 +44,57 @@ def conv_first_posarg(sig):
         parameters=(first,) + tuple(sig.parameters.values())[1:])
 
 
+def func_to_name(func):
+    try:
+        return func.__name__
+    except AttributeError:
+        s = str(func)
+        if s != func:
+            return '_' + s
+        return s
+
+
 def transform_exp_sources(d, subject=None):
     ret = defaultdict(list)
+    funclist = []
+    subject_name = None if subject is None else func_to_name(subject)
     for func, params in d.items():
+        if func == '+depths':
+            continue
         if func == 0:
             if subject is None:
                 raise ValueError(
                     "Used implicit function with no provided subject")
             func = subject
-        try:
-            func = func.__name__
-        except AttributeError:
-            s = str(func)
-            if s != func:
-                func = '_' + s
+        func = func_to_name(func)
+        funclist.append(func)
         for param in params:
-            ret[param].append(str(func))
+            ret[param].append(func)
+    if '+depths' not in d:
+        val = sorted(funclist)
+        if subject is not None:
+            try:
+                val.remove(subject_name)
+            except ValueError:
+                pass
+            val.insert(0, subject_name)
+    else:
+        val = d['+depths']
+    if isinstance(val, list):
+        val = dict((func_to_name(f), i) for i, f in enumerate(val))
+    else:
+        val = dict((func_to_name(f), v) for f, v in val.items())
+    ret['+depths'] = val
     return dict(ret)
 
 
 def transform_real_sources(d):
     ret = {}
     for param, funcs in d.items():
-        ret[param] = [func.__name__ for func in funcs]
+        if param == '+depths':
+            ret[param] = dict((func.__name__, v) for func, v in funcs.items())
+        else:
+            ret[param] = [func.__name__ for func in funcs]
     return ret
 
 
@@ -86,7 +114,8 @@ class SignatureTests(unittest2.TestCase):
                 .format(expected, found))
 
     def assertSourcesEqual(self, found, expected, func=None):
-        self.assertEqual(transform_real_sources(found),
+        r = transform_real_sources(found)
+        self.assertEqual(r,
                          transform_exp_sources(expected, func))
 
     def downgrade_sig(self, sig):

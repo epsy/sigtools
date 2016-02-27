@@ -34,9 +34,9 @@ class SourceTests(Fixtures):
     def _test(self, sig_str):
         func = f(sig_str)
         sig = signature(func)
-        self.assertEqual(
-            sig.sources,
-            dict((p, [func]) for p in sig.parameters))
+        srcs = dict((p, [func]) for p in sig.parameters)
+        srcs['+depths'] = {func: 0}
+        self.assertEqual(sig.sources, srcs)
 
     f1 = 'a, b, c',
     f2 = 'a, /, b, *, c',
@@ -50,6 +50,7 @@ class PartialSigTests(Fixtures):
         self.assertSigsEqual(sig, s(exp_sig))
         if exp_src is None:
             exp_src = dict((p, [obj.func]) for p in sig.parameters)
+            exp_src['+depths'] = {obj: 0, obj.func: 1}
         self.assertEqual(sig.sources, exp_src)
 
     _func1 = f('a, b, c, *args, d, e, **kwargs')
@@ -65,6 +66,7 @@ class PartialSigTests(Fixtures):
         src = dict((p, [_func1]) for p in ['a', 'b', 'c', 'args',
                                            'd', 'e', 'kwargs'])
         src['f'] = [par]
+        src['+depths'] = {_func1: 1, par: 0}
         return par, 'a, b, c, *args, d, e, f=1, **kwargs', src
     kw_create = _kw_create(_func1)
 

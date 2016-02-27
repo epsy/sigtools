@@ -43,7 +43,8 @@ class ForwardsTests(Fixtures):
                     partial=partial)
         self.assertSigsEqual(sig, s(exp_sig))
         self.assertSourcesEqual(sig.sources, {
-                'o': exp_src[0], 'i': exp_src[1]})
+                'o': exp_src[0], 'i': exp_src[1],
+                '+depths': ['o', 'i']})
 
         outer_sig = self.downgrade_sig(outer_sig)
         inner_sig = self.downgrade_sig(inner_sig)

@@ -35,7 +35,7 @@ from functools import partial, update_wrapper
 
 import six
 
-from sigtools import _util, _specifiers
+from sigtools import _util, _specifiers, _signatures
 
 __all__ = ['annotate', 'kwoargs', 'autokwoargs', 'posoargs']
 
@@ -121,11 +121,9 @@ class _PokTranslator(_util.OverrideableDataDesc):
             params.extend(kwoparams)
         if to_use:
             raise ValueError("Parameters not found: " + ' '.join(to_use))
-        src = dict(
-            (name, [self if f == self.func else f for f in sources])
-            for name, sources in sig.sources.items()
-            )
-        self.__signature__ = sig.replace(parameters=params, sources=src)
+        self.__signature__ = sig.replace(
+            parameters=params,
+            sources=_signatures.copy_sources(sig.sources, {self.func:self}))
 
     def _sigtools__autoforwards_hint(self, func):
         ast = _util.get_ast(self.func)
@@ -165,8 +163,7 @@ class _PokTranslator(_util.OverrideableDataDesc):
 
     def __repr__(self):
         return (
-            '<{0.func!r} with signature '
-            '{0.func.__name__}{0.__signature__}>'
+            '<{0.func!r} with arg translation>'
             .format(self))
 
 @_PokTranslator(kwoargs=('start',))

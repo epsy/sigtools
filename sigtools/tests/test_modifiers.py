@@ -130,7 +130,9 @@ class PokTranslatorTestsOneArg(Fixtures):
         pt = modifiers.kwoargs('z')(outer)
         sig = specifiers.signature(pt)
         self.assertSigsEqual(sig, s('x, y, a, b, *, z'))
-        self.assertSourcesEqual(sig.sources, {'inner': 'ab', 'outer': 'xyz'})
+        self.assertSourcesEqual(
+            sig.sources, {'inner': 'ab', 'outer': 'xyz',
+                          '+depths': ['outer', 'inner']})
         self.assertEqual(sig.sources['x'], [pt])
 
     def test_specifiers_sig_after(self):
@@ -140,7 +142,9 @@ class PokTranslatorTestsOneArg(Fixtures):
         pt = specifiers.forwards_to_function(inner)(pt)
         sig = specifiers.signature(pt)
         self.assertSigsEqual(sig, s('x, y, a, b, *, z'))
-        self.assertSourcesEqual(sig.sources, {'inner': 'ab', 'outer': 'xyz'})
+        self.assertSourcesEqual(
+            sig.sources, {'inner': 'ab', 'outer': 'xyz',
+                          '+depths': ['outer', 'inner']})
         self.assertEqual(sig.sources['x'], [pt])
 
 

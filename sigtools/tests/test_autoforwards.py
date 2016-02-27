@@ -109,8 +109,17 @@ class AutoforwardsTests(Fixtures):
     def _wrapper(wrapped, a, *args, **kwargs):
         return wrapped(*args, **kwargs)
 
-    partial_ = partial(_wrapper, _wrapped), 'a, x, y, *, z', {
-            _wrapper: 'a', _wrapped: 'xyz'}
+    def test_partial(self):
+        func = partial(_wrapper, _wrapped)
+        sig = specifiers.signature(func)
+        self.assertSigsEqual(sig, support.s('a, x, y, *, z'))
+        self.assertEqual(sig.sources, {
+            'a': [_wrapper],
+            'x': [_wrapped], 'y': [_wrapped], 'z': [_wrapped],
+            '+depths': {func: 0, _wrapped: 1, _wrapper: 2}
+        })
+        support.test_func_sig_coherent(
+            func, check_return=False, check_invalid=False)
 
     @staticmethod
     @modifiers.kwoargs('wrapped')
@@ -195,14 +204,24 @@ class AutoforwardsTests(Fixtures):
     def call_in_varargs(a, *args, **kwargs):
         func(*_wrapped(*args, **kwargs))
 
-    @tup('a, x, y, *, z', {0: 'a', _wrapped: 'xyz'})
+    @tup('a, x, y, *, z',
+         {0: 'a', _wrapped: 'xyz', '+depths': ['call_in_varkwargs', '_wrapped']})
     def call_in_varkwargs(a, *args, **kwargs):
         func(**_wrapped(*args, **kwargs))
 
-    @tup('y, *, z', {_wrapped: 'yz'})
-    @wraps(_wrapped)
-    def functools_wrapped(*args, **kwargs):
-        _wrapped(1, *args, **kwargs)
+    def test_functools_wrapped(self):
+        @wraps(_wrapped)
+        def func(a, *args, **kwargs):
+            _wrapped(1, *args, **kwargs)
+        sig = specifiers.signature(func)
+        self.assertSigsEqual(sig, support.s('a, y, *, z'))
+        self.assertEqual(sig.sources, {
+            '+depths': {func: 0, _wrapped: 1},
+            'a': [func],
+            'y': [_wrapped], 'z': [_wrapped]
+        })
+        support.test_func_sig_coherent(
+            func, check_return=False, check_invalid=False)
 
     @tup('a, b, *args, z',
          {'unknown_args': ['a', 'b', 'args'], '_wrapped': 'z'})

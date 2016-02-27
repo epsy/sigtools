@@ -57,10 +57,15 @@ class Signature(_util.funcsigs.Signature):
         return ret
 
 
+def default_sources(sig, obj):
+    srcs = dict((pname, [obj]) for pname in sig.parameters)
+    srcs['+depths'] = {obj: 0}
+    return srcs
+
+
 def set_default_sources(sig, obj):
     """Assigns the source of every parameter of sig to obj"""
-    return Signature.upgrade(
-        sig, dict((pname, [obj]) for pname in sig.parameters))
+    return Signature.upgrade(sig, default_sources(sig, obj))
 
 
 def signature(obj):
@@ -77,8 +82,15 @@ def signature(obj):
     return set_default_sources(sig, obj)
 
 
-def copy_sources(src):
-    return dict((k, list(v)) for k, v in src.items())
+def copy_sources(src, func_swap={}, increase=False):
+    ret = dict(
+        (k, [func_swap.get(f, f) for f in v])
+        for k, v in src.items()
+        if k != '+depths')
+    ret['+depths'] = dict(
+        (func_swap.get(f, f), v + increase)
+        for f, v in src.get('+depths', {}).items())
+    return ret
 
 
 SortedParameters = collections.namedtuple(
@@ -194,6 +206,14 @@ def _exclude_from_seq(seq, el):
             seq[i] = None
             break
 
+def merge_depths(l, r):
+    ret = dict(l)
+    for func, depth in r.items():
+        if func in ret and depth > ret[func]:
+            continue
+        ret[func] = depth
+    return ret
+
 
 class _Merger(object):
     def __init__(self, left, right):
@@ -222,7 +242,7 @@ class _Merger(object):
             self.l.varkwargs,
             self.r.varkwargs
             ]
-        self.src = {}
+        self.src = {'+depths': self._merge_depths()}
 
 
         self.l_unmatched_kwoargs = _util.OrderedDict()
@@ -300,6 +320,10 @@ class _Merger(object):
             self.varargs_src, self.l.varargs, self.r.varargs)
         self.varkwargs = self._add_starargs(
             self.varkwargs_src, self.l.varkwargs, self.r.varkwargs)
+
+    def _merge_depths(self):
+        return merge_depths(self.l.sources.get('+depths', {}),
+                            self.r.sources.get('+depths', {}))
 
     def _add_starargs(self, which, left, right):
         if not left or not right:
@@ -485,7 +509,7 @@ def _clear_defaults(ita):
         yield param.replace(default=param.empty)
 
 
-def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
+def _embed(outer, inner, use_varargs=True, use_varkwargs=True, depth=1):
     o_posargs, o_pokargs, o_varargs, o_kwoargs, o_varkwargs, o_src = outer
 
     stars_sig = SortedParameters(
@@ -531,6 +555,10 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True):
     if o_varkwargs and use_varkwargs:
         src.pop(o_varkwargs.name, None)
 
+    src['+depths'] = merge_depths(
+        o_src.get('+depths', {}),
+        dict((f, v+depth) for f, v in i_src.get('+depths', {}).items()))
+
     return (
         e_posargs, e_pokargs, i_varargs if use_varargs else o_varargs,
         e_kwoargs, i_varkwargs if use_varkwargs else o_varkwargs,
@@ -572,7 +600,7 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
     for i, sig in enumerate(signatures[1:], 1):
         try:
             ret = _embed(ret, sort_params(sig, sources=True),
-                         use_varargs, use_varkwargs)
+                         use_varargs, use_varkwargs, i)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     return apply_params(signatures[0], *ret)
@@ -679,6 +707,9 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
             src.pop(varkwargs.name, None)
         varkwargs = None
 
+    if partial_mode:
+        src = copy_sources(src, increase=True)
+        src['+depths'][partial_obj] = 0
     ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src)
     return ret
 

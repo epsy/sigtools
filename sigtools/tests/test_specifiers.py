@@ -54,13 +54,15 @@ class ForwardsTest(Fixtures):
         self.assertSigsEqual(sig, support.s(expected))
 
         self.assertSourcesEqual(sig.sources, {
-                'outer': exp_src[0], 'inner': exp_src[1]})
+                'outer': exp_src[0], 'inner': exp_src[1],
+                '+depths': ['outer', 'inner']})
 
         sig_get = specifiers.signature(_util.safe_get(forw, object(), object))
         self.assertSigsEqual(sig_get, support.s(expected_get))
 
         self.assertSourcesEqual(sig_get.sources, {
-                'outer': exp_src_get[0], 'inner': exp_src_get[1]})
+                'outer': exp_src_get[0], 'inner': exp_src_get[1],
+                '+depths': ['outer', 'inner']})
 
     a = (
         'a, *p, b, **k', 'c, *, d', (), {},
@@ -175,7 +177,8 @@ class ForwardsAttributeTests(Fixtures):
     base_func = _base_inst.ft, 'x, y, z', {'_free_func': 'xyz'}
 
     base_method = _base_inst.ftm, 'a, *, b', {'inner': 'ab'}
-    base_method2 = _base_inst.ftm2, 'c, a, *, d, b', {'ftm2': 'cd', 'inner': 'ab'}
+    base_method2 = _base_inst.ftm2, 'c, a, *, d, b', {
+        'ftm2': 'cd', 'inner': 'ab', '+depths': ['ftm2', 'ftm', 'inner']}
 
     base_method_cls = _Base.ftm, 'self, *args, **kwargs', {
         'ftm': ['self', 'args', 'kwargs']}
@@ -208,6 +211,7 @@ class ForwardsAttributeTests(Fixtures):
             sig = specifiers.signature(self._sub_inst.fts)
             self.assertSigsEqual(sig, support.s('s, l, *, m'))
             self._test_raw_source(self._sub_inst.fts, 's, l, *, m', {
+                    '+depths': {self._sub_inst.fts: 0, sup: 1},
                     's': [self._sub_inst.fts],
                     'l': [sup], 'm': [sup]
                 })
@@ -216,6 +220,7 @@ class ForwardsAttributeTests(Fixtures):
         fun = self._Derivate.afts
         self._test_raw_source(
             fun, 'self, asup, *args, **kwargs', {
+            '+depths': {fun: 0},
             'self': [fun], 'asup': [fun], 'args': [fun], 'kwargs': [fun]
         })
 
@@ -224,7 +229,8 @@ class ForwardsAttributeTests(Fixtures):
         sup = super(self._Derivate, self._sub_inst).afts
         self._test_raw_source(
             fun, 'asup, n, *, o',
-            {'asup': [fun], 'n': [sup], 'o': [sup]})
+            {'+depths': {fun: 0, sup: 1},
+             'asup': [fun], 'n': [sup], 'o': [sup]})
 
     def test_chain_fts(self):
         if sys.version_info < (3,3):
@@ -233,12 +239,15 @@ class ForwardsAttributeTests(Fixtures):
         fun = self._Derivate.chain_fts
         self._test_raw_source(
             fun, 'self, u, *args, **kwargs',
-            {'self': [fun], 'u': [fun], 'args': [fun], 'kwargs': [fun]})
+            {'+depths': {fun: 0},
+             'self': [fun], 'u': [fun], 'args': [fun], 'kwargs': [fun]})
 
         inst = self._sub_inst
         sup = super(self._Derivate, self._sub_inst)
         self._test_raw_source(
             inst.chain_fts, 'u, p, c, e, a, *, d, b, q', {
+                '+depths': {inst.chain_fts: 0, sup.chain_fts: 1,
+                            inst.ftm2: 2, inst.ftm: 3, inst.inner:4},
                 'u': [inst.chain_fts],
                 'p': [sup.chain_fts], 'q': [sup.chain_fts],
                 'c': [inst.ftm2], 'd': [inst.ftm2],
@@ -250,13 +259,17 @@ class ForwardsAttributeTests(Fixtures):
         fun = self._Derivate.chain_afts
         self._test_raw_source(
             fun, 'self, v, *args, **kwargs',
-            {'self': [fun], 'v': [fun], 'args': [fun], 'kwargs': [fun]})
+            {'+depths': {fun: 0},
+             'self': [fun], 'v': [fun], 'args': [fun], 'kwargs': [fun]})
 
     def test_chain_afts(self):
         inst = self._sub_inst
         sup = super(self._Derivate, self._sub_inst)
         self._test_raw_source(
             inst.chain_afts, 'v, r, c, e, a, *, d, b, s', {
+                '+depths': {
+                    inst.chain_afts: 0, sup.chain_afts: 1, inst.ftm2: 2,
+                            inst.ftm: 3, inst.inner: 4},
                 'v': [inst.chain_afts],
                 'r': [sup.chain_afts], 's': [sup.chain_afts],
                 'c': [inst.ftm2], 'd': [inst.ftm2],
