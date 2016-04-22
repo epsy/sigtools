@@ -10,12 +10,19 @@ setup(
     author_email='kaiser.yann@gmail.com',
     url='http://sigtools.readthedocs.org/',
     packages=['sigtools', 'sigtools.tests'],
+    tests_require=[
+        'repeated_test',
+        'sphinx',
+        'mock',
+        'coverage',
+        'unittest2'
+        ],
     install_requires=['six'],
     extras_require={
         ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
         ':python_version in "2.6"': ['ordereddict'],
     },
-    test_suite='sigtools.tests',
+    test_suite='unittest2.collector',
     keywords='introspection signature',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
