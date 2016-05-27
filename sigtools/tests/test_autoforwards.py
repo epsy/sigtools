@@ -11,6 +11,11 @@ if sys.version_info >= (3,):
     Py3AutoforwardsTests = autoforwards_py3.Py3UnknownAutoforwardsTests
 
 
+if sys.version_info >= (3,5):
+    from sigtools.tests import autoforwards_py35
+    Py35AutoforwardsTests = autoforwards_py35.Py35UnknownAutoforwardsTests
+
+
 _wrapped = support.f('x, y, *, z', name='_wrapped')
 
 
