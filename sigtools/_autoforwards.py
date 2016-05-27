@@ -270,7 +270,10 @@ def resolve_name(obj, func, args, unknown=False):
                     raise UnresolvableName(obj)
             else:
                 try:
-                    return func.__closure__[index].cell_contents
+                    try:
+                        return func.__closure__[index].cell_contents
+                    except AttributeError:
+                        return func.func_closure[index].cell_contents
                 except ValueError:
                     raise UnresolvableName(obj)
         elif isinstance(obj, Arg):
