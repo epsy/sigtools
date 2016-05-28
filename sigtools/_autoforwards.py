@@ -368,7 +368,7 @@ class cleanup_functools_wrapper(object):
         except AttributeError:
             pass
         else:
-            raise RuntimeError('This context manager is not reentrant')
+            raise NotImplementedError('This context manager is not reentrant')
         self.saved_attrs = {}
         for attr in self.attrs:
             try:
