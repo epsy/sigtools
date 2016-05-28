@@ -279,6 +279,10 @@ class UnresolvableAutoforwardsTests(Fixtures):
         self._test(a.method)
 
     @tup()
+    def attribute_on_unset(*a, **k):
+        doesntexist.method(*a, **k) # pyflakes: silence
+
+    @tup()
     def constant(a, *p, **k):
         None(*p, **k)
 
