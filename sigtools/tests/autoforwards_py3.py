@@ -57,3 +57,11 @@ class Py3UnknownAutoforwardsTests(Fixtures):
         self.assertSigsEqual(
             specifiers.signature(func),
             signatures.signature(func))
+
+    def test_deleted(self):
+        def makef(**kwargs):
+            def func():
+                _wrapped(**kwargs) # pyflakes: silence
+            del kwargs
+            return func
+        self._test(makef, '**kwargs', {0: ['kwargs']})

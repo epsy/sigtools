@@ -212,7 +212,7 @@ class CallListerVisitor(ast.NodeVisitor):
             self.namespace.add_nonlocal(name)
 
     def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Store):
+        if not isinstance(node.ctx, ast.Load):
             self.namespace[node.id] = Unknown(node)
 
     def has_hide_starargs(self, found, original):
