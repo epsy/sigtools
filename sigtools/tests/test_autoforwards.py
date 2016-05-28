@@ -1,8 +1,9 @@
 import sys
 from functools import partial, wraps
 from mock import patch
+import ast
 
-from sigtools import support, modifiers, specifiers, signatures, _util
+from sigtools import support, modifiers, specifiers, signatures, _util, _autoforwards
 from sigtools.tests.util import Fixtures, tup
 
 
@@ -22,6 +23,28 @@ _wrapped = support.f('x, y, *, z', name='_wrapped')
 
 def func(*args, **kwargs):
     pass
+
+
+class AutoforwardsMarkerReprs(Fixtures):
+    def _test(self, obj, exp_repr):
+        self.assertEqual(repr(obj), exp_repr)
+
+    _af = _autoforwards
+
+    name = _af.Name('spam'), "<name 'spam'>"
+    attribute = _af.Attribute(_af.Name('ham'), 'eggs'), "<attribute <name 'ham'>.eggs>"
+    arg = _af.Arg('eggs'), "<argument 'eggs'>"
+
+    unknown_unsourced = _af.Unknown(), '<irrelevant>'
+    unknown_marker = (
+        _af.Unknown(_af.Name('spam')),
+        "<unknown until runtime: <name 'spam'>>")
+    unknown_ast = (
+        _af.Unknown(ast.Pass()),
+        "<unknown until runtime: Pass()>")
+    unknown_ast_list = (
+        _af.Unknown([ast.Pass(), ast.Pass()]),
+        "<unknown until runtime: [Pass(), Pass()]>")
 
 
 class AutoforwardsTests(Fixtures):

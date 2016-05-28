@@ -25,10 +25,18 @@ class Name(object):
     def __init__(self, name):
         self.name = name
 
+    def __repr__(self):
+        return '<name {0!r}>'.format(self.name)
+
+
 class Attribute(object):
     def __init__(self, value, attr):
         self.value = value
         self.attr = attr
+
+    def __repr__(self):
+        return '<attribute {0!r}.{1}>'.format(self.value, self.attr)
+
 
 class Arg(object):
     def __init__(self, name):
@@ -36,6 +44,7 @@ class Arg(object):
 
     def __repr__(self):
         return '<argument {0!r}>'.format(self.name)
+
 
 class Unknown(object):
     def __init__(self, source=None):
@@ -48,7 +57,12 @@ class Unknown(object):
         if self.source is None:
             return "<irrelevant>"
         source = self.source
-        if isinstance(source, ast.AST):
+        if isinstance(source, list):
+            source = '[' + ', '.join(
+                ast.dump(item) if isinstance(item, ast.AST)
+                else item
+                for item in source) + ']'
+        elif isinstance(source, ast.AST):
             source = ast.dump(source)
         return "<unknown until runtime: {0}>".format(source)
 
