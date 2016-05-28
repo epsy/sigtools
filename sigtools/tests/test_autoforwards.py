@@ -302,3 +302,7 @@ class UnresolvableAutoforwardsTests(Fixtures):
             obj(*p, **k)
         with patch.multiple(_util.funcsigs, signature=sig_replace):
             self.assertSigsEqual(specifiers.signature(func), sig)
+
+    @tup()
+    def nonforwardable(*args):
+        _wrapped(*args)
