@@ -5,6 +5,23 @@ from sigtools.tests.util import Fixtures, tup
 _wrapped = support.f('x, y, *, z')
 
 
+class Py3AutoforwardsTests(Fixtures):
+    def _test(self, func, expected, expected_src, incoherent=False):
+        sig = specifiers.signature(func)
+        self.assertSigsEqual(sig, support.s(expected))
+        self.assertSourcesEqual(sig.sources, expected_src, func)
+        if not incoherent:
+            support.test_func_sig_coherent(
+                func, check_return=False, check_invalid=False)
+
+    def test_nonlocal_outside(self):
+        x = _wrapped
+        def l1(*args, **kwargs):
+            nonlocal x
+            x(*args, **kwargs)
+        self._test(l1, 'x, y, *, z', {_wrapped: 'xyz'})
+
+
 class Py3UnknownAutoforwardsTests(Fixtures):
     def _test(self, func, expected, expected_src):
         sig = specifiers.signature(func)

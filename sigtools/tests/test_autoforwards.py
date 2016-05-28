@@ -8,7 +8,8 @@ from sigtools.tests.util import Fixtures, tup
 
 if sys.version_info >= (3,):
     from sigtools.tests import autoforwards_py3
-    Py3AutoforwardsTests = autoforwards_py3.Py3UnknownAutoforwardsTests
+    Py3AutoforwardsTests = autoforwards_py3.Py3AutoforwardsTests
+    Py3UnknownAutoforwardsTests = autoforwards_py3.Py3UnknownAutoforwardsTests
 
 
 if sys.version_info >= (3,5):

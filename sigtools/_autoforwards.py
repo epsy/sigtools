@@ -96,7 +96,7 @@ class Namespace(MutableMapping):
                 break
             ns = ns.parent
         else: # refers to variable outside the function being examined
-            self.names[name] = Unknown()
+            self.names[name] = Name(name)
 
 
 Call = collections.namedtuple(
