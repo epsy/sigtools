@@ -272,7 +272,7 @@ def resolve_name(obj, func, args, unknown=False):
                 try:
                     try:
                         return func.__closure__[index].cell_contents
-                    except AttributeError:
+                    except AttributeError: # pragma: no cover
                         return func.func_closure[index].cell_contents
                 except ValueError:
                     raise UnresolvableName(obj)
