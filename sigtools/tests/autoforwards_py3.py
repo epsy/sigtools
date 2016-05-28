@@ -23,15 +23,16 @@ class Py3AutoforwardsTests(Fixtures):
 
 
 class Py3UnknownAutoforwardsTests(Fixtures):
-    def _test(self, func, expected, expected_src):
-        sig = specifiers.signature(func)
-        self.assertSigsEqual(sig, support.s(expected))
-        self.assertSourcesEqual(sig.sources, expected_src, func)
-        with self.assertRaises(AssertionError):
-            support.test_func_sig_coherent(
-                func, check_return=False, check_invalid=False)
+    def _test(self, func, ensure_incoherent=True):
+        self.assertSigsEqual(
+            specifiers.signature(func),
+            signatures.signature(func))
+        if ensure_incoherent:
+            with self.assertRaises(AssertionError):
+                support.test_func_sig_coherent(
+                    func, check_return=False, check_invalid=False)
 
-    @tup('a, b, *args, **kwargs', {0: ['a', 'b', 'args', 'kwargs']})
+    @tup()
     def rebind_subdef_nonlocal(a, b, *args, **kwargs):
         def func():
             nonlocal args, kwargs
@@ -41,7 +42,7 @@ class Py3UnknownAutoforwardsTests(Fixtures):
         func()
         _wrapped(*args, **kwargs)
 
-    @tup('a, b, *args, **kwargs', {0: ['a', 'b', 'args', 'kwargs']})
+    @tup()
     def nonlocal_backchange(a, b, *args, **kwargs):
         def ret1():
             _wrapped(*args, **kwargs)
@@ -52,7 +53,7 @@ class Py3UnknownAutoforwardsTests(Fixtures):
         ret2()
         ret1()
 
-    @tup('a, *args, **kwargs', {0: ['a', 'args', 'kwargs']})
+    @tup()
     def nonlocal_deep(a, *args, **kwargs):
         def l1():
             def l2():
@@ -70,10 +71,7 @@ class Py3UnknownAutoforwardsTests(Fixtures):
             def func(a, *p, **k):
                 var(*p, **k) # pyflakes: silence
             return func
-        func = make_closure()
-        self.assertSigsEqual(
-            specifiers.signature(func),
-            signatures.signature(func))
+        self._test(make_closure(), ensure_incoherent=False)
 
     def test_deleted(self):
         def makef(**kwargs):
@@ -81,4 +79,4 @@ class Py3UnknownAutoforwardsTests(Fixtures):
                 _wrapped(**kwargs) # pyflakes: silence
             del kwargs
             return func
-        self._test(makef, '**kwargs', {0: ['kwargs']})
+        self._test(makef, ensure_incoherent=False)
