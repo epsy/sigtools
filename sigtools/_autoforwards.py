@@ -44,9 +44,6 @@ class Unknown(object):
     def __iter__(self):
         return iter(())
 
-    def items(self):
-        return ()
-
     def __repr__(self):
         if self.source is None:
             return "<irrelevant>"
@@ -54,9 +51,6 @@ class Unknown(object):
         if isinstance(source, ast.AST):
             source = ast.dump(source)
         return "<unknown until runtime: {0}>".format(source)
-
-class Varargs(object): pass
-class Varkwargs(object): pass
 
 
 class Namespace(MutableMapping):
