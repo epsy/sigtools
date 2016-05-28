@@ -80,7 +80,7 @@ class Namespace(MutableMapping):
         ns.names[name] = value
 
     def __delitem__(self, name):
-        self[name] = Unknown()
+        raise NotImplementedError("Set ns[name] = Unknown(...) instead")
 
     def __iter__(self):
         return iter(self.names)
