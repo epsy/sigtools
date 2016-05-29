@@ -4,44 +4,79 @@
 Picking the appropriate arguments for ``forwards``
 ==================================================
 
-When filling the parameters for the various declinations of
-`~.signatures.forwards`, you are telling it how your wrapper function is
-calling the wrapped function and how the wrapper function's ``*args`` and
-``**kwargs`` fit in this. If the wrapped function's parameters can't be satisfied or if you declare passing parameters it cannot handle, `.signatures.IncompatibleSignatures` will be raised.
+If automatic signature reporting doesn't work for your use case and you still
+want to specify how a function's ``*args, **kwargs`` is being used, you may
+either use `sigtools.specifiers.forger_function` and `sigtools.support.s`
+to override its signature completely, or you can use the ``forwards_to_*``
+functions from `sigtools.specifiers`.
 
-Here's an overview of the parameters for the family of `~.signatures.forwards` functions:
+For ``forwards_to_*`` decorators, you only need to specify what function
+``*args, **kwargs`` are forwarded to and what other arguments are passed in.
+Here's a primer with common examples on how to use them.
 
-.. autosignature:: sigtools.signatures.forwards
 
-..
+.. _fwd which:
 
-    **num_args**
-        The number of arguments you pass by position, excluding ``*args``.
+Picking the appropriate ``forwards_to_*`` decorator
+---------------------------------------------------
 
-    **\*named_args**
-        The names of the arguments you pass by name, excluding ``**kwargs``.
+Several ``forwards_to_*`` decorators exist. You must pick one depending on what
+you are forwarding your parameters to:
 
-    **use_varargs=**
-        Tells if the wrapper's ``*args`` is being passed to the wrapped function.
+`~.forwards_to_function`
+    When forwarding to a plain function::
 
-    **use_varkwargs=**
-        Tells if the wrapper's ``**kwargs`` is being passed to the wrapped
-        function.
+        def inner(a, b, c):
+            ...
 
-    **hide_args=**
-        Tells if the wrapped function is given an ``*args`` parameter
-        (other than the wrapper function's) in such a way that all positional
-        parameters are consumed.
+        @specifiers.forwards_to_function(inner)
+        def outer(*args, **kwargs):
+            inner(*args, **kwargs)
 
-    **hide_varargs=**
-        Tells if the wrapped function is given a ``**kargs`` parameter
-        (other than the wrapper function's) in such a way that all keyword
-        parameters are consumed.
+    Provide the inner function as the first argument to
+    `~.forwards_to_function`.
+
+`~.forwards_to_method`
+    When forwarding to an attribute of the current object, usually to a method::
+
+        class Spam:
+            def inner(self, a, b, c):
+                ...
+
+            @specifiers.forwards_to_method('inner')
+            def outer(self, *args, **kwargs):
+                self.inner(*args, **kwargs)
+
+    Provide the inner function's *name* to `~.forwards_to_method`.
+
+    You can also specify a "deep" attribute: ``'attribute.method'`` should be
+    specified if a call is made like this::
+
+        self.attribute.method(*args, **kwargs)
+
+`~.forwards_to_super`
+    When forwarding to the superclass's method of the same name::
+
+        class Spam:
+            def method(self):
+                pass
+
+        class Ham(Spam):
+            @specifiers.forwards_to_super()
+            def method(self, *args, ham, **kwargs):
+                super().method(*args, **kwargs)
+
+    This only works when using the short form of :func:`super` introduced in
+    Python 3.3. If you are targetting earlier versions, use
+    `~.apply_forwards_to_super` on the class, while specifying which methods
+    need to receive the decorator.
 
 
 For the following examples, we will be using the
 `~specifiers.forwards_to_function` decorator, although these will work with
 other ``forwards_to_*`` decorators.
+
+.. _fwd direct:
 
 ``*args`` and ``**kwargs`` are forwarded directly if present
 ------------------------------------------------------------
@@ -155,3 +190,40 @@ possible named keys it might have, as in :ref:`fwd named`.
 
    Neither are needed if the outer function hasn't got an ``*args`` nor
    ``**kwargs`` parameter
+
+
+.. _fwd summary:
+
+Summary
+-------
+
+Finally, here's an overview of all parameters from ``forwards_to_*`` functions
+
+.. autosignature:: sigtools.specifiers.forwards_to_function
+
+..
+
+    **num_args**
+        The number of arguments you pass by position, excluding ``*args``.
+
+    **\*named_args**
+        The names of the arguments you pass by name, excluding ``**kwargs``.
+
+    **use_varargs=**
+        Tells if the wrapper's ``*args`` is being passed to the wrapped function.
+
+    **use_varkwargs=**
+        Tells if the wrapper's ``**kwargs`` is being passed to the wrapped
+        function.
+
+    **hide_args=**
+        Tells if the wrapped function is given an ``*args`` parameter
+        (other than the wrapper function's) in such a way that all positional
+        parameters are consumed.
+
+    **hide_varargs=**
+        Tells if the wrapped function is given a ``**kargs`` parameter
+        (other than the wrapper function's) in such a way that all keyword
+        parameters are consumed.
+
+
