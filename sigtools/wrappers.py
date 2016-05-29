@@ -28,7 +28,7 @@ which will automatically advertise the correct signature.
 
 """
 
-from functools import partial, update_wrapper
+from functools import partial, update_wrapper, wraps
 
 from sigtools import _util, signatures, specifiers
 
@@ -61,6 +61,75 @@ class Combination(object):
         return '{0.__module__}.{0.__name__}({1})'.format(
             type(self), ', '.join(repr(f) for f in self.functions)
             )
+
+
+def decorator(func):
+    """Turns a function into a decorator.
+
+    The function received the decorated function as first argument.
+
+    ::
+
+        from sigtools import wrappers
+
+        @wrappers.decorator
+        def my_decorator(func, *args, deco_param=False, **kwargs):
+            ... # Do stuff with deco_param
+            return func(*args, **kwargs)
+
+        @my_decorator
+        def my_function(func_param):
+            ...
+
+        my_function('value for func_param', deco_param=True)
+
+        from sigtools import specifiers
+        print(specifiers.signature(my_function))
+        # (func_param, *, deco_param=False)
+
+    Unlike `wrapper_decorator`, ``decorator`` does not require you to specify
+    how your function uses ``*args, **kwargs`` and lets automatic signature
+    discovery figure it out.
+
+    .. note:: Signature reporting will not work in interactive sessions, as per
+       :ref:`autofwd limits`.
+    """
+    @wraps(func)
+    def _decorate(decorated):
+        return _SimpleWrapped(func, decorated)
+    return _decorate
+
+
+class _SimpleWrapped(object):
+    def __init__(self, wrapper, wrapped):
+        update_wrapper(self, wrapped)
+        self.func = partial(wrapper, wrapped)
+        self.wrapper = wrapper
+        self._sigtools__wrappers = wrapper,
+        self.__wrapped__ = wrapped
+        try:
+            del self._sigtools__forger
+        except AttributeError:
+            pass
+        try:
+            del self.__signature__
+        except AttributeError:
+            pass
+
+    __signature__ = specifiers.as_forged
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+    def __get__(self, instance, owner):
+        return type(self)(
+            self.wrapper,
+            _util.safe_get(self.__wrapped__, instance, owner))
+
+    def __repr__(self):
+        return '<{0!r} wrapped with {1!r}>'.format(
+                self.__wrapped__, self.wrapper)
+
 
 @specifiers.forwards_to_function(specifiers.forwards, 2)
 def wrapper_decorator(*args, **kwargs):

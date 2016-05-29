@@ -21,6 +21,7 @@
 
 
 from collections import defaultdict
+from functools import partial
 
 import unittest2
 from repeated_test import tup, WithTestClass
@@ -45,6 +46,8 @@ def conv_first_posarg(sig):
 
 
 def func_to_name(func):
+    if isinstance(func, partial):
+        return 'functoolspartial_' + str(id(func)) + '_' + func_to_name(func.func)
     try:
         return func.__name__
     except AttributeError:
@@ -92,9 +95,10 @@ def transform_real_sources(d):
     ret = {}
     for param, funcs in d.items():
         if param == '+depths':
-            ret[param] = dict((func.__name__, v) for func, v in funcs.items())
+            ret[param] = dict(
+                (func_to_name(func), v) for func, v in funcs.items())
         else:
-            ret[param] = [func.__name__ for func in funcs]
+            ret[param] = [func_to_name(func) for func in funcs]
     return ret
 
 
@@ -113,10 +117,17 @@ class SignatureTests(unittest2.TestCase):
                 'Did not get expected signature({0}), got {1} instead.'
                 .format(expected, found))
 
-    def assertSourcesEqual(self, found, expected, func=None):
+    def assertSourcesEqual(self, found, expected, func=None, depth_order=False):
         r = transform_real_sources(found)
-        self.assertEqual(r,
-                         transform_exp_sources(expected, func))
+        e = transform_exp_sources(expected, func)
+        if depth_order:
+            rd = r.pop('+depths')
+            ed = e.pop('+depths')
+        self.assertEqual(r, e)
+        if depth_order:
+            self.assertEqual(
+                [f for f in sorted(rd, key=rd.get) if f in ed],
+                [f for f in sorted(ed, key=ed.get)])
 
     def downgrade_sig(self, sig):
         return funcsigs.Signature(
