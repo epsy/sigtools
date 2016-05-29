@@ -21,16 +21,28 @@ class UnresolvableName(ValueError):
     pass
 
 
-class Name(object):
+class Marker(object):
+    def __init__(self):
+        self.tainted = None
+
+    def get_untainted(self):
+        if self.tainted is None:
+            return self
+        else:
+            return Unknown(self.tainted)
+
+class Name(Marker):
     def __init__(self, name):
+        super(Name, self).__init__()
         self.name = name
 
     def __repr__(self):
         return '<name {0!r}>'.format(self.name)
 
 
-class Attribute(object):
+class Attribute(Marker):
     def __init__(self, value, attr):
+        super(Attribute, self).__init__()
         self.value = value
         self.attr = attr
 
@@ -38,8 +50,9 @@ class Attribute(object):
         return '<attribute {0!r}.{1}>'.format(self.value, self.attr)
 
 
-class Arg(object):
+class Arg(Marker):
     def __init__(self, name):
+        super(Arg, self).__init__()
         self.name = name
 
     def __repr__(self):
@@ -66,12 +79,16 @@ class Unknown(object):
             source = ast.dump(source)
         return "<unknown until runtime: {0}>".format(source)
 
+    def get_untainted(self):
+        return self
+
 
 class Namespace(MutableMapping):
     def __init__(self, parent=None):
         self.parent = parent
         self.names = {}
         self.nonlocals = {}
+        self.immutables = set()
 
     def __getitem__(self, name):
         ns = self.nonlocals.get(name, self)
@@ -86,6 +103,7 @@ class Namespace(MutableMapping):
     def __setitem__(self, name, value):
         ns = self.nonlocals.get(name, self)
         ns.names[name] = value
+        ns.immutables.discard(name)
 
     def __delitem__(self, name):
         raise NotImplementedError("Set ns[name] = Unknown(...) instead")
@@ -105,6 +123,14 @@ class Namespace(MutableMapping):
             ns = ns.parent
         else: # refers to variable outside the function being examined
             self.names[name] = Name(name)
+
+    def is_immutable_value(self, name):
+        ns = self.nonlocals.get(name, self)
+        return name in ns.immutables
+
+    def set_immutable_value(self, name):
+        ns = self.nonlocals.get(name, self)
+        ns.immutables.add(name)
 
 
 Call = collections.namedtuple(
@@ -182,6 +208,7 @@ class CallListerVisitor(ast.NodeVisitor):
         if args.vararg:
             name = get_vararg(args.vararg)
             varargs = self.namespace[name] = Arg(name)
+            self.namespace.set_immutable_value(name)
         if args.kwarg:
             name = get_vararg(args.kwarg)
             varkwargs = self.namespace[name] = Arg(name)
@@ -189,17 +216,24 @@ class CallListerVisitor(ast.NodeVisitor):
             self.varargs = varargs
             self.varkwargs = varkwargs
 
-    def resolve_name(self, name):
-        if isinstance(name, ast.Name):
-            id = name.id
-            return self.namespace.get(id, Name(id))
-        elif isinstance(name, ast.Attribute):
-            value = self.resolve_name(name.value)
-            return Attribute(value, name.attr)
-        elif isinstance(name, Unknown):
-            return name
-        self.visit(name)
-        return Unknown(name)
+    def resolve_name(self, name, ro=False, tainted=False):
+        try:
+            if isinstance(name, ast.Name):
+                id = name.id
+                ret = self.namespace.get(id, Name(id))
+            elif isinstance(name, ast.Attribute):
+                value = self.resolve_name(name.value, ro=True, tainted=tainted)
+                ret = Attribute(value, name.attr)
+            elif isinstance(name, Unknown):
+                ret = name
+            else:
+                ret = Unknown(name)
+            if not tainted:
+                return ret.get_untainted()
+            return ret
+        finally:
+            if not isinstance(name, Unknown) and not (ro and isinstance(name, ast.Name)):
+                self.visit(name)
 
     def visit_FunctionDef(self, node):
         self.namespace = Namespace(self.namespace)
@@ -220,8 +254,12 @@ class CallListerVisitor(ast.NodeVisitor):
             self.namespace.add_nonlocal(name)
 
     def visit_Name(self, node):
-        if not isinstance(node.ctx, ast.Load):
+        immutable = self.namespace.is_immutable_value(node.id)
+        if not (immutable and isinstance(node.ctx, ast.Load)):
             self.namespace[node.id] = Unknown(node)
+
+    def visit_Attribute(self, node):
+        pass
 
     def has_hide_starargs(self, found, original):
         if found:
@@ -232,7 +270,13 @@ class CallListerVisitor(ast.NodeVisitor):
             return False, False
 
     def process_Call(self, node):
-        wrapped = self.resolve_name(node.func)
+        wrapped = self.resolve_name(node.func, ro=True, tainted=True)
+        if isinstance(wrapped, Attribute):
+            instance = wrapped
+            while isinstance(instance, Attribute):
+                instance = instance.value
+            if isinstance(instance, Arg):
+                self.namespace[instance.name].tainted = node
         args = [self.resolve_name(arg) for arg in node.args
                 if not isinstance(arg, Starred)]
         kwargs = dict(
@@ -240,8 +284,8 @@ class CallListerVisitor(ast.NodeVisitor):
             for kw in node.keywords if kw.arg is not None)
         starargs = get_starargs(node)
         starkwargs = get_kwargs(node)
-        varargs = self.resolve_name(starargs) if starargs else None
-        varkwargs = self.resolve_name(starkwargs) if starkwargs else None
+        varargs = self.resolve_name(starargs, ro=True) if starargs else None
+        varkwargs = self.resolve_name(starkwargs, ro=True) if starkwargs else None
         use_varargs, hide_args = \
             self.has_hide_starargs(varargs, self.varargs)
         use_varkwargs, hide_kwargs = \

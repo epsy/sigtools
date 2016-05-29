@@ -186,6 +186,20 @@ class AutoforwardsTests(Fixtures):
         a = A()
         self._test(a.method, 'a, y', {0: 'a', 'wrapped': 'y'})
 
+    def test_multiple_method_calls(self):
+        class A(object):
+            def wrapped_1(self, x, y):
+                pass
+            def wrapped_2(self, x, y):
+                pass
+            def method(self, a, *args, **kwargs):
+                self.wrapped_1(a, *args, **kwargs)
+                self.wrapped_2(a, *args, **kwargs)
+        self._test(A().method, 'a, y', _util.OrderedDict([
+               (0, 'a'), ('method', 'a'),
+               ('wrapped_1', 'y'), ('wrapped_2', 'y'),
+               ('+depths', {'method': 0, 'wrapped_1': 1, 'wrapped_2': 1})]))
+
     @staticmethod
     @modifiers.kwoargs('b')
     def _deeparg_l1(l2, b, *args, **kwargs):
@@ -271,6 +285,16 @@ class AutoforwardsTests(Fixtures):
     def pass_to_partial_with_args(a, b, *args, **kwargs):
         partial(_wrapped, a, *args, z=b, **kwargs)
 
+    @tup('x, y, *, z', {'_wrapped': 'xyz'})
+    def kwargs_passed_to_func_after(*args, **kwargs):
+        _wrapped(*args, **kwargs)
+        func(kwargs)
+
+    @tup('x, y, *, z', {'_wrapped': 'xyz'})
+    def args_passed_to_func(*args, **kwargs):
+        func(args)
+        _wrapped(*args, **kwargs)
+
 
 not_callable = None
 
@@ -345,3 +369,33 @@ class UnresolvableAutoforwardsTests(Fixtures):
         for cls in [Derived, MixedIn]:
             with self.subTest(cls=cls.__name__):
                 self._test(cls().method)
+
+    @tup()
+    def kwargs_passed_to_func(**kwargs):
+        func(kwargs)
+        _wrapped(**kwargs)
+
+    @tup()
+    def kwargs_method_called(**kwargs):
+        kwargs.update({})
+        _wrapped(**kwargs)
+
+    @tup()
+    def kwargs_item_added(**kwargs):
+        kwargs['ham'] = 'spam'
+        _wrapped(**kwargs)
+
+    @tup()
+    def kwargs_item_removed(**kwargs):
+        del kwargs['ham']
+        _wrapped(**kwargs)
+
+    @tup()
+    def kwargs_item_popped(**kwargs):
+        kwargs.pop('ham', 'default')
+        _wrapped(**kwargs)
+
+    @tup()
+    def kwargs_item_accessed(**kwargs):
+        kwargs['ham']
+        _wrapped(**kwargs)
