@@ -83,6 +83,8 @@ def forged_signature(obj, auto=True, args=(), kwargs={}):
     :param sequence args: Positional arguments passed to the function.
     :param mapping: Named arguments passed to the function.
 
+    .. seealso:
+        :ref:`autofwd limits`
     """
     subject = _util.get_introspectable(obj, af_hint=auto)
     forger = getattr(subject, '_sigtools__forger', None)

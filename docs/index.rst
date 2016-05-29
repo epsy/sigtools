@@ -163,6 +163,7 @@ Reference
 
     api
     forwards-howto
+    autofwd-limits
 
 
 .. |pip| replace:: pip
