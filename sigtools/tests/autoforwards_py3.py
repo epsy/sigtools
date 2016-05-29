@@ -80,3 +80,19 @@ class Py3UnknownAutoforwardsTests(Fixtures):
             del kwargs
             return func
         self._test(makef, ensure_incoherent=False)
+
+    def test_super(self):
+        class Base:
+            def method(self, x, y, *, z):
+                pass
+        class Derived(Base):
+            def method(self, *args, a, **kwargs):
+                super().method(*args, **kwargs)
+        class MixIn(Base):
+            def method(self, *args, b, **kwargs):
+                super().method(*args, **kwargs)
+        class MixedIn(Derived, MixIn):
+            pass
+        for cls in [Derived, MixedIn]:
+            with self.subTest(cls=cls.__name__):
+                self._test(cls().method)

@@ -329,3 +329,19 @@ class UnresolvableAutoforwardsTests(Fixtures):
     @tup()
     def nonforwardable(*args):
         _wrapped(*args)
+
+    def test_super(self):
+        class Base(object):
+            def method(self, x, y, z):
+                pass
+        class Derived(Base):
+            def method(self, a, *args, **kwargs):
+                super(Derived, self).method(*args, **kwargs)
+        class MixIn(Base):
+            def method(self, b, *args, **kwargs):
+                super(MixIn, self).method(*args, **kwargs)
+        class MixedIn(Derived, MixIn):
+            pass
+        for cls in [Derived, MixedIn]:
+            with self.subTest(cls=cls.__name__):
+                self._test(cls().method)
