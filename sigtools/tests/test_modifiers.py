@@ -21,6 +21,8 @@
 # THE SOFTWARE.
 
 
+from functools import wraps
+
 from sigtools import modifiers, specifiers
 from sigtools._util import funcsigs, safe_get
 from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
@@ -146,6 +148,17 @@ class PokTranslatorTestsOneArg(Fixtures):
             sig.sources, {'inner': 'ab', 'outer': 'xyz',
                           '+depths': ['outer', 'inner']})
         self.assertEqual(sig.sources['x'], [pt])
+
+    def test_wraps_other_preservation(self):
+        def inner(a, b, c=1):
+            raise NotImplementedError
+        pok_inner = modifiers.autokwoargs(inner)
+        def outer(x, y, z=2):
+            raise NotImplementedError
+        pok_outer = wraps(pok_inner)(modifiers.autokwoargs(outer))
+        self.assertEqual(pok_outer.func, outer)
+        self.assertEqual(pok_outer.kwoarg_names, set('z'))
+        self.assertSigsEqual(specifiers.signature(pok_outer), s('x, y, *, z=2'))
 
 
 class PokTranslatorTestsTwoArgs(Fixtures):

@@ -265,6 +265,24 @@ class AutoforwardsTests(Fixtures):
         support.test_func_sig_coherent(
             func, check_return=False, check_invalid=False)
 
+    def test_decorator_wraps(self):
+        def decorator(function):
+            @wraps(function)
+            @modifiers.autokwoargs
+            def _decorated(a, b=2, *args, **kwargs):
+                function(1, *args, **kwargs)
+            return _decorated
+        func = decorator(_wrapped)
+        sig = specifiers.signature(func)
+        self.assertSigsEqual(sig, support.s('a, y, *, b=2, z'))
+        self.assertEqual(sig.sources, {
+            '+depths': {func: 0, _wrapped: 1},
+            'a': [func], 'b': [func],
+            'y': [_wrapped], 'z': [_wrapped]
+        })
+        support.test_func_sig_coherent(
+            func, check_return=False, check_invalid=False)
+
     @tup('a, b, *args, z',
          {'unknown_args': ['a', 'b', 'args'], '_wrapped': 'z'})
     def unknown_args(a, b, *args, **kwargs):

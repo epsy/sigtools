@@ -41,6 +41,8 @@ __all__ = ['annotate', 'kwoargs', 'autokwoargs', 'posoargs']
 
 
 class _PokTranslator(_util.OverrideableDataDesc):
+    __slots__ = ['__self__', 'func', 'posoarg_names', 'kwoarg_names', 'kwopos', '__signature__']
+
     def __new__(cls, func=None, posoargs=(), kwoargs=(), **kwargs):
         if func is None:
             return partial(_PokTranslator, posoargs=posoargs,
