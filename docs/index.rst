@@ -165,6 +165,7 @@ Reference
     api
     forwards-howto
     autofwd-limits
+    build-introspect
 
 
 .. |pip| replace:: pip
