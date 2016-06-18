@@ -25,8 +25,22 @@ from sigtools import wrappers, support, signatures
 from sigtools.tests.util import tup, Fixtures
 
 
+def getclosure(obj):
+    try:
+        return obj.__closure__
+    except AttributeError:
+        return obj.func_closure
+
+
+def getcode(obj):
+    try:
+        return obj.__code__
+    except AttributeError:
+        return obj.func_code
+
+
 class WrapperTests(Fixtures):
-    def _test(self, func, sig_str, args, kwargs, ret, exp_sources):
+    def _test(self, func, sig_str, args, kwargs, ret, exp_sources, decorators):
         """Tests .wrappers.decorator
 
         Checks its reported signature, that it chains functions correctly
@@ -37,6 +51,10 @@ class WrapperTests(Fixtures):
         self.assertEqual(func(*args, **kwargs), ret)
         self.assertSourcesEqual(sig.sources, exp_sources,
                                 func, depth_order=True)
+        self.assertEqual(
+            list(wrappers.wrappers(func)),
+            [getclosure(d)[getcode(d).co_freevars.index('func')].cell_contents
+             for d in decorators])
 
     @wrappers.decorator
     def _deco_all(func, a, b, *args, **kwargs):
@@ -46,7 +64,8 @@ class WrapperTests(Fixtures):
         repr(self._deco_all)
 
     @tup('a, b, j, k, l', (1, 2, 3, 4, 5), {}, (1, 2, (3, 4, 5)),
-         {0: 'jkl', _deco_all:'ab', '+depths': ['_deco_all', 'func']})
+         {0: 'jkl', '_deco_all':'ab', '+depths': ['_deco_all', 'func']},
+         [_deco_all])
     @_deco_all
     def func(j, k, l):
         return j, k, l
@@ -62,7 +81,8 @@ class WrapperTests(Fixtures):
         self._test(
             self._method, 'a, b, n, o',
             (1, 2, 3, 4), {}, (1, 2, (self, 3, 4)),
-            {0: 'no', '_deco_all': 'ab', '+depths': ['_deco_all', '_method']})
+            {0: 'no', '_deco_all': 'ab', '+depths': ['_deco_all', '_method']},
+            [self._deco_all])
 
     @staticmethod
     @_deco_all
@@ -78,7 +98,8 @@ class WrapperTests(Fixtures):
 
     @tup('p, q, ma, mb', (1, 2, 3, 4), {}, (1, (2, 3, 4)),
          {0: ['ma', 'mb'], '_deco_pos': 'pq',
-          '+depths': ['_deco_pos', 'masked']})
+          '+depths': ['_deco_pos', 'masked']},
+         [_deco_pos])
     @_deco_pos
     def masked(mq, ma, mb):
         return mq, ma, mb
@@ -91,8 +112,9 @@ class WrapperTests(Fixtures):
     chain = (
         _chain, 'a, b, p, q, cb, cc',
         (1, 2, 3, 4, 5, 6), {}, (1, 2, (3, (4, 5, 6))),
-        {0: ['cb', 'cc'], _deco_all: 'ab', _deco_pos: 'pq',
-         '+depths': [_deco_all, _deco_pos, _chain]})
+        {0: ['cb', 'cc'], '_deco_all': 'ab', '_deco_pos': 'pq',
+         '+depths': ['_deco_all', '_deco_pos', '_chain']},
+        [_deco_all, _deco_pos])
 
     def _deco_classic(func):
         def wrapper(d, e, *args, **kwargs): return d, e, func(*args, **kwargs)
@@ -102,8 +124,9 @@ class WrapperTests(Fixtures):
 
     @tup('a, b, d, e, j, k, l',
          (1, 2, 3, 4, 5, 6, 7), {}, (1, 2, (3, 4, (5, 6, 7))),
-         {'partial_': 'jkl', _deco_all: 'ab', _deco_classic: 'de',
-          '+depths': [_deco_all, _deco_classic, 'partial_']})
+         {'partial_': 'jkl', '_deco_all': 'ab', '_deco_classic': 'de',
+          '+depths': ['_deco_all', '_deco_classic', 'partial_']},
+         [_deco_all])
     @_deco_all
     @_deco_classic
     def partial_(j, k, l):
