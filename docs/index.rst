@@ -85,7 +85,8 @@ roughly matches the parameter list part of a function definition:
     print(inspect.signature(func))
     # (abc, *args, **kwargs)
 
-.. autosignature:: sigtools.specifiers.signature
+.. autosignature:: sigtools.signature
+    :index:
 
     Improved version of `inspect.signature`. Takes into account decorators from
     `sigtools.specifiers` if present or tries to determine a full signature
@@ -120,7 +121,7 @@ For instance, consider this example of a decorator being defined and applied:
     # (spam)
 
 Where `inspect.signature` simply sees ``(*args, **kwargs)`` from ``_wrapper``,
-`sigtools.specifiers.signature` returns the correct signature for the ``*args,
+`sigtools.signature` returns the correct signature for the ``*args,
 **kwargs`` portion of ``wrapped(param, *args, **params)``.
 
 

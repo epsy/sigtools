@@ -26,6 +26,9 @@ import sys
 from sigtools import modifiers, specifiers, support, _util, signatures
 from sigtools.tests.util import Fixtures, SignatureTests, tup
 
+import unittest2
+
+
 # bulk of the testing happens in test_merge and test_embed
 
 not_py33 = sys.version_info < (3,3)
@@ -41,6 +44,13 @@ class _cls(object):
     method = _func
 _inst = _cls()
 _im_type = type(_inst.method)
+
+
+
+class MiscTests(unittest2.TestCase):
+    def test_sigtools_signature(self):
+        import sigtools
+        self.assertEqual(sigtools.signature, specifiers.signature)
 
 
 class ForwardsTest(Fixtures):
