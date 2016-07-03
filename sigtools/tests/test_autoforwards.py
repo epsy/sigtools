@@ -327,6 +327,10 @@ class UnresolvableAutoforwardsTests(Fixtures):
     def missing_global(a, b, *p, **k):
         return doesntexist(*p, **k) # pyflakes: silence
 
+    @tup()
+    def builtin(a, b, *args, **kwargs):
+        return iter(*args, **kwargs)
+
     def test_get_from_object(self):
         class A(object):
             def wrapped(self, x, y):
