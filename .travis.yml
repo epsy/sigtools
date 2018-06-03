@@ -1,11 +1,12 @@
 language: python
 python:
-  - 2.6
   - 2.7
-  - pypy
-  - 3.3
+  - pypy2.7-5.10
   - 3.4
   - 3.5
+  - pypy3.5
+  - 3.6
+  - 3.7-dev
   - nightly
 install:
   - pip install tox-travis
