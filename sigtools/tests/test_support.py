@@ -31,18 +31,24 @@ class RoundTripTests(Fixtures):
         sig = support.s(sig_str)
         p_sig_str = str(sig)
         try:
-            self.assertEqual('(' + sig_str + ')', p_sig_str)
+            self._assert_equal_ignoring_spaces('(' + sig_str + ')', p_sig_str)
         except AssertionError:
             if old_fmt is None: raise
-            self.assertEqual('(' + old_fmt + ')', p_sig_str)
+            self._assert_equal_ignoring_spaces('(' + old_fmt + ')', p_sig_str)
 
         pf_sig_str = str(
             _specifiers.forged_signature(support.func_from_sig(sig)))
         try:
-            self.assertEqual('(' + sig_str + ')', pf_sig_str)
+            self._assert_equal_ignoring_spaces('(' + sig_str + ')', pf_sig_str)
         except AssertionError:
             if old_fmt is None: raise
-            self.assertEqual('(' + old_fmt + ')', pf_sig_str)
+            self._assert_equal_ignoring_spaces('(' + old_fmt + ')', pf_sig_str)
+
+    def _assert_equal_ignoring_spaces(self, expected, actual):
+        self.assertEqual(
+            expected.replace(' ', ''),
+            actual.replace(' ', ''),
+        )
 
     empty = '',
 
@@ -64,10 +70,10 @@ class RoundTripTests(Fixtures):
     annotate = 'a:1, /, b:2, *c:3, d:4, **e:5', '<a>:1, b:2, *c:3, d:4, **e:5'
 
     def test_return_annotation(self):
-        self.assertEqual('() -> 2', str(support.s('', 2)))
-        self.assertEqual('() -> 3', str(support.s('', ret=3)))
-        self.assertEqual('(a:4) -> 5', str(support.s('a:4', 5)))
-        self.assertEqual('(b:6) -> 7', str(support.s('b:6', ret=7)))
+        self._assert_equal_ignoring_spaces('() -> 2', str(support.s('', 2)))
+        self._assert_equal_ignoring_spaces('() -> 3', str(support.s('', ret=3)))
+        self._assert_equal_ignoring_spaces('(a:4) -> 5', str(support.s('a:4', 5)))
+        self._assert_equal_ignoring_spaces('(b:6) -> 7', str(support.s('b:6', ret=7)))
 
     def test_locals(self):
         obj = object()
@@ -76,4 +82,4 @@ class RoundTripTests(Fixtures):
 
     def test_name(self):
         func = support.f('a, b, c', name='test_name')
-        self.assertEqual(func.__name__, 'test_name')
+        self._assert_equal_ignoring_spaces(func.__name__, 'test_name')
