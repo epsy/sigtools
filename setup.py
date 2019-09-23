@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 from setuptools import setup
 
+
+with open("README.rst") as fh:
+    long_description = fh.read()
+
+
 setup(
     name='sigtools',
     version='2.0.2',
     description="Utilities for working with inspect.Signature objects.",
+    long_description=long_description,
+    long_description_content_type='text/x-rst',
     license='MIT',
     author='Yann Kaiser',
     author_email='kaiser.yann@gmail.com',
