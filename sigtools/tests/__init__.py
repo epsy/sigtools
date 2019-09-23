@@ -18,3 +18,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import sys
+import warnings
+
+
+__all__ = []
+
+
+if sys.argv and "test" in sys.argv[0]:
+    warnings.filterwarnings("default")
+    warnings.filterwarnings("error", module="clize")
+    warnings.filterwarnings("error", module=".*/clize/")
