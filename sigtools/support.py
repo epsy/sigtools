@@ -27,6 +27,7 @@
 """
 
 import re
+import sys
 import itertools
 from warnings import warn
 
@@ -354,12 +355,14 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
     """
     sig = specifiers.signature(func)
 
+    sig_exceptions = (TypeError, ValueError) if hasattr(sys, 'pypy_version_info') else TypeError
+
     valid, invalid = sort_callsigs(sig, make_up_callsigs(sig, extra=2))
 
     for args, kwargs, expected_ret in valid:
         try:
             ret = func(*args, **kwargs)
-        except TypeError:
+        except sig_exceptions:
             raise AssertionError(
                 '{0}{1} <- *{2}, **{3} raised TypeError'
                 .format(_util.qualname(func), sig, args, kwargs))
@@ -374,7 +377,7 @@ def test_func_sig_coherent(func, check_return=True, check_invalid=True):
         for args, kwargs in invalid:
             try:
                 func(*args, **kwargs)
-            except TypeError:
+            except sig_exceptions:
                 pass
             else:
                 raise AssertionError(
