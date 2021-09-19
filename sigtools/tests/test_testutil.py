@@ -20,14 +20,14 @@
 # THE SOFTWARE.
 
 
-import unittest2
+import unittest
 
 from sigtools._util import OrderedDict as od
 from sigtools.support import s
 from sigtools.tests import util as tutil
 
 
-class UtilTests(unittest2.TestCase):
+class UtilTests(unittest.TestCase):
     def test_conv_first_posarg(self):
         self.assertEqual(s(''), tutil.conv_first_posarg(s('')))
         self.assertEqual(
@@ -35,7 +35,7 @@ class UtilTests(unittest2.TestCase):
             tutil.conv_first_posarg(s('one, two, *three, four, **five')))
 
 
-class TransformExpectedSourcesTests(unittest2.TestCase):
+class TransformExpectedSourcesTests(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(tutil.transform_exp_sources({}), {'+depths': {}})
 
@@ -107,7 +107,7 @@ class TransformExpectedSourcesTests(unittest2.TestCase):
             { 'a': ['f1'] , 'b': ['f2'], '+depths': {'f2': 0, 'f1': 1} })
 
 
-class TransformRealSourcesTests(unittest2.TestCase):
+class TransformRealSourcesTests(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(tutil.transform_real_sources({}), {})
 
