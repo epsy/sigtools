@@ -69,7 +69,7 @@ Improved signature reporting
 ----------------------------
 
 Python 3.3's ``inspect`` module introduces `signature objects
-<http://docs.python.org/3/library/inspect#introspecting-callables-with-the-signature-object>`_,
+<https://docs.python.org/3/library/inspect#introspecting-callables-with-the-signature-object>`_,
 which represent how a function can be called. Their textual representation
 roughly matches the parameter list part of a function definition:
 
@@ -130,7 +130,7 @@ Where `inspect.signature` simply sees ``(*args, **kwargs)`` from ``_wrapper``,
 Improved signatures in `sphinx.ext.autodoc` documentation
 ---------------------------------------------------------
 
-`Sphinx <http://sphinx-doc.org/>`_, the documentation tool, comes with an
+`Sphinx <https://sphinx-doc.org/>`_, the documentation tool, comes with an
 extension, `sphinx.ext.autodoc`, which lets you source some of your
 documentation from your code and its docstrings. ``sigtools.sphinxext``, if
 activated, automatically improves signatures like explained above.

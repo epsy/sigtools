@@ -11,13 +11,13 @@ The ``sigtools`` python library provides:
 * Functions to manipulate signature objects likewise: ``sigtools.signatures``
 
 The documentation can be found at Read The Docs:
-http://sigtools.readthedocs.org
+https://sigtools.readthedocs.org
 
 Installing
 ----------
 
 Within a `virtualenv
-<http://virtualenv.readthedocs.org/en/latest/virtualenv.html>`_::
+<https://virtualenv.readthedocs.org/en/latest/virtualenv.html>`_::
 
     $ pip install sigtools
 
