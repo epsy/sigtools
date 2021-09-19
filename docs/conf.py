@@ -260,5 +260,5 @@ texinfo_documents = [
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'funcsigs': ('https://funcsigs.readthedocs.io/en/latest/', None),
-    'sphinx': ('https://sphinx-doc.org/', None),
+    'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
     }

@@ -5,6 +5,13 @@ from setuptools import setup
 with open("README.rst") as fh:
     long_description = fh.read()
 
+tests_deps = [
+    'repeated_test',
+    'sphinx',
+    'mock',
+    'coverage',
+    'unittest2'
+]
 
 setup(
     name='sigtools',
@@ -17,18 +24,13 @@ setup(
     author_email='kaiser.yann@gmail.com',
     url='https://sigtools.readthedocs.io/',
     packages=['sigtools', 'sigtools.tests'],
-    tests_require=[
-        'repeated_test',
-        'sphinx',
-        'mock',
-        'coverage',
-        'unittest2'
-        ],
+    tests_require=tests_deps,
     install_requires=['six'],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
     extras_require={
         ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
         ':python_version in "2.6"': ['ordereddict'],
+        'tests': tests_deps,
     },
     test_suite='unittest2.collector',
     keywords='introspection signature',
