@@ -10,7 +10,6 @@ tests_deps = [
     'sphinx',
     'mock',
     'coverage',
-    'unittest2'
 ]
 
 setup(
@@ -25,11 +24,9 @@ setup(
     url='https://sigtools.readthedocs.io/',
     packages=['sigtools', 'sigtools.tests'],
     tests_require=tests_deps,
-    install_requires=['six'],
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
+    install_requires=[],
+    python_requires='>=3.5',
     extras_require={
-        ':python_version in "2.6  2.7  3.2"': ['funcsigs>=0.4'],
-        ':python_version in "2.6"': ['ordereddict'],
         'tests': tests_deps,
     },
     test_suite='unittest2.collector',
@@ -39,13 +36,13 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
