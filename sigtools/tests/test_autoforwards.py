@@ -7,17 +7,6 @@ from sigtools import support, modifiers, specifiers, signatures, _util, _autofor
 from sigtools.tests.util import Fixtures, tup
 
 
-if sys.version_info >= (3,):
-    from sigtools.tests import autoforwards_py3
-    Py3AutoforwardsTests = autoforwards_py3.Py3AutoforwardsTests
-    Py3UnknownAutoforwardsTests = autoforwards_py3.Py3UnknownAutoforwardsTests
-
-
-if sys.version_info >= (3,5):
-    from sigtools.tests import autoforwards_py35
-    Py35AutoforwardsTests = autoforwards_py35.Py35UnknownAutoforwardsTests
-
-
 _wrapped = support.f('x, y, *, z', name='_wrapped')
 
 
@@ -134,6 +123,13 @@ class AutoforwardsTests(Fixtures):
     #         nonlocal args, kwargs
     #         args = ()
     #         kwargs = {}
+
+    def test_nonlocal_outside(self):
+        x = _wrapped
+        def l1(*args, **kwargs):
+            nonlocal x
+            x(*args, **kwargs)
+        self._test(l1, 'x, y, *, z', {_wrapped: 'xyz'})
 
     def test_partial(self):
         def _wrapper(wrapped, a, *args, **kwargs):
@@ -318,12 +314,16 @@ not_callable = None
 
 
 class UnresolvableAutoforwardsTests(Fixtures):
-    def _test(self, func):
+    def _test(self, func, ensure_incoherent=True):
         self.assertSigsEqual(
             specifiers.signature(func),
             signatures.signature(func))
+        if ensure_incoherent:
+            with self.assertRaises(AssertionError):
+                support.test_func_sig_coherent(
+                    func, check_return=False, check_invalid=False)
 
-    @tup()
+    @tup(False)
     def missing_global(a, b, *p, **k):
         return doesntexist(*p, **k) # pyflakes: silence
 
@@ -338,16 +338,16 @@ class UnresolvableAutoforwardsTests(Fixtures):
             def method(self, a, *p, **k):
                 self.wrapped(a, *p, **k)
         method = _util.safe_get(A.__dict__['method'], object(), type(A))
-        self._test(method)
+        self._test(method, ensure_incoherent=False)
 
     def test_unset_attribute(self):
         class A(object):
             def method(self, a, *p, **k):
                 self.wrapped(a, *p, **k)
         a = A()
-        self._test(a.method)
+        self._test(a.method, ensure_incoherent=False)
 
-    @tup()
+    @tup(False)
     def attribute_on_unset(*a, **k):
         doesntexist.method(*a, **k) # pyflakes: silence
 
@@ -376,7 +376,7 @@ class UnresolvableAutoforwardsTests(Fixtures):
     def nonforwardable(*args):
         _wrapped(*args)
 
-    def test_super(self):
+    def test_super_with_args(self):
         class Base(object):
             def method(self, x, y, z):
                 pass
@@ -407,7 +407,7 @@ class UnresolvableAutoforwardsTests(Fixtures):
         kwargs['ham'] = 'spam'
         _wrapped(**kwargs)
 
-    @tup()
+    @tup(False)
     def kwargs_item_removed(**kwargs):
         del kwargs['ham']
         _wrapped(**kwargs)
@@ -417,7 +417,90 @@ class UnresolvableAutoforwardsTests(Fixtures):
         kwargs.pop('ham', 'default')
         _wrapped(**kwargs)
 
-    @tup()
+    @tup(False)
     def kwargs_item_accessed(**kwargs):
         kwargs['ham']
         _wrapped(**kwargs)
+
+    @tup()
+    def rebind_subdef_nonlocal(a, b, *args, **kwargs):
+        def func():
+            nonlocal args, kwargs
+            args = 2,
+            kwargs = {'z': 3}
+            _wrapped(42, *args, **kwargs)
+        func()
+        _wrapped(*args, **kwargs)
+
+    @tup()
+    def nonlocal_backchange(a, b, *args, **kwargs):
+        def ret1():
+            _wrapped(*args, **kwargs)
+        def ret2():
+            nonlocal args, kwargs
+            args = ()
+            kwargs = {}
+        ret2()
+        ret1()
+
+    @tup()
+    def nonlocal_deep(a, *args, **kwargs):
+        def l1():
+            def l2():
+                nonlocal args, kwargs
+                args = ()
+                kwargs = {}
+            l2()
+        l1()
+        _wrapped(*args, **kwargs)
+
+    def test_missing_freevar(self):
+        def make_closure():
+            var = 1
+            del var
+            def func(a, *p, **k):
+                var(*p, **k) # pyflakes: silence
+            return func
+        self._test(make_closure(), ensure_incoherent=False)
+
+    def test_deleted(self):
+        def makef(**kwargs):
+            def func():
+                _wrapped(**kwargs) # pyflakes: silence
+            del kwargs
+            return func
+        self._test(makef, ensure_incoherent=False)
+
+    def test_super_without_args(self):
+        class Base:
+            def method(self, x, y, *, z):
+                pass
+        class Derived(Base):
+            def method(self, *args, a, **kwargs):
+                super().method(*args, **kwargs)
+        class MixIn(Base):
+            def method(self, *args, b, **kwargs):
+                super().method(*args, **kwargs)
+        class MixedIn(Derived, MixIn):
+            pass
+        for cls in [Derived, MixedIn]:
+            with self.subTest(cls=cls.__name__):
+                self._test(cls().method)
+
+
+class UnresolvableAutoforwardsWithSourcesTests(Fixtures):
+    def _test(self, func, expected, expected_src):
+        sig = specifiers.signature(func)
+        self.assertSigsEqual(sig, support.s(expected))
+        self.assertSourcesEqual(sig.sources, expected_src, func)
+        with self.assertRaises(AssertionError):
+            support.test_func_sig_coherent(
+                func, check_return=False, check_invalid=False)
+
+    @tup('v, w, *a, **k', {0: 'vwak'})
+    def double_starargs(v, w, *a, **k):
+        _wrapped(*a, *a)
+
+    @tup('v, w, *a, **k', {0: 'vwak'})
+    def double_kwargs(v, w, *a, **k):
+        _wrapped(**k, **w)
