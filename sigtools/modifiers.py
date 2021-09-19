@@ -33,8 +33,6 @@ make your parameters with default values become keyword-only.
 
 from functools import partial, update_wrapper
 
-import six
-
 from sigtools import _util, _specifiers, _signatures
 
 __all__ = ['annotate', 'kwoargs', 'autokwoargs', 'posoargs']
@@ -189,7 +187,7 @@ def kwoargs(start=None, *kwoarg_names):
     :raises: `ValueError` if end or one of posoarg_names isn't in the
         decorated function's signature.
     """
-    assert all(isinstance(s, six.string_types) for s in kwoarg_names), \
+    assert all(isinstance(s, str) for s in kwoarg_names), \
         "argument names must be strings; forgot to put () after @kwoargs?"
     if start is not None:
         return partial(_kwoargs_start, start, kwoarg_names)
@@ -244,7 +242,7 @@ def posoargs(end=None, *posoarg_names):
     :raises: `ValueError` if end or one of posoarg_names isn't in the
         decorated function's signature.
     """
-    assert all(isinstance(s, six.string_types) for s in posoarg_names), \
+    assert all(isinstance(s, str) for s in posoarg_names), \
         "argument names must be strings"
     if end is not None:
         return partial(_posoargs_end, end, posoarg_names)
