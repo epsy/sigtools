@@ -23,7 +23,7 @@
 from collections import defaultdict
 from functools import partial
 
-import unittest2
+import unittest
 from repeated_test import tup, WithTestClass
 
 from sigtools._util import funcsigs
@@ -102,7 +102,7 @@ def transform_real_sources(d):
     return ret
 
 
-class SignatureTests(unittest2.TestCase):
+class SignatureTests(unittest.TestCase):
     maxDiff = None
 
     def assertSigsEqual(self, found, expected, *args, **kwargs):

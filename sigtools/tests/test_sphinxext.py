@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 
 
-import unittest2
+import unittest
 
 from sigtools.tests import sphinxextfixt
 
@@ -29,12 +29,12 @@ from sigtools.tests import sphinxextfixt
 app = object()
 
 
-class SphinxExtTests(unittest2.TestCase):
+class SphinxExtTests(unittest.TestCase):
     def setUp(self):
         try:
             from sigtools import sphinxext
         except SyntaxError: # sphinx does not work on py32
-            raise unittest2.SkipTest("Sphinx could not be imported.")
+            raise unittest.SkipTest("Sphinx could not be imported.")
         else:
             self.sphinxext = sphinxext
 

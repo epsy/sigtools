@@ -26,7 +26,7 @@ import sys
 from sigtools import modifiers, specifiers, support, _util, signatures
 from sigtools.tests.util import Fixtures, SignatureTests, tup
 
-import unittest2
+import unittest
 
 
 # bulk of the testing happens in test_merge and test_embed
@@ -47,7 +47,7 @@ _im_type = type(_inst.method)
 
 
 
-class MiscTests(unittest2.TestCase):
+class MiscTests(unittest.TestCase):
     def test_sigtools_signature(self):
         import sigtools
         self.assertEqual(sigtools.signature, specifiers.signature)
