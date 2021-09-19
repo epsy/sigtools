@@ -15,7 +15,7 @@ setup(
     license='MIT',
     author='Yann Kaiser',
     author_email='kaiser.yann@gmail.com',
-    url='http://sigtools.readthedocs.io/',
+    url='https://sigtools.readthedocs.io/',
     packages=['sigtools', 'sigtools.tests'],
     tests_require=[
         'repeated_test',
