@@ -27,6 +27,7 @@ setup(
     install_requires=[],
     python_requires='>=3.5',
     extras_require={
+        'test': tests_deps,
         'tests': tests_deps,
     },
     test_suite='unittest2.collector',
