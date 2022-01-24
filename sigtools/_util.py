@@ -161,3 +161,11 @@ def get_ast(func):
     source = inspect.cleandoc('\n' + rawsource)
     module = ast.parse(source)
     return module.body[0]
+
+
+def join_generator(separator: str):
+    def decorate(function):
+        def execute(*args, **kwargs):
+            return separator.join(function(*args, **kwargs))
+        return execute
+    return decorate

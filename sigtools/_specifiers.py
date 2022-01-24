@@ -88,6 +88,7 @@ def forged_signature(obj, auto=True, args=(), kwargs={}):
     """
     subject = _util.get_introspectable(obj, af_hint=auto)
     forger = getattr(subject, '_sigtools__forger', None)
+    unknown_forwards = None
     if forger is not None:
         ret = forger(obj=subject)
         if ret is not None:
@@ -103,18 +104,22 @@ def forged_signature(obj, auto=True, args=(), kwargs={}):
                 try:
                     ret = _autoforwards.autoforwards_ast(
                         *h, args=args, kwargs=kwargs)
-                except _autoforwards.UnknownForwards:
-                    pass
+                except _autoforwards.UnknownForwards as e:
+                    unknown_forwards = e
                 else:
                     return ret
             subject = _util.get_introspectable(subject, af_hint=False)
         try:
             ret = _autoforwards.autoforwards(subject, args, kwargs)
-        except _autoforwards.UnknownForwards:
-            pass
+        except _autoforwards.UnknownForwards as e:
+            unknown_forwards = e
         else:
             return ret
-    return _signatures.signature(obj)
+    
+    sig = _signatures.signature(obj)
+    if unknown_forwards and not sig.call_tree.determined:
+        sig.call_tree = unknown_forwards.to_call_tree()
+    return sig
 
 
 from sigtools import _autoforwards

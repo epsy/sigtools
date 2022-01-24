@@ -22,39 +22,15 @@
 import itertools
 import collections
 from functools import partial
+from operator import sub
 
 from sigtools import _util
+from sigtools._types import Signature, DefaultLeafCall, FunctionDefinition, SupplyArgumentsCall, EmbeddedCall, ForwardedCall, MergedCall
 
 try:
     zip_longest = itertools.izip_longest
 except AttributeError: # pragma: no cover
     zip_longest = itertools.zip_longest
-
-
-class Signature(_util.funcsigs.Signature):
-    __slots__ = _util.funcsigs.Signature.__slots__ + ('sources',)
-
-    def __init__(self, *args, **kwargs):
-        self.sources = kwargs.pop('sources', {})
-        super(Signature, self).__init__(*args, **kwargs)
-
-    @classmethod
-    def upgrade(cls, inst, sources):
-        if isinstance(inst, cls):
-            return inst
-        return cls(
-            inst.parameters.values(),
-            return_annotation=inst.return_annotation,
-            sources=sources)
-
-    def replace(self, *args, **kwargs):
-        try:
-            sources = kwargs.pop('sources')
-        except KeyError:
-            sources = self.sources
-        ret = super(Signature, self).replace(*args, **kwargs)
-        ret.sources = sources
-        return ret
 
 
 def default_sources(sig, obj):
@@ -64,8 +40,20 @@ def default_sources(sig, obj):
 
 
 def set_default_sources(sig, obj):
-    """Assigns the source of every parameter of sig to obj"""
-    return Signature.upgrade(sig, default_sources(sig, obj))
+    """Assigns the source of every parameter of sig to obj if none are set"""
+    upgraded = Signature.upgrade(sig, name=getattr(obj, "__name__"))
+    if not upgraded.sources:
+        upgraded.sources = default_sources(sig, obj)
+    if isinstance(upgraded.call_tree, DefaultLeafCall):
+        try:
+            code = obj.__code__
+            file = code.co_filename
+            line = code.co_firstlineno
+        except AttributeError:
+            pass
+        else:
+            upgraded.call_tree = FunctionDefinition(file, line)
+    return upgraded
 
 
 def signature(obj):
@@ -139,6 +127,7 @@ def sort_params(sig, sources=False):
             raise AssertionError('Unknown param kind {0}'.format(param.kind))
     if sources:
         src = getattr(sig, 'sources', {})
+        tree = getattr(sig, 'tree', ())
         return SortedParameters(posargs, pokargs, varargs, kwoargs, varkwas,
                                 copy_sources(src))
     else:
@@ -146,7 +135,7 @@ def sort_params(sig, sources=False):
 
 
 def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
-                 sources=None):
+                 sources=None, call_tree=None, name=None):
     """Reverses `sort_params`'s operation.
 
     :returns: A new `inspect.Signature` object based off sig,
@@ -161,9 +150,12 @@ def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
     if varkwargs:
         parameters.append(varkwargs)
     sig = sig.replace(parameters=parameters)
-    if sources is not None:
-        sig = Signature.upgrade(sig, sources)
-        sig.sources = sources
+    sig = Signature.upgrade(
+        sig,
+        sources,
+        name=name or getattr(sig, "name", "default name"),
+        call_tree=call_tree
+    )
     return sig
 
 
@@ -185,7 +177,6 @@ class IncompatibleSignatures(ValueError):
             ' '.join(str(sig) for sig in self.others),
             self.sig,
             )
-
 
 
 def _add_sources(ret_src, name, *from_sources):
@@ -493,6 +484,7 @@ def merge(*signatures):
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
     ret_sig = apply_params(signatures[0], *ret)
+    ret_sig.call_tree = MergedCall(signatures) if len(signatures) != 1 else signatures[0].call_tree
     return ret_sig
 
 
@@ -565,7 +557,7 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True, depth=1):
         src
         )
 
-def embed(use_varargs=True, use_varkwargs=True, *signatures):
+def embed(use_varargs=True, use_varkwargs=True, *signatures, call_tree=None, call=None):
     """Embeds a signature within another's ``*args`` and ``**kwargs``
     parameters, as if a function with the outer signature called a function with
     the inner signature with just ``f(*args, **kwargs)``.
@@ -603,7 +595,13 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
                          use_varargs, use_varkwargs, i)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    return apply_params(signatures[0], *ret)
+    ret_sig = apply_params(
+        signatures[0],
+        *ret,
+        name=getattr(signatures[0], "name"),
+        call_tree=call_tree or EmbeddedCall(signatures, use_varargs, use_varkwargs)
+    )
+    return ret_sig
 
 
 def _pop_chain(*sequences):
@@ -624,6 +622,8 @@ def _pnames(ita):
 
 def _mask(sig, num_args, hide_args, hide_kwargs,
           hide_varargs, hide_varkwargs, named_args, partial_obj):
+    orig_posargs, orig_pokargs, orig_varargs, orig_kwoargs, orig_varkwargs \
+        = sort_params(sig)
     posargs, pokargs, varargs, kwoargs, varkwargs, src \
         = sort_params(sig, sources=True)
 
@@ -710,8 +710,15 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
     if partial_mode:
         src = copy_sources(src, increase=True)
         src['+depths'][partial_obj] = 0
-    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src)
-    return ret
+    
+    if orig_posargs == posargs and orig_pokargs == orig_pokargs and orig_varargs == varargs and orig_kwoargs == kwoargs and orig_varkwargs == varkwargs:
+        call_tree = sig.call_tree
+    else:
+        call_tree = SupplyArgumentsCall((sig,), num_args,
+        named_args, hide_args, hide_kwargs,
+          hide_varargs, hide_varkwargs)
+
+    return apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src, call_tree=call_tree)
 
 
 def mask(sig, num_args=0,
@@ -752,7 +759,7 @@ def mask(sig, num_args=0,
 def forwards(outer, inner, num_args=0,
              hide_args=False, hide_kwargs=False,
              use_varargs=True, use_varkwargs=True,
-             partial=False, *named_args):
+             partial=False, *named_args, name=None, call=None):
     """Calls `mask` on ``inner``, then returns the result of calling
     `embed` with ``outer`` and the result of `mask`.
 
@@ -790,9 +797,16 @@ def forwards(outer, inner, num_args=0,
             else:
                 params.append(param.replace(default=None))
         inner = inner.replace(parameters=params)
-    return embed(
-        use_varargs, use_varkwargs,
-        outer,
-        mask(inner, num_args,
-             hide_args, hide_kwargs, False, False,
-             *named_args))
+    with ForwardedCall(
+        [outer, inner], use_varargs, use_varkwargs, num_args, named_args,
+        hide_args, hide_kwargs,
+        call
+        ) as call_tree:
+        return embed(
+            use_varargs, use_varkwargs,
+            outer,
+            mask(inner, num_args,
+                hide_args, hide_kwargs, False, False,
+                *named_args),
+                call_tree=call_tree
+                )

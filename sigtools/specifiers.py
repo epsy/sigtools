@@ -57,7 +57,8 @@ signature = _specifiers.forged_signature
 
 
 class _AsForged(object):
-    def __init__(self):
+    def __init__(self, *, skip_explain=False):
+        self.skip_explain = skip_explain
         self.currently_computing = set()
 
     def __get__(self, instance, owner):
@@ -67,13 +68,15 @@ class _AsForged(object):
         try:
             self.currently_computing.add(obj)
             sig = signature(obj)
+            if self.skip_explain and sig.call_tree.signatures:
+                sig.call_tree = sig.call_tree.signatures[-1].call_tree
         finally:
             self.currently_computing.discard(obj)
         return sig
 
 
 as_forged = _AsForged()
-"""Descriptor that returns the computer signature for the object it is an
+"""Descriptor that returns the computed signature for the object it is an
 attribute of. Most useful as ``__signature__``.
 
 Allows `inspect.signature` to read forged signatures from your own objects.
@@ -93,6 +96,8 @@ Allows `inspect.signature` to read forged signatures from your own objects.
     >>> print(inspect.signature(MyClass()))
     (x, a, b, c)
 """
+
+as_forged_skip_explain = _AsForged(skip_explain=True)
 
 
 def set_signature_forger(obj, forger, emulate=None):

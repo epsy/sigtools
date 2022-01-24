@@ -32,14 +32,14 @@ individually. They are most notably used by the decorators from
 
 from sigtools import modifiers
 from sigtools._signatures import (
-    signature,
+    Signature, signature,
     IncompatibleSignatures,
     sort_params, apply_params,
     merge, embed, mask, forwards
     )
 
 __all__ = [
-    'signature',
+    'Signature', 'signature',
     'merge', 'embed', 'mask', 'forwards', 'IncompatibleSignatures',
     'sort_params', 'apply_params',
     ]

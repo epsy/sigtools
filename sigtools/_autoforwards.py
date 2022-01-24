@@ -2,10 +2,14 @@ import sys
 import ast
 import collections
 import functools
+import traceback
 import types
+import typing
 
+import attr
 from sigtools import _signatures, _util
 from sigtools._specifiers import forged_signature
+from sigtools._types import BaseMarker, Call, CallTreeDescription, FailedTreeDescription
 
 try:
     from collections.abc import MutableMapping
@@ -14,14 +18,22 @@ except ImportError:
 
 
 class UnknownForwards(ValueError):
-    pass
+    def __init__(self, message:str, call_tree: CallTreeDescription = None) -> None:
+        super().__init__(message)
+        self.call_tree = call_tree
+
+    def to_call_tree(self) -> CallTreeDescription:
+        return FailedTreeDescription(
+            error = str(self.__cause__ or self),
+            attempted = self.call_tree or getattr(getattr(self, "__cause__", None), "call_tree", None),
+        )
 
 
 class UnresolvableName(ValueError):
     pass
 
 
-class Marker(object):
+class Marker(BaseMarker):
     def __init__(self):
         self.tainted = None
 
@@ -39,6 +51,9 @@ class Name(Marker):
     def __repr__(self):
         return '<name {0!r}>'.format(self.name)
 
+    def __str__(self) -> str:
+        return f'<var {self.name}'
+
 
 class Attribute(Marker):
     def __init__(self, value, attr):
@@ -49,6 +64,9 @@ class Attribute(Marker):
     def __repr__(self):
         return '<attribute {0!r}.{1}>'.format(self.value, self.attr)
 
+    def __str__(self) -> str:
+        return f"{self.value}.{self.attr}"
+
 
 class Arg(Marker):
     def __init__(self, name):
@@ -58,8 +76,11 @@ class Arg(Marker):
     def __repr__(self):
         return '<argument {0!r}>'.format(self.name)
 
+    def __str__(self) -> str:
+        return f'<arg: {self.name}>'
 
-class Unknown(object):
+
+class Unknown(BaseMarker):
     def __init__(self, source=None):
         self.source = source
 
@@ -68,19 +89,37 @@ class Unknown(object):
 
     def __repr__(self):
         if self.source is None:
-            return "<irrelevant>"
-        source = self.source
-        if isinstance(source, list):
-            source = '[' + ', '.join(
+            return f"<{self.__class__.__name__}>"
+        return f"<{self.__class__.__name__}: {self.source_repr()}>"
+
+    def source_repr(self):
+        if isinstance(self.source, list):
+            return '[' + ', '.join(
                 ast.dump(item) if isinstance(item, ast.AST)
                 else item
-                for item in source) + ']'
-        elif isinstance(source, ast.AST):
-            source = ast.dump(source)
-        return "<unknown until runtime: {0}>".format(source)
+                for item in self.source) + ']'
+        elif isinstance(self.source, ast.AST):
+            return ast.dump(self.source)
+        else:
+            return self.source
 
     def get_untainted(self):
         return self
+
+
+class MultipleStarArgs(Unknown):
+    def __init__(self, source=None):
+        super().__init__(source=source)
+
+
+class UnknownUntilRuntime(Unknown):
+    def __init__(self, source=None):
+        super().__init__(source=source)
+
+
+class PotentiallyModified(Unknown):
+    def __init__(self, source=None):
+        super().__init__(source=source)
 
 
 class Namespace(MutableMapping):
@@ -133,13 +172,6 @@ class Namespace(MutableMapping):
         ns.immutables.add(name)
 
 
-Call = collections.namedtuple(
-    'Call',
-    'wrapped args kwargs varargs varkwargs '
-    'use_varargs use_varkwargs '
-    'hide_args hide_kwargs')
-
-
 if sys.version_info < (3,5):
     Starred = type(None)
     def get_starargs(call):
@@ -155,7 +187,7 @@ else:
         elif len(ret) == 1:
             return ret[0].value
         else:
-            return Unknown(ret)
+            return MultipleStarArgs(ret)
     def get_kwargs(call):
         ret = [n for n in call.keywords if n.arg is None]
         if not ret:
@@ -163,7 +195,7 @@ else:
         elif len(ret) == 1:
             return ret[0].value
         else:
-            return Unknown(ret)
+            return MultipleStarArgs(ret)
 
 if sys.version_info < (3,4):
     def get_vararg(arg):
@@ -181,8 +213,9 @@ else:
 
 
 class CallListerVisitor(ast.NodeVisitor):
-    def __init__(self, func):
+    def __init__(self, func, filename):
         self.func = func
+        self.filename = filename
         self.namespace = Namespace()
         self.calls = []
         self.to_revisit = []
@@ -199,10 +232,10 @@ class CallListerVisitor(ast.NodeVisitor):
     def process_parameters(self, args, main=False):
         for arg in args.args:
             name = get_param(arg)
-            self.namespace[name] = Arg(name) if main else Unknown(arg)
+            self.namespace[name] = Arg(name) if main else UnknownUntilRuntime(arg)
         if sys.version_info > (3,):
             for arg in args.kwonlyargs:
-               self.namespace[arg.arg] = Arg(arg.arg) if main else Unknown(arg)
+               self.namespace[arg.arg] = Arg(arg.arg) if main else UnknownUntilRuntime(arg)
 
         varargs = varkwargs = None
         if args.vararg:
@@ -256,7 +289,10 @@ class CallListerVisitor(ast.NodeVisitor):
     def visit_Name(self, node):
         immutable = self.namespace.is_immutable_value(node.id)
         if not (immutable and isinstance(node.ctx, ast.Load)):
-            self.namespace[node.id] = Unknown(node)
+            if node.id in self.namespace:
+                self.namespace[node.id] = PotentiallyModified(self.namespace[node.id])
+            else:
+                self.namespace[node.id] = UnknownUntilRuntime(Name(node.id))
 
     def visit_Attribute(self, node):
         pass
@@ -293,7 +329,10 @@ class CallListerVisitor(ast.NodeVisitor):
         self.calls.append(Call(
             wrapped, args, kwargs, varargs, varkwargs,
             use_varargs, use_varkwargs,
-            hide_args, hide_kwargs))
+            hide_args, hide_kwargs,
+            self.filename,
+            node.lineno,
+            ))
 
     def visit_Call(self, node):
         if self.namespace.parent is None:
@@ -354,20 +393,17 @@ def forward_signatures(func, calls, args, kwargs, sig):
         bap = EmptyBoundArguments()
     def rn(obj, unknown=True):
         return resolve_name(obj, func, bap.arguments, unknown=unknown)
-    for (
-            wrapped, fwdargs, fwdkwargs, fwdvarargs, fwdvarkwargs,
-            use_varargs, use_varkwargs,
-            hide_args, hide_kwargs) in calls:
-        if not (use_varargs or use_varkwargs):
+    for call  in calls:
+        if not (call.use_varargs or call.use_varkwargs):
             continue
         try:
-            wrapped_func = rn(wrapped, unknown=False)
+            wrapped_func = rn(call.function, unknown=False)
         except UnresolvableName:
-            raise UnknownForwards
-        fwdargsvals = [rn(arg) for arg in fwdargs]
-        fwdargsvals.extend(rn(fwdvarargs))
-        fwdkwargsvals = dict((n, rn(arg)) for n, arg in fwdkwargs.items())
-        fwdkwargsvals.update(rn(fwdvarkwargs))
+            raise UnknownForwards(f"Could not resolve method {call.function}")
+        fwdargsvals = [rn(arg) for arg in call.args]
+        fwdargsvals.extend(rn(call.varargs))
+        fwdkwargsvals = dict((n, rn(arg)) for n, arg in call.kwargs.items())
+        fwdkwargsvals.update(rn(call.varkwargs))
         using_partial = wrapped_func == functools.partial
         if using_partial:
             wrapped_func = fwdargsvals.pop(0)
@@ -375,17 +411,17 @@ def forward_signatures(func, calls, args, kwargs, sig):
             wrapped_sig = forged_signature(
                 wrapped_func, args=fwdargsvals, kwargs=fwdkwargsvals)
         except (ValueError, TypeError):
-            raise UnknownForwards
+            raise UnknownForwards(f"Error getting signature for {call}")
         try:
             ausig = _signatures.forwards(
                 sig, wrapped_sig,
-                len(fwdargs) - using_partial,
-                hide_args, hide_kwargs,
-                use_varargs, use_varkwargs,
-                using_partial, *fwdkwargs)
+                len(call.args) - using_partial,
+                call.hide_args, call.hide_kwargs,
+                call.use_varargs, call.use_varkwargs,
+                using_partial, *call.kwargs, name=str(call.function), call=call)
             yield ausig
-        except ValueError:
-            raise UnknownForwards
+        except ValueError as e:
+            raise UnknownForwards(f"Error performing Forward on {sig} => {wrapped_sig}") from e
 
 
 def autoforwards_partial(par, args, kwargs):
@@ -433,10 +469,10 @@ def autoforwards_function(func, args, kwargs):
     with cleanup_functools_wrapper(func):
         sig = _signatures.signature(func)
     if not any_params_star(sig):
-        raise UnknownForwards
+        return sig
     func_ast = _util.get_ast(func)
     if func_ast is None:
-        raise UnknownForwards
+        raise UnknownForwards(f"Cannot get function AST for {func}")
     return autoforwards_ast(func, func_ast, sig, args, kwargs)
 
 
@@ -445,12 +481,17 @@ def autoforwards_hint(func, args, kwargs):
     if h is not None:
         return autoforwards_ast(h[0], h[1], h[2], args, kwargs)
     else:
-        raise UnknownForwards()
+        raise UnknownForwards("No hint available")
 
 
 def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
+    filename = '<unknown>'
+    try:
+        filename = func.__code__.co_filename
+    except AttributeError:
+        pass
     sigs = list(forward_signatures(
-        func, CallListerVisitor(func_ast),
+        func, CallListerVisitor(func_ast, filename),
         args, kwargs, sig))
     if sigs:
         return _signatures.merge(*sigs)
@@ -460,7 +501,7 @@ def autoforwards_ast(func, func_ast, sig, args=(), kwargs={}):
 
 def autoforwards_method(method, args, kwargs):
     if method.__self__ is None:
-        raise UnknownForwards
+        raise UnknownForwards("Unbound method")
     return _signatures.mask(
         autoforwards(method.__func__, (method.__self__,) + tuple(args), kwargs),
         1)

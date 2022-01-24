@@ -116,7 +116,7 @@ class _SimpleWrapped(object):
         except AttributeError:
             pass
 
-    __signature__ = specifiers.as_forged
+    __signature__ = specifiers.as_forged_skip_explain
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
@@ -128,7 +128,7 @@ class _SimpleWrapped(object):
 
     def __repr__(self):
         return '<{0!r} wrapped with {1!r}>'.format(
-                self.__wrapped__, self.wrapper)
+                getattr(self, '__wrapped__', None), self.wrapper)
 
 
 @specifiers.forwards_to_function(specifiers.forwards, 2)
