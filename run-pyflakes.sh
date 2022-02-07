@@ -7,7 +7,7 @@ PAT=$(grep -Hrn --binary-files=without-match 'pyflakes: silence' $1 |
 
 if [ -n "$PAT" ]
 then
-    OUT=$(python3 -m pyflakes $1 | grep -Pv "$PAT")
+    OUT=$(python3 -m pyflakes $1 | grep -Pv "$PAT") || true
     if [ -n "$OUT" ]; then
         echo $OUT; false
     else
