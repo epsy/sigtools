@@ -1,4 +1,3 @@
-import sys
 from functools import partial, wraps
 from mock import patch
 import ast
