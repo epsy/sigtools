@@ -20,35 +20,58 @@
 # THE SOFTWARE.
 
 
+import sys
+
+from repeated_test import options
+
 from sigtools import support, _specifiers
 from sigtools.tests.util import Fixtures
 
 
+def remove_spaces(s):
+    return s.strip().replace(' ', '')
+
+
+force_modifiers = {
+        'use_modifiers_annotate': True,
+        'use_modifiers_posoargs': True,
+        'use_modifiers_kwoargs': True,
+}
 
 
 class RoundTripTests(Fixtures):
     def _test(self, sig_str, old_fmt=None):
+        def assert_signature_matches_original(sig):
+            self._assert_equal_ignoring_spaces(f'({sig_str})', str(sig), f'({old_fmt})')
+
+        # Using inspect.signature
         sig = support.s(sig_str)
-        p_sig_str = str(sig)
-        try:
-            self._assert_equal_ignoring_spaces('(' + sig_str + ')', p_sig_str)
-        except AssertionError:
-            if old_fmt is None: raise
-            self._assert_equal_ignoring_spaces('(' + old_fmt + ')', p_sig_str)
+        assert_signature_matches_original(sig)
 
-        pf_sig_str = str(
-            _specifiers.forged_signature(support.func_from_sig(sig)))
-        try:
-            self._assert_equal_ignoring_spaces('(' + sig_str + ')', pf_sig_str)
-        except AssertionError:
-            if old_fmt is None: raise
-            self._assert_equal_ignoring_spaces('(' + old_fmt + ')', pf_sig_str)
+        # Roundtrip and use forged signature
+        pf_sig = _specifiers.forged_signature(support.func_from_sig(sig))
+        assert_signature_matches_original(pf_sig)
 
-    def _assert_equal_ignoring_spaces(self, expected, actual):
-        self.assertEqual(
-            expected.replace(' ', ''),
-            actual.replace(' ', ''),
-        )
+        # Using sigtools.modifiers and and inspect.signature
+        m_sig = support.s(sig_str, **force_modifiers)
+        assert_signature_matches_original(m_sig)
+
+        # Roundtrip and use forged signature
+        pmf_sig = _specifiers.forged_signature(support.func_from_sig(m_sig))
+        assert_signature_matches_original(pmf_sig)
+
+    def _assert_equal_ignoring_spaces(self, expected, actual, expected_old_fmt=None):
+        try:
+            self.assertEqual(
+                remove_spaces(expected),
+                remove_spaces(actual),
+            )
+        except AssertionError:
+            if expected_old_fmt is None: raise
+            self.assertEqual(
+                remove_spaces(expected_old_fmt),
+                remove_spaces(actual),
+            )
 
     empty = '',
 
@@ -83,3 +106,126 @@ class RoundTripTests(Fixtures):
     def test_name(self):
         func = support.f('a, b, c', name='test_name')
         self._assert_equal_ignoring_spaces(func.__name__, 'test_name')
+
+
+class FuncCodeTests(Fixtures):
+    def _test(self, sig, expected_code, kwargs={}, *, min_version=None, max_version=None):
+        if min_version is not None and sys.version_info < min_version:
+            self.skipTest(f"Python version too low for this test ({sys.version_info} < {min_version})")
+        if max_version is not None and sys.version_info >= max_version:
+            self.skipTest(f"Python version too high for this test ({sys.version_info} >= {min_version})")
+        actual_code = support.func_code(*support.read_sig(sig, **kwargs))
+        self.assertEqual(remove_spaces(expected_code), remove_spaces(actual_code))
+
+    empty = "", """
+        def func():
+            return {}
+    """
+
+    posoarg_py38 = "a, /", """
+        def func(a, /):
+            return {'a': a}
+    """, options(min_version=(3,8))
+
+    posoarg_pre_py38 = "a, /", """
+        @modifiers.posoargs('a')
+        def func(a):
+            return {'a': a}
+    """, options(max_version=(3,8))
+
+    posoarg_force_modifiers = "a, /", """
+        @modifiers.posoargs('a')
+        def func(a):
+            return {'a': a}
+    """, force_modifiers
+
+    posoarg_chevron_py38 = "<a>", """
+        def func(a, /):
+            return {'a': a}
+    """, options(min_version=(3,8))
+
+    posoarg_chevron_and_slash_py38 = "<a>, b, /, c", """
+        def func(a, b, /, c):
+            return {'a': a, 'b': b, 'c': c}
+    """, options(min_version=(3,8))
+
+    posoarg_chevron_others_py38 = "<a>, b, *, c", """
+        def func(a, /, b, *, c):
+            return {'a': a, 'b': b, 'c': c}
+    """, options(min_version=(3,8))
+
+    posoarg_chevron_pre_py38 = "<a>", """
+        @modifiers.posoargs('a')
+        def func(a):
+            return {'a': a}
+    """, options(max_version=(3,8))
+
+    posoarg_chevron_force_modifiers = "<a>", """
+        @modifiers.posoargs('a')
+        def func(a):
+            return {'a': a}
+    """, force_modifiers
+
+    kwoargs = "*, a", """
+        def func(*, a):
+            return {'a': a}
+    """
+
+    kwoargs_force_modifiers = "*, a", """
+        @modifiers.kwoargs('a')
+        def func(a):
+            return {'a': a}
+    """, force_modifiers
+
+    defaults = "a=1, /, b=2, *, c=3", """
+        def func(a=1, /, b=2, *, c=3):
+            return {'a': a, 'b': b, 'c': c}
+    """, options(min_version=(3,8))
+
+    defaults_starting_after_vararg = "a, *args, b=2", """
+        def func(a, *args, b=2):
+            return {'a': a, 'b': b, 'args': args}
+    """
+
+    defaults_starting_after_star = "a, *, b=2", """
+        def func(a, *, b=2):
+            return {'a': a, 'b': b}
+    """
+
+    varargs_varkwargs = "*args, **kwargs", """
+        def func(*args, **kwargs):
+            return {'args': args, 'kwargs': kwargs}
+    """
+
+    annotations = "a: 1", """
+        def func(a: 1):
+            return {'a': a}
+    """
+
+    annotations_modifiers = "a: 1", """
+        @modifiers.annotate(a=1)
+        def func(a):
+            return {'a': a}
+    """, force_modifiers
+
+    return_annotation = "a", """
+        def func(a) -> 1:
+            return {'a': a}
+    """, {'ret': 1}
+
+    return_annotation_modifiers = "a", """
+        @modifiers.annotate(1)
+        def func(a):
+            return {'a': a}
+    """, {**force_modifiers, 'ret': 1}
+
+    return_and_parameter_annotation_modifiers = "a: 2", """
+        @modifiers.annotate(1, a=2)
+        def func(a):
+            return {'a': a}
+    """, {**force_modifiers, 'ret': 1}
+    kwo_after_default = "a, b=1, *args, c, d, e=4", """
+        @modifiers.kwoargs('c', 'd', 'e')
+        def func(a, c, d, b=1, e=4, *args):
+            return {'a': a, 'b': b, 'c': c, 'd': d, 'e': e, 'args': args}
+    """, force_modifiers

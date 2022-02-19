@@ -110,9 +110,14 @@ class _PokTranslator(_util.OverrideableDataDesc):
                     params.append(param)
             else: # not a POK param
                 if param.name in to_use:
-                    raise ValueError(
-                        '{0.name!r} is not of kind POSITIONAL_OR_KEYWORD, but:'
-                        ' {0.kind}'.format(param))
+                    if param.kind == param.POSITIONAL_ONLY and param.name in self.posoarg_names:
+                        to_use.remove(param.name)
+                    elif param.kind == param.KEYWORD_ONLY and param.name in self.kwoarg_names:
+                        to_use.remove(param.name)
+                    else:
+                        raise ValueError(
+                            '{0.name!r} is not of kind POSITIONAL_OR_KEYWORD, but:'
+                            ' {0.kind}'.format(param))
                 if param.kind == param.VAR_KEYWORD:
                     found_kws = True
                     params.extend(kwoparams)

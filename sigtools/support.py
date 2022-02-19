@@ -52,7 +52,11 @@ re_paramname = re.compile(
     r'$')
 re_posoarg = re.compile(r'^<(.*)>$')
 
-def read_sig(sig_str, ret=None):
+def read_sig(sig_str, ret=_util.UNSET, *,
+             use_modifiers_annotate=False,
+             use_modifiers_posoargs=sys.version_info < (3, 8),
+             use_modifiers_kwoargs=False,
+    ):
     """Reads a string representation of a signature and returns a tuple
     `func_code` can understand."""
 
@@ -65,19 +69,28 @@ def read_sig(sig_str, ret=None):
     found_star = False
     varargs = None
     varkwargs = None
+    chevron_index = None
     default_index = None
     for i, param in enumerate(sig_str.split(',')):
         if not param:
             continue
         arg, annotation, default = re_paramname.match(param).groups()
+        insert = arg
         is_posoarg = re_posoarg.match(arg)
         if is_posoarg:
             name = arg = is_posoarg.group(1)
-            posoarg_n.append(name)
+            insert = arg
+            if use_modifiers_posoargs:
+                posoarg_n.append(name)
+            else:
+                chevron_index = i
         else:
             name = arg.lstrip('*')
         if annotation:
-            annotations[name.lstrip('*')] = annotation
+            if use_modifiers_annotate:
+                annotations[name.lstrip('*')] = annotation
+            else:
+                insert = f"{insert}: {annotation}"
 
         if default:
             if default_index is None:
@@ -85,66 +98,86 @@ def read_sig(sig_str, ret=None):
                     default_index = i - 1
                 else:
                     default_index = i
-            insert = arg + '=' + default
-        else:
-            insert = arg
+            insert = f'{insert}={default}'
 
         if arg == '/':
-            posoarg_n.extend(names)
+            if use_modifiers_posoargs:
+                posoarg_n.extend(names)
+            else:
+                params.append("/")
+                chevron_index = None
         elif arg.startswith('*'):
             found_star = True
+            if chevron_index is not None and not use_modifiers_posoargs:
+                params.insert(chevron_index + 1, "/")
+                chevron_index = None
             if name:
                 params.append(insert)
                 if arg.startswith('**'):
                     varkwargs = name
                 else:
                     varargs = name
+            elif not use_modifiers_kwoargs:
+                params.append("*")
         elif found_star:
-            kwoarg_n.append(arg)
-            if not default and default_index is not None:
-                params.insert(default_index, insert)
-                default_index += 1
-            else:
-                if params and params[-1].startswith('*'):
-                    params.insert(-1, insert)
-                else:
-                    params.append(insert)
+            if not use_modifiers_kwoargs:
+                params.append(insert)
                 names.append(name)
+            else:
+                kwoarg_n.append(arg)
+                names.append(name)
+                if not default and default_index is not None:
+                    params.insert(default_index, insert)
+                    default_index += 1
+                else:
+                    if params and params[-1].startswith('*'):
+                        params.insert(-1, insert)
+                    else:
+                        params.append(insert)
         else:
             params.append(insert)
             names.append(name)
+    if chevron_index is not None and not use_modifiers_posoargs:
+        params.insert(chevron_index + 1, "/")
     if varargs:
         names.append(varargs)
     if varkwargs:
         names.append(varkwargs)
     return (
         names, return_annotation, annotations, posoarg_n, kwoarg_n,
-        ', '.join(params))
+        ', '.join(params), use_modifiers_annotate)
 
 def func_code(names, return_annotation, annotations, posoarg_n,
-              kwoarg_n, params, pre='', name='func'):
+              kwoarg_n, params, use_modifiers_annotate,
+              pre='', name='func',
+    ):
     """Formats the code to construct a function to `read_sig`'s design."""
     code = [pre]
-    if return_annotation and annotations:
-        code.append('@modifiers.annotate({0}, {1})'.format(
-            return_annotation, ', '.join(
-            '{0}={1}'.format(key, value)
-            for key, value in annotations.items())))
-    elif return_annotation:
-        code.append('@modifiers.annotate({0})'.format(return_annotation))
+    if use_modifiers_annotate and return_annotation is not _util.UNSET and annotations:
+        annotation_args = ', '.join(
+            f'{key}={value}'
+            for key, value in annotations.items())
+        code.append(f'@modifiers.annotate({return_annotation}, {annotation_args})')
+    elif use_modifiers_annotate and return_annotation is not _util.UNSET:
+        code.append(f'@modifiers.annotate({return_annotation})')
     elif annotations:
-        code.append('@modifiers.annotate({0})'.format(
-            ', '.join('{0}={1}'.format(key, value)
-                      for key, value in annotations.items())))
+        annotation_args = ', '.join(
+            f'{key}={value}'.format(key, value)
+            for key, value in annotations.items())
+        code.append(f'@modifiers.annotate({annotation_args})')
     if posoarg_n:
-        code.append('@modifiers.posoargs({0})'.format(
-            ', '.join("'{0}'".format(name) for name in posoarg_n)))
+        posoarg_names = ', '.join(f"'{name}'" for name in posoarg_n)
+        code.append(f'@modifiers.posoargs({posoarg_names})')
     if kwoarg_n:
-        code.append('@modifiers.kwoargs({0})'.format(
-            ', '.join("'{0}'".format(name) for name in kwoarg_n)))
-    code.append('def {0}({1}):'.format(name, params))
-    code.append('    return {{{0}}}'.format(
-        ', '.join('{0!r}: {0}'.format(name) for name in names)))
+        kwoargs_name = ', '.join(f"'{name}'" for name in kwoarg_n)
+        code.append(f'@modifiers.kwoargs({kwoargs_name})')
+    if not use_modifiers_annotate and return_annotation is not _util.UNSET:
+        annotation_syntax = f" -> {return_annotation}"
+    else:
+        annotation_syntax = ""
+    code.append(f'def {name}({params}){annotation_syntax}:')
+    return_keyvalues = ', '.join(f'{name!r}: {name}' for name in names)
+    code.append(f'    return {{{return_keyvalues}}}')
     return '\n'.join(code)
 
 def make_func(code, locals=None, name='func'):
@@ -152,11 +185,10 @@ def make_func(code, locals=None, name='func'):
     the resulting namespace."""
     if locals is None:
         locals = {}
-    exec(code, globals(), locals)
+    exec(code, { "modifiers": modifiers }, locals)
     return locals[name]
 
-@modifiers.autokwoargs
-def f(pre='', locals=None, name='func', *args, **kwargs):
+def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', **kwargs):
     """Creates a dummy function that has the signature represented by
     ``sig_str`` and returns a tuple containing the arguments passed,
     in order.
@@ -178,7 +210,7 @@ def f(pre='', locals=None, name='func', *args, **kwargs):
         {'b': 2, 'a': 1, 'kwargs': {'d': 6}, 'args': (3, 4)}
     """
     return make_func(
-        func_code(*read_sig(*args, **kwargs), pre=pre, name=name),
+        func_code(*read_sig(sig_str, ret=ret, **kwargs), name=name, pre=pre),
         locals=locals, name=name)
 
 def s(*args, **kwargs):
@@ -207,7 +239,7 @@ def func_from_sig(sig):
         Do not use with untrusted input.
     """
     ret, sep, sig_str = str(sig).rpartition(' -> ')
-    ret = ret if sep else None
+    ret = ret if sep else _util.UNSET
     return f(sig_str[1:-1], ret)
 
 def make_up_callsigs(sig, extra=2):
