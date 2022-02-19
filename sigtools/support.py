@@ -26,6 +26,7 @@
 
 """
 
+import __future__
 import re
 import sys
 import itertools
@@ -180,15 +181,19 @@ def func_code(names, return_annotation, annotations, posoarg_n,
     code.append(f'    return {{{return_keyvalues}}}')
     return '\n'.join(code)
 
-def make_func(code, locals=None, name='func'):
+def make_func(source, locals=None, name='func', future_features=()):
     """Executes the given code and returns the object named func from
     the resulting namespace."""
     if locals is None:
         locals = {}
+    flags = 0
+    for feature in future_features:
+        flags |= getattr(__future__, feature).compiler_flag
+    code = compile(source, "<sigtools.support>", "exec", flags)
     exec(code, { "modifiers": modifiers }, locals)
     return locals[name]
 
-def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', **kwargs):
+def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', future_features=(), **kwargs):
     """Creates a dummy function that has the signature represented by
     ``sig_str`` and returns a tuple containing the arguments passed,
     in order.
@@ -210,8 +215,15 @@ def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', **kwargs):
         {'b': 2, 'a': 1, 'kwargs': {'d': 6}, 'args': (3, 4)}
     """
     return make_func(
-        func_code(*read_sig(sig_str, ret=ret, **kwargs), name=name, pre=pre),
-        locals=locals, name=name)
+        func_code(
+            *read_sig(sig_str, ret=ret, **kwargs),
+            name=name,
+            pre=pre,
+        ),
+        locals=locals,
+        name=name,
+        future_features=future_features,
+    )
 
 def s(*args, **kwargs):
     """Creates a signature from the given string representation of one.
