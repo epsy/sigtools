@@ -14,7 +14,6 @@ tests_deps = [
 
 setup(
     name='sigtools',
-    version='3.0.0',
     description="Utilities for working with inspect.Signature objects.",
     long_description=long_description,
     long_description_content_type='text/x-rst',
