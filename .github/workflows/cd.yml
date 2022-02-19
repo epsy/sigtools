@@ -1,0 +1,13 @@
+name: Publish Python package to PyPI
+
+on:
+  push:
+    tags:
+      - v[0-9]*
+  release:
+    types:
+      - published
+
+jobs:
+  python-ci:
+    uses: epsy/python-workflows/.github/workflows/python-cd.yaml@main
