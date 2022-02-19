@@ -24,7 +24,7 @@ import sys
 
 from repeated_test import options
 
-from sigtools import support, _specifiers, _util
+from sigtools import support, _specifiers
 from sigtools.tests.util import Fixtures
 
 

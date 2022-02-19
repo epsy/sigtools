@@ -9,7 +9,7 @@ if [ -n "$PAT" ]
 then
     OUT=$(python3 -m pyflakes $1 | grep -Pv "$PAT") || true
     if [ -n "$OUT" ]; then
-        echo $OUT; false
+        echo "$OUT"; false
     else
         true
     fi

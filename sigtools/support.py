@@ -66,7 +66,6 @@ def read_sig(sig_str, ret=_util.UNSET, *,
     posoarg_n = []
     kwoarg_n = []
     params = []
-    arg_position_offset = 0
     found_star = False
     varargs = None
     varkwargs = None
