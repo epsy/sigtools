@@ -6,7 +6,7 @@ with open("README.rst") as fh:
     long_description = fh.read()
 
 tests_deps = [
-    'repeated_test',
+    'repeated_test>=2.1.3',
     'sphinx',
     'mock',
     'coverage',
@@ -25,7 +25,7 @@ setup(
     packages=['sigtools', 'sigtools.tests'],
     tests_require=tests_deps,
     install_requires=[],
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     extras_require={
         'test': tests_deps,
         'tests': tests_deps,
