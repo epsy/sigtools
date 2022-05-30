@@ -18,13 +18,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-
+import contextlib
+import sys
+import warnings
 from collections import defaultdict
 from functools import partial
 
 import unittest
-from repeated_test import tup, WithTestClass
+from repeated_test import tup, WithTestClass, with_options_matrix
+from sigtools import support, _signatures
 
 from sigtools._util import funcsigs
 
@@ -32,7 +34,8 @@ from sigtools._util import funcsigs
 __all__ = [
     'conv_first_posarg',
     'transform_exp_sources', 'transform_real_sources',
-    'SignatureTests', 'Fixtures', 'tup'
+    'SignatureTests', 'Fixtures', 'tup',
+    'FixturesWithFutureAnnotations'
     ]
 
 
@@ -106,16 +109,31 @@ class SignatureTests(unittest.TestCase):
     maxDiff = None
 
     def assertSigsEqual(self, found, expected, *args, **kwargs):
+        if found is not None:
+            self.assertIsInstance(found, _signatures.UpgradedSignature)
+        if expected is not None:
+            self.assertIsInstance(expected, _signatures.UpgradedSignature)
         conv = kwargs.pop('conv_first_posarg', False)
         if expected != found:
+            def raise_assertion():
+                if self.downgrade_sig(found) != self.downgrade_sig(expected):
+                    found_ev = found.evaluated()
+                    expected_ev = found.evaluated()
+                    if found_ev != expected_ev:
+                        raise AssertionError(
+                            'Evaluated signatures are different: '
+                            f'Expected {expected_ev}, got {found_ev} instead.'
+                        )
+                raise AssertionError(
+                    f'Did not get expected signature {expected}, got {found} instead.'
+                )
             if conv:
                 expected = conv_first_posarg(expected)
                 found = conv_first_posarg(found)
-                if expected == found:
-                    return
-            raise AssertionError(
-                'Did not get expected signature({0}), got {1} instead.'
-                .format(expected, found))
+                if expected != found:
+                    raise_assertion()
+            else:
+                raise_assertion()
 
     def assertSourcesEqual(self, found, expected, func=None, depth_order=False):
         r = transform_real_sources(found)
@@ -129,10 +147,51 @@ class SignatureTests(unittest.TestCase):
                 [f for f in sorted(rd, key=rd.get) if f in ed],
                 [f for f in sorted(ed, key=ed.get)])
 
+    @contextlib.contextmanager
+    def maybe_with_downgrade_and_ignore_warnings(self, downgrade, how_to_downgrade):
+        if downgrade:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                yield how_to_downgrade
+        else:
+            yield lambda arg: arg
+
+    def downgrade_sigs(self, sigs):
+        return [self.downgrade_sig(sig) for sig in sigs]
+
     def downgrade_sig(self, sig):
         return funcsigs.Signature(
-            sig.parameters.values(),
+            [self.downgrade_param(param) for param in sig.parameters.values()],
             return_annotation=sig.return_annotation)
+
+    def downgrade_param(self, param: funcsigs.Parameter):
+        return funcsigs.Parameter(
+            param.name, param.kind,
+            default=param.default,
+            annotation=param.annotation,
+        )
 
 
 Fixtures = WithTestClass(SignatureTests)
+
+
+python_has_future_annotations = (3, 7, 0, "final") <= sys.version_info < (3, 11)
+
+
+def signature_not_using_future_annotations(*args, **kwargs):
+    return support.s(*args, **kwargs)
+
+
+def signature_using_future_annotations(*args, **kwargs):
+    return support.s(*args, future_features=["annotations"], **kwargs)
+
+
+@with_options_matrix(
+    support_s=
+        [signature_not_using_future_annotations, signature_using_future_annotations]
+        if python_has_future_annotations else
+        [signature_not_using_future_annotations],
+    downgrade_sig=[False, True],
+)
+class FixturesWithFutureAnnotations(Fixtures):
+    _test = None

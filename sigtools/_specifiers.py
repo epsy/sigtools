@@ -91,7 +91,7 @@ def forged_signature(obj, auto=True, args=(), kwargs={}):
     if forger is not None:
         ret = forger(obj=subject)
         if ret is not None:
-            return ret
+            return _signatures.UpgradedSignature._upgrade_with_warning(ret)
     if auto:
         try:
             subject._sigtools__autoforwards_hint
@@ -106,15 +106,17 @@ def forged_signature(obj, auto=True, args=(), kwargs={}):
                 except _autoforwards.UnknownForwards:
                     pass
                 else:
-                    return ret
+                    return _signatures.UpgradedSignature._upgrade_with_warning(ret)
             subject = _util.get_introspectable(subject, af_hint=False)
         try:
-            ret = _autoforwards.autoforwards(subject, args, kwargs)
+            ret = _signatures.UpgradedSignature._upgrade_with_warning(
+                _autoforwards.autoforwards(subject, args, kwargs)
+            )
         except _autoforwards.UnknownForwards:
             pass
         else:
-            return ret
-    return _signatures.signature(obj)
+            return _signatures.UpgradedSignature._upgrade_with_warning(ret)
+    return _signatures.UpgradedSignature._upgrade_with_warning(_signatures.signature(obj))
 
 
 from sigtools import _autoforwards

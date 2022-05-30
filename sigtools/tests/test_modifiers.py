@@ -25,8 +25,9 @@ from functools import wraps
 
 from sigtools import modifiers, specifiers
 from sigtools._util import funcsigs, safe_get
-from sigtools.support import test_func_sig_coherent, f, s, func_from_sig
+from sigtools.support import assert_func_sig_coherent, f, s, func_from_sig
 from sigtools.signatures import sort_params, apply_params, signature
+from sigtools._signatures import UpgradedParameter
 from sigtools.tests.util import Fixtures, SignatureTests
 
 
@@ -55,10 +56,10 @@ def defaults_variations(exp, orig):
 def insert_varargs(sig, args, kwargs):
     posargs, pokargs, varargs, kwoargs, varkwargs = sort_params(sig)
     if args:
-        varargs = funcsigs.Parameter(
+        varargs = UpgradedParameter(
             'args', funcsigs.Parameter.VAR_POSITIONAL)
     if kwargs:
-        varkwargs = funcsigs.Parameter(
+        varkwargs = UpgradedParameter(
             'kwargs', funcsigs.Parameter.VAR_KEYWORD)
     ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs)
     return ret
@@ -80,7 +81,7 @@ def poktranslator_test(self, expected_sig_str, orig_sig_str,
             func = modifiers._PokTranslator(
                 func_from_sig(orig), posoargs, kwoargs)
             self.assertSigsEqual(exp, signature(func))
-            test_func_sig_coherent(func)
+            assert_func_sig_coherent(func)
             repr(func) # must not cause an error
 
 

@@ -380,9 +380,10 @@ def forward_signatures(func, calls, args, kwargs, sig):
             ausig = _signatures.forwards(
                 sig, wrapped_sig,
                 len(fwdargs) - using_partial,
-                hide_args, hide_kwargs,
-                use_varargs, use_varkwargs,
-                using_partial, *fwdkwargs)
+                *fwdkwargs,
+                hide_args=hide_args, hide_kwargs=hide_kwargs,
+                use_varargs=use_varargs, use_varkwargs=use_varkwargs,
+                partial=using_partial)
             yield ausig
         except ValueError:
             raise UnknownForwards

@@ -19,33 +19,32 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
+import repeated_test
 
 from sigtools.signatures import merge, IncompatibleSignatures
 from sigtools.support import s
-from sigtools.tests.util import Fixtures
-from sigtools._util import OrderedDict as Od, funcsigs
+from sigtools.tests.util import Fixtures, FixturesWithFutureAnnotations
+from sigtools._util import OrderedDict as Od
 
 
-class MergeTests(Fixtures):
-    def _test(self, result, exp_sources, *signatures):
+class MergeTests(FixturesWithFutureAnnotations):
+    def _test(self, result, exp_sources, *signatures, support_s, downgrade_sig):
         assert len(signatures) >= 2
-        sigs = [s(sig, name='_' + str(i))
+        sigs = [support_s(sig, name='_' + str(i))
                 for i, sig in enumerate(signatures, 1)]
 
-        sig = merge(*sigs)
-        exp_sig = s(result)
+        with self.maybe_with_downgrade_and_ignore_warnings(
+            downgrade_sig,
+            self.downgrade_sigs,
+        ) as maybe_downgrade:
+            sig = merge(*maybe_downgrade(sigs))
+        exp_sig = support_s(result)
         exp_sources['+depths'] = dict(
             ('_' + str(i + 1), 0) for i in range(len(signatures)))
 
         self.assertSigsEqual(sig, exp_sig)
-        self.assertSourcesEqual(sig.sources, exp_sources)
-
-        sigs = [
-            funcsigs.Signature(sig.parameters.values(),
-                               return_annotation=sig.return_annotation)
-            for sig in sigs]
-        self.assertSigsEqual(merge(*sigs), exp_sig)
+        if not downgrade_sig:
+            self.assertSourcesEqual(sig.sources, exp_sources)
 
     posarg_default_erase = '', {}, '', '<a>=1'
     posarg_stars = '<a>', {2: 'a'}, '*args', '<a>'
@@ -78,10 +77,11 @@ class MergeTests(Fixtures):
     default_one = 'a', {1: 'a', 2: 'a'}, 'a=1', 'a'
     default_one_r = 'a', {1: 'a', 2: 'a'}, 'a', 'a=1'
 
-    annotation_both_diff = 'a', {1: 'a', 2: 'a'}, 'a:1', 'a:2'
-    annotation_both_same = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a:1'
-    annotation_left = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a'
-    annotation_right = 'a:1', {1: 'a', 2: 'a'}, 'a', 'a:1'
+    with repeated_test.options(downgrade_sig=False):
+        annotation_both_diff = 'a', {1: 'a', 2: 'a'}, 'a:1', 'a:2'
+        annotation_both_same = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a:1'
+        annotation_left = 'a:1', {1: 'a', 2: 'a'}, 'a:1', 'a'
+        annotation_right = 'a:1', {1: 'a', 2: 'a'}, 'a', 'a:1'
 
     star_erase = '', {}, '*args', ''
     star_same = '*args', {1: ['args'], 2: ['args']}, '*args', '*args'

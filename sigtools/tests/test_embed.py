@@ -20,30 +20,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
 from sigtools.signatures import embed, IncompatibleSignatures
 from sigtools.support import s
-from sigtools.tests.util import Fixtures
+from sigtools.tests.util import Fixtures, FixturesWithFutureAnnotations
 
 
-class EmbedTests(Fixtures):
+class EmbedTests(FixturesWithFutureAnnotations):
     def _test(self, result, exp_src, signatures,
-              use_varargs=True, use_varkwargs=True):
+              use_varargs=True, use_varkwargs=True,
+              *, support_s, downgrade_sig):
         assert len(signatures) >= 2
-        sigs = [s(sig_str, name='_' + str(i))
+        sigs = [support_s(sig_str, name='_' + str(i))
                 for i, sig_str in enumerate(signatures, 1)]
         exp_src.setdefault(
             '+depths', ['_' + str(i+1) for i in range(len(signatures))])
 
-        sig = embed(*sigs, use_varargs=use_varargs, use_varkwargs=use_varkwargs)
+        with self.maybe_with_downgrade_and_ignore_warnings(
+            downgrade_sig,
+            self.downgrade_sigs
+        ) as maybe_downgrade:
+            sig = embed(*maybe_downgrade(sigs), use_varargs=use_varargs, use_varkwargs=use_varkwargs)
+
         exp_sig = s(result)
         self.assertSigsEqual(sig, exp_sig)
-        self.assertSourcesEqual(sig.sources, exp_src)
-
-        sigs = [self.downgrade_sig(sig) for sig in sigs]
-        self.assertSigsEqual(
-            embed(*sigs, use_varargs=use_varargs, use_varkwargs=use_varkwargs),
-            exp_sig)
+        if not downgrade_sig:
+            self.assertSourcesEqual(sig.sources, exp_src)
 
     passthrough_pos = '<a>', {2: 'a'}, ['*args, **kwargs', '<a>']
     passthrough_pok = 'a', {2: 'a'}, ['*args, **kwargs', 'a']

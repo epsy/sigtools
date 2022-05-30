@@ -21,11 +21,12 @@
 
 
 import sys
+import unittest
 
 from repeated_test import options
 
 from sigtools import support, _specifiers
-from sigtools.tests.util import Fixtures
+from sigtools.tests.util import Fixtures, python_has_future_annotations
 
 
 def remove_spaces(s):
@@ -107,6 +108,11 @@ class RoundTripTests(Fixtures):
         func = support.f('a, b, c', name='test_name')
         self._assert_equal_ignoring_spaces(func.__name__, 'test_name')
 
+    @unittest.skipUnless(python_has_future_annotations, "requires python with optional deferred annotations")
+    def test_deferred_annotations(self):
+        deferred = support.s('a: 1', future_features=("annotations",))
+        manually_deferred = support.s('a: "1"')
+        self._assert_equal_ignoring_spaces(str(manually_deferred), str(deferred))
 
 class FuncCodeTests(Fixtures):
     def _test(self, sig, expected_code, kwargs={}, *, min_version=None, max_version=None):

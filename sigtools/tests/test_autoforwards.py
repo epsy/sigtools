@@ -41,7 +41,7 @@ class AutoforwardsTests(Fixtures):
         self.assertSigsEqual(sig, support.s(expected))
         self.assertSourcesEqual(sig.sources, sources, func)
         if not incoherent:
-            support.test_func_sig_coherent(
+            support.assert_func_sig_coherent(
                 func, check_return=False, check_invalid=False)
 
     @tup('a, b, x, y, *, z',
@@ -141,7 +141,7 @@ class AutoforwardsTests(Fixtures):
             'x': [_wrapped], 'y': [_wrapped], 'z': [_wrapped],
             '+depths': {func: 0, _wrapper: 1, _wrapped: 2}
         })
-        support.test_func_sig_coherent(
+        support.assert_func_sig_coherent(
             func, check_return=False, check_invalid=False)
 
     @staticmethod
@@ -257,7 +257,7 @@ class AutoforwardsTests(Fixtures):
             'a': [func],
             'y': [_wrapped], 'z': [_wrapped]
         })
-        support.test_func_sig_coherent(
+        support.assert_func_sig_coherent(
             func, check_return=False, check_invalid=False)
 
     def test_decorator_wraps(self):
@@ -275,7 +275,7 @@ class AutoforwardsTests(Fixtures):
             'a': [func], 'b': [func],
             'y': [_wrapped], 'z': [_wrapped]
         })
-        support.test_func_sig_coherent(
+        support.assert_func_sig_coherent(
             func, check_return=False, check_invalid=False)
 
     @tup('a, b, *args, z',
@@ -319,7 +319,7 @@ class UnresolvableAutoforwardsTests(Fixtures):
             signatures.signature(func))
         if ensure_incoherent:
             with self.assertRaises(AssertionError):
-                support.test_func_sig_coherent(
+                support.assert_func_sig_coherent(
                     func, check_return=False, check_invalid=False)
 
     @tup(False)
@@ -493,7 +493,7 @@ class UnresolvableAutoforwardsWithSourcesTests(Fixtures):
         self.assertSigsEqual(sig, support.s(expected))
         self.assertSourcesEqual(sig.sources, expected_src, func)
         with self.assertRaises(AssertionError):
-            support.test_func_sig_coherent(
+            support.assert_func_sig_coherent(
                 func, check_return=False, check_invalid=False)
 
     @tup('v, w, *a, **k', {0: 'vwak'})
