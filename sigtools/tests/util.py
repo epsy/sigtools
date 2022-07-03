@@ -116,9 +116,9 @@ class SignatureTests(unittest.TestCase):
         conv = kwargs.pop('conv_first_posarg', False)
         if expected != found:
             def raise_assertion():
-                if self.downgrade_sig(found) != self.downgrade_sig(expected):
+                if self.downgrade_sig(found) == self.downgrade_sig(expected):
                     found_ev = found.evaluated()
-                    expected_ev = found.evaluated()
+                    expected_ev = expected.evaluated()
                     if found_ev != expected_ev:
                         raise AssertionError(
                             'Evaluated signatures are different: '
@@ -176,6 +176,8 @@ Fixtures = WithTestClass(SignatureTests)
 
 
 python_has_future_annotations = (3, 7, 0, "final") <= sys.version_info < (3, 11)
+python_has_annotations = (3, 11) <= sys.version_info
+python_doesnt_have_future_annotations = sys.version_info < (3, 7, 0, "final")
 
 
 def signature_not_using_future_annotations(*args, **kwargs):

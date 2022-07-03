@@ -33,6 +33,7 @@ individually. They are most notably used by the decorators from
 from sigtools._signatures import (
     signature,
     IncompatibleSignatures,
+    UpgradedSignature, UpgradedParameter, UpgradedAnnotation,
     sort_params, apply_params,
     merge, embed, mask, forwards
     )
@@ -40,5 +41,6 @@ from sigtools._signatures import (
 __all__ = [
     'signature',
     'merge', 'embed', 'mask', 'forwards', 'IncompatibleSignatures',
+    'UpgradedSignature', 'UpgradedParameter', 'UpgradedAnnotation',
     'sort_params', 'apply_params',
     ]

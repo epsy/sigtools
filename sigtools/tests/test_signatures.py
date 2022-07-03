@@ -18,16 +18,20 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-
+import inspect
+import unittest
+import warnings
 from functools import partial
 
 from sigtools._signatures import (
-    sort_params, apply_params, IncompatibleSignatures, signature)
+    sort_params, apply_params, IncompatibleSignatures, signature,
+    UpgradedSignature, UpgradedParameter, _upgrade_parameters_with_warning,
+    UpgradedAnnotation,
+)
 from sigtools.support import s, f
 from sigtools._util import OrderedDict
 
-from sigtools.tests.util import SignatureTests, Fixtures
+from sigtools.tests.util import SignatureTests, Fixtures, python_doesnt_have_future_annotations, python_has_annotations
 
 
 class SourceTests(Fixtures):
@@ -153,3 +157,105 @@ class ExcTests(Fixtures):
 
     one = 'a, b', ['c, d'], '(c, d) (a, b)'
     two = 'a, b', ['c, d', 'e, f'], '(c, d) (e, f) (a, b)'
+
+
+class UpgradedSignatureTests(SignatureTests):
+    def test_upgrade_with_warning(self):
+        sig = s("abc")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            UpgradedSignature._upgrade_with_warning(sig)
+
+        downgraded_sig = self.downgrade_sig(sig)
+        with self.assertWarns(DeprecationWarning):
+            UpgradedSignature._upgrade_with_warning(downgraded_sig)
+
+    def test_none_parameters(self):
+        self.assertSigsEqual(
+            UpgradedSignature(),
+            s(""),
+        )
+
+    def test_replace_keep_parameters(self):
+        sig = s("a, b, c")
+        replaced = sig.replace(
+            return_annotation=1,
+            upgraded_return_annotation=UpgradedAnnotation.preevaluated(1)
+        )
+        self.assertSigsEqual(
+            replaced,
+            s("a, b, c", 1)
+        )
+
+
+class UpgradedParameterTests(SignatureTests):
+    def test_upgrade_with_warning(self):
+        param = UpgradedParameter(
+            name="name",
+            kind=UpgradedParameter.POSITIONAL_OR_KEYWORD,
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _upgrade_parameters_with_warning([param])
+
+        downgraded_param = inspect.Parameter("name", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        with self.assertWarns(DeprecationWarning):
+            _upgrade_parameters_with_warning([param, downgraded_param])
+
+
+class UpgradedAnnotationTests(SignatureTests):
+    def test_upgrade_empty(self):
+        self.assertEqual(
+            UpgradedAnnotation.upgrade(UpgradedParameter.empty, None),
+            UpgradedAnnotation.preevaluated(UpgradedParameter.empty)
+        )
+        self.assertEqual(
+            UpgradedAnnotation.upgrade(inspect.Parameter.empty, None),
+            UpgradedAnnotation.preevaluated(UpgradedParameter.empty)
+        )
+
+    @unittest.skipIf(python_doesnt_have_future_annotations, "Py version doesn't have postponed annotations")
+    def test_upgrade_postponed_annotation(self):
+        func = f("", globals={"value": "the value"}, future_features=["annotations"])
+        self.assertEqual(
+            UpgradedAnnotation.upgrade('value', func),
+            UpgradedAnnotation.preevaluated("the value"),
+        )
+
+    @unittest.skipIf(python_has_annotations, "py version doesn't have preevaluated annotations")
+    def test_upgrade_preevaluated_annotation(self):
+        func = f("")
+        self.assertEqual(
+            UpgradedAnnotation.upgrade('the value', func),
+            UpgradedAnnotation.preevaluated("the value"),
+        )
+
+    def test_upgrade_without_function_warns(self):
+        with self.assertWarns(DeprecationWarning):
+            value = UpgradedAnnotation.upgrade('a value', None)
+        self.assertEqual(value, UpgradedAnnotation.preevaluated(UpgradedParameter.empty))
+
+    def test_not_equal(self):
+        self.assertNotEqual(
+            UpgradedAnnotation.preevaluated(UpgradedParameter.empty),
+            UpgradedAnnotation.preevaluated("some value"),
+            msg="empty is not equal to preevaluated value"
+        )
+        self.assertNotEqual(
+            UpgradedAnnotation.preevaluated("some value"),
+            UpgradedAnnotation.preevaluated("some other value"),
+            msg="two different pre-evaluated values"
+        )
+        self.assertNotEqual(
+            UpgradedAnnotation.preevaluated("some value"),
+            "some value",
+            msg="unrelated types"
+        )
+
+    def test_empty_repr(self):
+        self.assertEqual(
+            repr(UpgradedAnnotation.preevaluated(UpgradedParameter.empty)),
+            "EmptyAnnotation",
+        )

@@ -100,21 +100,6 @@ class _EmptyAnnotation(UpgradedAnnotation):
         return "EmptyAnnotation"
 EmptyAnnotation: UpgradedAnnotation = _EmptyAnnotation()
 
-def _assert_all_parameters_upgraded(parameters):
-    if not all(
-        isinstance(param, UpgradedParameter) for param in parameters
-    ):
-        raise ValueError(
-            f"UpgradedSignature must be instantiated with UpgradedParameter parameters, received {_first_not_upgraded_paramater(parameters)!r}"
-            )
-
-
-def _first_not_upgraded_paramater(parameters):
-    for param in parameters:
-        if not isinstance(param, UpgradedParameter):
-            return param
-    raise ValueError("all params upgraded")
-
 
 class UpgradedSignature(_util.funcsigs.Signature):
     __slots__ = _util.funcsigs.Signature.__slots__ + ('sources', 'upgraded_return_annotation')
@@ -175,7 +160,10 @@ class UpgradedSignature(_util.funcsigs.Signature):
         return ret
 
     def evaluated(self):
-        return self.replace(return_annotation=self.upgraded_return_annotation.value())
+        return self.replace(
+            parameters=[param.evaluated() for param in self.parameters.values()],
+            return_annotation=self.upgraded_return_annotation.value(),
+        )
 
     def __eq__(self, other):
         if not super().__eq__(other):
