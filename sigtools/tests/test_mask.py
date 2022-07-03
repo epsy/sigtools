@@ -19,35 +19,32 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+import repeated_test
+
+from sigtools import signatures
+from sigtools.tests.util import FixturesWithFutureAnnotations
 
 
-from sigtools import signatures, support
-from sigtools._util import funcsigs
-from sigtools.tests.util import Fixtures
-
-
-class MaskTests(Fixtures):
+class MaskTests(FixturesWithFutureAnnotations):
     def _test(self, expected_str, sig_str, num_args=0, named_args=(),
                    hide_varargs=False, hide_varkwargs=False,
-                   hide_args=False, hide_kwargs=False):
-        expected_sig = support.s(expected_str)
+                   hide_args=False, hide_kwargs=False,
+                   *, support_s, downgrade_sig):
+        expected_sig = support_s(expected_str)
 
-        sig = signatures.mask(
-                support.s(sig_str), num_args, *named_args,
+        in_sig = support_s(sig_str)
+
+        with self.maybe_with_downgrade_and_ignore_warnings(downgrade_sig, self.downgrade_sig) as maybe_downgrade:
+            sig = signatures.mask(
+                maybe_downgrade(in_sig), num_args, *named_args,
                 hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
                 hide_args=hide_args, hide_kwargs=hide_kwargs)
+
         self.assertSigsEqual(sig, expected_sig)
 
-        expected_src = {'func': expected_sig.parameters}
-        self.assertSourcesEqual(sig.sources, expected_src, func='func')
-
-        in_sig = support.s(sig_str)
-        in_sig = funcsigs.Signature(in_sig.parameters.values(),
-                                    return_annotation=in_sig.return_annotation)
-        sig = signatures.mask(
-                in_sig, num_args, *named_args,
-                hide_varargs=hide_varargs, hide_varkwargs=hide_varkwargs,
-                hide_args=hide_args, hide_kwargs=hide_kwargs)
+        if not downgrade_sig:
+            expected_src = {'func': expected_sig.parameters}
+            self.assertSourcesEqual(sig.sources, expected_src, func='func')
 
     hide_pos = '<b>', '<a>, <b>', 1
     hide_pos_pok = 'c', '<a>, b, c', 2
@@ -79,10 +76,12 @@ class MaskTests(Fixtures):
         0, '', False, False, False, True)
 
 
-class MaskRaiseTests(Fixtures):
+@repeated_test.with_options(downgrade_sig=repeated_test.skip_option)
+class MaskRaiseTests(FixturesWithFutureAnnotations):
     def _test(self, sig_str, num_args, named_args=(),
-              hide_varargs=False, hide_varkwargs=False):
-        sig = support.s(sig_str)
+              hide_varargs=False, hide_varkwargs=False,
+              *, support_s):
+        sig = support_s(sig_str)
         self.assertRaises(
             ValueError, signatures.mask,
             sig, num_args, *named_args,

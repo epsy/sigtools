@@ -354,8 +354,12 @@ class annotate(object):
         to_use = self.to_use.copy()
         for name, parameter in sig.parameters.items():
             if name in self.annotations:
+                annotation = self.annotations[name]
+                upgraded_annotation = _signatures.UpgradedAnnotation.preevaluated(annotation)
                 parameters.append(parameter.replace(
-                    annotation=self.annotations[name]))
+                    annotation=annotation,
+                    upgraded_annotation=upgraded_annotation,
+                ))
                 to_use.remove(name)
             else:
                 parameters.append(parameter)
@@ -368,7 +372,8 @@ class annotate(object):
             sig = sig.replace(parameters=parameters)
         else:
             sig = sig.replace(parameters=parameters,
-                              return_annotation=self.ret)
+                              return_annotation=self.ret,
+                              upgraded_return_annotation=_signatures.UpgradedAnnotation.preevaluated(self.ret))
         func.__signature__ = sig
         for pok in reversed(poks):
             pok._prepare()

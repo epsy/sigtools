@@ -19,42 +19,232 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import __future__
+import abc
+from itertools import zip_longest
 import itertools
 import collections
 from functools import partial
+import typing
+import warnings
+
+import attr
 
 from sigtools import _util
 
-try:
-    zip_longest = itertools.izip_longest
-except AttributeError: # pragma: no cover
-    zip_longest = itertools.zip_longest
 
+class UpgradedAnnotation(metaclass=abc.ABCMeta):
+    @classmethod
+    def upgrade(cls, raw_annotation, function, *, _stacklevel=0) -> 'UpgradedAnnotation':
+        if raw_annotation is UpgradedParameter.empty:
+            return EmptyAnnotation
 
-class Signature(_util.funcsigs.Signature):
-    __slots__ = _util.funcsigs.Signature.__slots__ + ('sources',)
+        if not function:
+            warnings.warn(
+                "No function provided when upgrading annotation",
+                DeprecationWarning,
+                stacklevel=_stacklevel + 1
+            )
+            return EmptyAnnotation
 
-    def __init__(self, *args, **kwargs):
-        self.sources = kwargs.pop('sources', {})
-        super(Signature, self).__init__(*args, **kwargs)
+        feature = getattr(__future__, "annotations", None)
+        if feature and function.__code__.co_flags & feature.compiler_flag:
+            return PostponedAnnotation(raw_annotation, function)
+
+        return PreEvaluatedAnnotation(raw_annotation)
 
     @classmethod
-    def upgrade(cls, inst, sources):
+    def preevaluated(cls, value) -> 'UpgradedAnnotation':
+        if value is UpgradedParameter.empty:
+            return EmptyAnnotation
+        return PreEvaluatedAnnotation(value)
+
+    @abc.abstractmethod
+    def value(self):
+        raise NotImplementedError
+
+    def __eq__(self, other):
+        if isinstance(other, UpgradedAnnotation):
+            return self.value() == other.value()
+        return False
+
+
+@attr.define(eq=False)
+class PostponedAnnotation(UpgradedAnnotation):
+    """An annotation whose evaluation was postponed per :PEP:`563`"""
+
+    raw_annotation: typing.Any
+    function: typing.Callable
+
+    def value(self):
+        return eval(self.raw_annotation, self.function.__globals__, {})
+
+
+@attr.define(eq=False)
+class PreEvaluatedAnnotation(UpgradedAnnotation):
+    """An annotation that was already evaluated"""
+
+    annotation: typing.Any
+
+    def value(self):
+        return self.annotation
+
+
+class _EmptyAnnotation(UpgradedAnnotation):
+    """An annotation that was not supplied"""
+
+    def value(self):
+        return UpgradedParameter.empty
+
+    def __repr__(self):
+        return "EmptyAnnotation"
+EmptyAnnotation: UpgradedAnnotation = _EmptyAnnotation()
+
+
+class UpgradedSignature(_util.funcsigs.Signature):
+    __slots__ = _util.funcsigs.Signature.__slots__ + ('sources', 'upgraded_return_annotation')
+
+    def __init__(self, parameters=None, *args, upgraded_return_annotation=EmptyAnnotation, _stacklevel=0, **kwargs):
+        self.sources = kwargs.pop('sources', {})
+        self.upgraded_return_annotation = upgraded_return_annotation
+        parameters = _upgrade_parameters_with_warning(parameters, stacklevel=_stacklevel + 1)
+        super(Signature, self).__init__(parameters, *args, **kwargs)
+
+    @classmethod
+    def upgrade(cls, inst, function, sources, *, _stacklevel=0):
         if isinstance(inst, cls):
             return inst
+        params = [
+            UpgradedParameter.upgrade(param, function, sources)
+            for param in inst.parameters.values()
+        ]
         return cls(
-            inst.parameters.values(),
+            params,
             return_annotation=inst.return_annotation,
-            sources=sources)
+            upgraded_return_annotation=UpgradedAnnotation.upgrade(inst.return_annotation, function),
+            sources=sources,
+            _stacklevel=_stacklevel,
+        )
 
-    def replace(self, *args, **kwargs):
+    @classmethod
+    def _upgrade_with_warning(cls, inst, *, _stacklevel=0):
+        if isinstance(inst, cls):
+            return inst
+        warnings.warn(
+            "inspect.Signature instances passed to sigtools "
+            "must be upgraded with sigtools.Signature.upgrade",
+            DeprecationWarning,
+            stacklevel=_stacklevel + 2,
+        )
+        return cls.upgrade(inst, None, {})
+
+    def replace(self, *args, _stacklevel=0, **kwargs):
         try:
             sources = kwargs.pop('sources')
         except KeyError:
             sources = self.sources
-        ret = super(Signature, self).replace(*args, **kwargs)
+        try:
+            parameters = kwargs.pop('parameters')
+        except KeyError:
+            parameters = self.parameters.values()
+        else:
+            parameters = _upgrade_parameters_with_warning(parameters, stacklevel=_stacklevel + 1)
+        try:
+            upgraded_return_annotation = kwargs.pop("upgraded_return_annotation")
+        except KeyError:
+            upgraded_return_annotation = self.upgraded_return_annotation
+        ret = super().replace(*args, parameters=parameters, **kwargs)
+        assert isinstance(ret, type(self))
         ret.sources = sources
+        ret.upgraded_return_annotation = upgraded_return_annotation
         return ret
+
+    def evaluated(self):
+        return self.replace(
+            parameters=[param.evaluated() for param in self.parameters.values()],
+            return_annotation=self.upgraded_return_annotation.value(),
+        )
+
+    def __eq__(self, other):
+        if not super().__eq__(other):
+            return False
+        return self.upgraded_return_annotation == other.upgraded_return_annotation
+
+
+Signature = UpgradedSignature
+
+
+class UpgradedParameter(_util.funcsigs.Parameter):
+    __slots__ = _util.funcsigs.Parameter.__slots__ + ('upgraded_annotation', 'function', 'sources', "source_depths")
+
+    @classmethod
+    def upgrade(cls, inst, function, function_sources):
+        if isinstance(inst, cls):
+            return inst
+        sources = function_sources.get(inst.name, [])
+        source_depths = {
+            func: depth
+            for func, depth in function_sources.get("+depths", {}).items()
+            if func in sources
+        }
+        return cls(
+            name=inst.name,
+            kind=inst.kind,
+            default=inst.default,
+            annotation=inst.annotation,
+            upgraded_annotation=UpgradedAnnotation.upgrade(inst.annotation, function),
+            function=function,
+            sources=sources,
+            source_depths=source_depths,
+        )
+
+    def __init__(self, *args, function=None, sources=[], source_depths={}, upgraded_annotation=EmptyAnnotation, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.function = function
+        self.sources = sources
+        self.source_depths = source_depths
+        self.upgraded_annotation = upgraded_annotation
+
+    def replace(self, function=_util.UNSET, sources=_util.UNSET, source_depths=_util.UNSET, upgraded_annotation=_util.UNSET, **kwargs):
+        function = self.function if function is _util.UNSET else function
+        sources = self.sources if sources is _util.UNSET else sources
+        source_depths = self.source_depths if source_depths is _util.UNSET else source_depths
+        upgraded_annotation = self.upgraded_annotation if upgraded_annotation is _util.UNSET else upgraded_annotation
+
+        ret = super().replace(**kwargs)
+        assert isinstance(ret, type(self))
+        ret.function = function
+        ret.sources = sources
+        ret.source_depths = source_depths
+        ret.upgraded_annotation = upgraded_annotation
+        return ret
+
+    def evaluated(self):
+        return self.replace(annotation=self.upgraded_annotation.value())
+
+    def __eq__(self, other):
+        if not super().__eq__(other):
+            return False
+        return self.upgraded_annotation == other.upgraded_annotation
+
+
+def _upgrade_parameters_with_warning(parameters, stacklevel=1):
+    if parameters is None:
+        return None
+    if all(isinstance(param, UpgradedParameter) for param in parameters):
+        return parameters
+    else:
+        warnings.warn(
+            "inspect.Signature and Parameter instances "
+            "passed to sigtools should be upgraded "
+            "to sigtools.UpgradedSignature and UpgradedParameter",
+            DeprecationWarning,
+            stacklevel=2 + stacklevel
+        )
+        return [
+            UpgradedParameter.upgrade(param, function=None, function_sources={})
+            for param in parameters
+        ]
 
 
 def default_sources(sig, obj):
@@ -65,7 +255,7 @@ def default_sources(sig, obj):
 
 def set_default_sources(sig, obj):
     """Assigns the source of every parameter of sig to obj"""
-    return Signature.upgrade(sig, default_sources(sig, obj))
+    return Signature.upgrade(sig, obj, default_sources(sig, obj))
 
 
 def signature(obj):
@@ -98,10 +288,10 @@ SortedParameters = collections.namedtuple(
     'posargs pokargs varargs kwoargs varkwargs sources')
 
 
-def sort_params(sig, sources=False):
+def sort_params(sig, sources=False, _stacklevel=0):
     """Classifies the parameters from sig.
 
-    :param inspect.Signature sig: The signature to operate on
+    :param UpgradedSignature sig: The signature to operate on
 
     :returns: A tuple ``(posargs, pokargs, varargs, kwoargs, varkwas)``
     :rtype: ``(list, list, Parameter or None, dict, Parameter or None)``
@@ -119,6 +309,8 @@ def sort_params(sig, sources=False):
          None)
 
     """
+    sig = UpgradedSignature._upgrade_with_warning(sig, _stacklevel=_stacklevel + 1)
+    assert isinstance(sig, UpgradedSignature), "signature must be upgraded"
     posargs = []
     pokargs = []
     varargs = None
@@ -146,12 +338,13 @@ def sort_params(sig, sources=False):
 
 
 def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
-                 sources=None):
+                 sources=None, function=None, *, _stacklevel=0):
     """Reverses `sort_params`'s operation.
 
     :returns: A new `inspect.Signature` object based off sig,
         with the given parameters.
     """
+    sig = UpgradedSignature._upgrade_with_warning(sig, _stacklevel=_stacklevel + 1)
     parameters = []
     parameters.extend(posargs)
     parameters.extend(pokargs)
@@ -160,9 +353,9 @@ def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
     parameters.extend(kwoargs.values())
     if varkwargs:
         parameters.append(varkwargs)
-    sig = sig.replace(parameters=parameters)
+    sig = sig.replace(parameters=parameters, _stacklevel=_stacklevel + 1)
     if sources is not None:
-        sig = Signature.upgrade(sig, sources)
+        sig = Signature.upgrade(sig, function, sources, _stacklevel=1)
         sig.sources = sources
     return sig
 
@@ -417,14 +610,18 @@ class _Merger(object):
                 # actual default in the function body
                 default = None
         annotation = left.empty
+        upgraded_annotation = EmptyAnnotation
         if left.annotation != left.empty and right.annotation != right.empty:
             if left.annotation == right.annotation:
                 annotation = left.annotation
+                upgraded_annotation = left.upgraded_annotation
         elif left.annotation != left.empty:
             annotation = left.annotation
+            upgraded_annotation = left.upgraded_annotation
         elif right.annotation != right.empty:
             annotation = right.annotation
-        return left.replace(default=default, annotation=annotation)
+            upgraded_annotation = right.upgraded_annotation
+        return left.replace(default=default, annotation=annotation, upgraded_annotation=upgraded_annotation)
 
 
 def merge(*signatures):
@@ -436,7 +633,7 @@ def merge(*signatures):
     conform to the merged signature may actually work on all the given ones
     regardless.
 
-    :param inspect.Signature signatures: The signatures to merge together.
+    :param sigtools.UpgradedSignature signatures: The signatures to merge together.
 
     :returns: a `inspect.Signature` object
     :raises: `IncompatibleSignatures`
@@ -485,14 +682,14 @@ def merge(*signatures):
 
     """
     assert signatures, "Expected at least one signature"
-    ret = sort_params(signatures[0], sources=True)
+    ret = sort_params(signatures[0], sources=True, _stacklevel=1)
     for i, sig in enumerate(signatures[1:], 1):
-        sorted_params = sort_params(sig, sources=True)
+        sorted_params = sort_params(sig, sources=True, _stacklevel=1)
         try:
             ret = SortedParameters(*_Merger(ret, sorted_params))
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    ret_sig = apply_params(signatures[0], *ret)
+    ret_sig = apply_params(signatures[0], *ret, _stacklevel=1)
     return ret_sig
 
 
@@ -565,7 +762,7 @@ def _embed(outer, inner, use_varargs=True, use_varkwargs=True, depth=1):
         src
         )
 
-def embed(use_varargs=True, use_varkwargs=True, *signatures):
+def embed(*signatures, use_varargs=True, use_varkwargs=True, _stacklevel=0):
     """Embeds a signature within another's ``*args`` and ``**kwargs``
     parameters, as if a function with the outer signature called a function with
     the inner signature with just ``f(*args, **kwargs)``.
@@ -596,14 +793,14 @@ def embed(use_varargs=True, use_varkwargs=True, *signatures):
         (self, *args, keyword, **kwargs)
     """
     assert signatures
-    ret = sort_params(signatures[0], sources=True)
+    ret = sort_params(signatures[0], sources=True, _stacklevel=_stacklevel + 1)
     for i, sig in enumerate(signatures[1:], 1):
         try:
-            ret = _embed(ret, sort_params(sig, sources=True),
+            ret = _embed(ret, sort_params(sig, sources=True, _stacklevel=_stacklevel + 1),
                          use_varargs, use_varkwargs, i)
         except ValueError:
             raise IncompatibleSignatures(sig, signatures[:i])
-    return apply_params(signatures[0], *ret)
+    return apply_params(signatures[0], *ret, _stacklevel=_stacklevel + 1)
 
 
 def _pop_chain(*sequences):
@@ -623,9 +820,10 @@ def _pnames(ita):
 
 
 def _mask(sig, num_args, hide_args, hide_kwargs,
-          hide_varargs, hide_varkwargs, named_args, partial_obj):
+          hide_varargs, hide_varkwargs, named_args, partial_obj,
+          *, _stacklevel=0):
     posargs, pokargs, varargs, kwoargs, varkwargs, src \
-        = sort_params(sig, sources=True)
+        = sort_params(sig, sources=True, _stacklevel=_stacklevel + 1)
 
     pokargs_by_name = dict((p.name, p) for p in pokargs)
     consumed_names = set()
@@ -696,7 +894,7 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
                 'Named parameter {0!r} not found in signature: {1}'
                 .format(kwarg_name, sig))
         elif partial_mode:
-            kwoargs[kwarg_name] = _util.funcsigs.Parameter(
+            kwoargs[kwarg_name] = UpgradedParameter(
                 kwarg_name, _util.funcsigs.Parameter.KEYWORD_ONLY,
                 default=named_args[kwarg_name])
             src[kwarg_name] = [partial_obj]
@@ -710,14 +908,16 @@ def _mask(sig, num_args, hide_args, hide_kwargs,
     if partial_mode:
         src = copy_sources(src, increase=True)
         src['+depths'][partial_obj] = 0
-    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src)
+    ret = apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs, src, _stacklevel=_stacklevel + 1)
     return ret
 
 
 def mask(sig, num_args=0,
+         *named_args,
          hide_args=False, hide_kwargs=False,
          hide_varargs=False, hide_varkwargs=False,
-         *named_args):
+         _stacklevel=0
+         ):
     """Removes the given amount of positional parameters and the given named
     parameters from ``sig``.
 
@@ -746,13 +946,14 @@ def mask(sig, num_args=0,
 
     """
     return _mask(sig, num_args, hide_args, hide_kwargs,
-                 hide_varargs, hide_varkwargs, named_args, None)
+                 hide_varargs, hide_varkwargs, named_args, None, _stacklevel=_stacklevel + 1)
 
 
 def forwards(outer, inner, num_args=0,
+             *named_args,
              hide_args=False, hide_kwargs=False,
              use_varargs=True, use_varkwargs=True,
-             partial=False, *named_args):
+             partial=False):
     """Calls `mask` on ``inner``, then returns the result of calling
     `embed` with ``outer`` and the result of `mask`.
 
@@ -791,8 +992,13 @@ def forwards(outer, inner, num_args=0,
                 params.append(param.replace(default=None))
         inner = inner.replace(parameters=params)
     return embed(
-        use_varargs, use_varkwargs,
         outer,
         mask(inner, num_args,
-             hide_args, hide_kwargs, False, False,
-             *named_args))
+             *named_args,
+             hide_args=hide_args, hide_kwargs=hide_kwargs,
+             hide_varargs=False, hide_varkwargs=False,
+             _stacklevel=1,
+             ),
+        use_varargs=use_varargs, use_varkwargs=use_varkwargs,
+        _stacklevel=1,
+    )

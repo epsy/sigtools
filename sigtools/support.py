@@ -37,7 +37,7 @@ from sigtools import _util, modifiers, signatures, specifiers
 __all__ = [
     's', 'f', 'read_sig', 'func_code', 'make_func', 'func_from_sig',
     'make_up_callsigs', 'bind_callsig', 'sort_callsigs',
-    'test_func_sig_coherent',
+    'assert_func_sig_coherent',
     ]
 
 try:
@@ -181,19 +181,19 @@ def func_code(names, return_annotation, annotations, posoarg_n,
     code.append(f'    return {{{return_keyvalues}}}')
     return '\n'.join(code)
 
-def make_func(source, locals=None, name='func', future_features=()):
+def make_func(source, globals=None, locals=None, name='func', future_features=()):
     """Executes the given code and returns the object named func from
     the resulting namespace."""
-    if locals is None:
-        locals = {}
     flags = 0
     for feature in future_features:
         flags |= getattr(__future__, feature).compiler_flag
     code = compile(source, "<sigtools.support>", "exec", flags)
-    exec(code, { "modifiers": modifiers }, locals)
-    return locals[name]
+    func_globals = { "modifiers": modifiers, **(globals or {}) }
+    exec(code, func_globals, locals)
+    def_space = locals if locals is not None else func_globals
+    return def_space[name]
 
-def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', future_features=(), **kwargs):
+def f(sig_str, ret=_util.UNSET, *, pre='', globals=None, locals=None, name='func', future_features=(), **kwargs):
     """Creates a dummy function that has the signature represented by
     ``sig_str`` and returns a tuple containing the arguments passed,
     in order.
@@ -220,6 +220,7 @@ def f(sig_str, ret=_util.UNSET, *, pre='', locals=None, name='func', future_feat
             name=name,
             pre=pre,
         ),
+        globals=globals,
         locals=locals,
         name=name,
         future_features=future_features,
@@ -388,7 +389,7 @@ def sort_callsigs(sig, callsigs):
 
     return valid, invalid
 
-def test_func_sig_coherent(func, check_return=True, check_invalid=True):
+def assert_func_sig_coherent(func, check_return=True, check_invalid=True):
     """Tests if a function is coherent with its signature.
 
     :param bool check_return: Check if the return value is correct

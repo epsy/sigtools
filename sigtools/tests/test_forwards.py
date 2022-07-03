@@ -20,56 +20,53 @@
 # THE SOFTWARE.
 
 
+from repeated_test import options
+
 from sigtools.signatures import forwards
 from sigtools.support import s
 
-from sigtools.tests.util import Fixtures
+from sigtools.tests.util import FixturesWithFutureAnnotations
 
 
-class ForwardsTests(Fixtures):
+class ForwardsTests(FixturesWithFutureAnnotations):
     def _test(self, exp_sig, exp_src, outer, inner,
-                    num_args=0, named_args=(),
+                    *, num_args=0, named_args=(),
                     hide_args=False, hide_kwargs=False,
                     use_varargs=True, use_varkwargs=True,
-                    partial=False):
-        outer_sig = s(outer, name='o')
-        inner_sig = s(inner, name='i')
+                    partial=False,
+                    support_s, downgrade_sig
+              ):
+        outer_sig = support_s(outer, name='o')
+        inner_sig = support_s(inner, name='i')
 
-        sig = forwards(
-                    outer_sig, inner_sig,
-                    num_args, *named_args,
-                    hide_args=hide_args, hide_kwargs=hide_kwargs,
-                    use_varargs=use_varargs, use_varkwargs=use_varkwargs,
-                    partial=partial)
-        self.assertSigsEqual(sig, s(exp_sig))
-        self.assertSourcesEqual(sig.sources, {
-                'o': exp_src[0], 'i': exp_src[1],
-                '+depths': ['o', 'i']})
+        with self.maybe_with_downgrade_and_ignore_warnings(
+            downgrade_sig,
+            self.downgrade_sig
+        ) as maybe_downgrade:
+            sig = forwards(
+                        maybe_downgrade(outer_sig), maybe_downgrade(inner_sig),
+                        num_args, *named_args,
+                        hide_args=hide_args, hide_kwargs=hide_kwargs,
+                        use_varargs=use_varargs, use_varkwargs=use_varkwargs,
+                        partial=partial)
+            self.assertSigsEqual(sig, s(exp_sig))
+            if not downgrade_sig:
+                self.assertSourcesEqual(sig.sources, {
+                        'o': exp_src[0], 'i': exp_src[1],
+                        '+depths': ['o', 'i']})
 
-        outer_sig = self.downgrade_sig(outer_sig)
-        inner_sig = self.downgrade_sig(inner_sig)
-        sig = forwards(
-            outer_sig, inner_sig,
-            num_args, *named_args,
-            hide_args=hide_args, hide_kwargs=hide_kwargs,
-            use_varargs=use_varargs, use_varkwargs=use_varkwargs,
-            partial=partial)
-        self.assertSigsEqual(sig, s(exp_sig))
- 
     a = 'a, b', ['a', 'b'], 'a, *args, **kwargs', 'b'
 
-    pass_pos = 'a, c', ['a', 'c'], 'a, *p, **k', 'b, c', 1
-    pass_kw = 'a, *, c', ['a', 'c'], 'a, *p, **k', 'b, c', 0, 'b'
+    pass_pos = 'a, c', ['a', 'c'], 'a, *p, **k', 'b, c', options(num_args=1)
+    pass_kw = 'a, *, c', ['a', 'c'], 'a, *p, **k', 'b, c', options(named_args='b')
 
-    dont_use_varargs = (
-        'a, *p, b', ['ap', 'b'], 'a, *p, **k', 'b',
-        0, (), False, False, False, True)
+    dont_use_varargs = 'a, *p, b', ['ap', 'b'], 'a, *p, **k', 'b', options(use_varargs=False)
 
     through_kw = (
-        'a, b, *, z', ['ab', 'z'], 'a, b, **k', 'x, y, *, z', 2, (), True)
+        'a, b, *, z', ['ab', 'z'], 'a, b, **k', 'x, y, *, z', options(num_args=2, hide_args=True))
 
-    kwo = 'x, y, /, *, k', ['k', 'xy'], '*args, k', 'x, y, *, z', 0, 'z'
+    kwo = 'x, y, /, *, k', ['k', 'xy'], '*args, k', 'x, y, *, z', options(named_args='z')
 
     par = (
         'a, *, b, y=None, **z', ['ab', 'yz'], 'a, *p, b, **k', 'x, *, y, **z',
-        1, '', False, False, True, True, True)
+        options(num_args=1, partial=True))

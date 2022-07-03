@@ -30,10 +30,10 @@ individually. They are most notably used by the decorators from
 
 """
 
-from sigtools import modifiers
 from sigtools._signatures import (
     signature,
     IncompatibleSignatures,
+    UpgradedSignature, UpgradedParameter, UpgradedAnnotation,
     sort_params, apply_params,
     merge, embed, mask, forwards
     )
@@ -41,11 +41,6 @@ from sigtools._signatures import (
 __all__ = [
     'signature',
     'merge', 'embed', 'mask', 'forwards', 'IncompatibleSignatures',
+    'UpgradedSignature', 'UpgradedParameter', 'UpgradedAnnotation',
     'sort_params', 'apply_params',
     ]
-
-
-merge = modifiers.autokwoargs(merge)
-embed = modifiers.autokwoargs(embed)
-mask = modifiers.autokwoargs(exceptions=('num_args',))(mask)
-forwards = modifiers.autokwoargs(exceptions=('num_args',))(forwards)
