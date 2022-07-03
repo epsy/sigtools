@@ -160,12 +160,9 @@ class SignatureTestsTests(tutil.SignatureTests):
             self.assertSigsEqual(s('self, /, one'), s('self, *, one'),
                                  conv_first_posarg=True)
 
+    @unittest.skipIf(*tutil.python_doesnt_have_future_annotations)
     def test_sigs_equal_evaluated_annotation_different(self):
-        self.assertSigsEqual( # xcxc move this
-            s("one: a", globals={"a": 1}, future_features=["annotations"]).evaluated(),
-            s("one: 1"),
-        )
-        with self.assertRaisesRegex(AssertionError, "^.*(one: 2).*(one: 1).*$") as ar:
+        with self.assertRaisesRegex(AssertionError, "^.*(one: 2).*(one: 1).*$"):
             self.assertSigsEqual(
                 s("one: a", globals={"a": 1}, future_features=["annotations"]),
                 s("one: a", globals={"a": 2}, future_features=["annotations"]),

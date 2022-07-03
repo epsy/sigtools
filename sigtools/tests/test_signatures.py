@@ -188,6 +188,13 @@ class UpgradedSignatureTests(SignatureTests):
             s("a, b, c", 1)
         )
 
+    @unittest.skipIf(*python_doesnt_have_future_annotations)
+    def test_evaluated(self):
+        self.assertSigsEqual(
+            s("one: a", "ret", globals={"a": 1, "ret": 2}, future_features=["annotations"]).evaluated(),
+            s("one: 1", 2),
+        )
+
 
 class UpgradedParameterTests(SignatureTests):
     def test_upgrade_with_warning(self):
@@ -216,7 +223,7 @@ class UpgradedAnnotationTests(SignatureTests):
             UpgradedAnnotation.preevaluated(UpgradedParameter.empty)
         )
 
-    @unittest.skipIf(python_doesnt_have_future_annotations, "Py version doesn't have postponed annotations")
+    @unittest.skipIf(*python_doesnt_have_future_annotations)
     def test_upgrade_postponed_annotation(self):
         func = f("", globals={"value": "the value"}, future_features=["annotations"])
         self.assertEqual(

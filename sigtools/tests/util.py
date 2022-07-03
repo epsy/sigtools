@@ -177,7 +177,10 @@ Fixtures = WithTestClass(SignatureTests)
 
 python_has_future_annotations = (3, 7, 0, "final") <= sys.version_info < (3, 11)
 python_has_annotations = (3, 11) <= sys.version_info
-python_doesnt_have_future_annotations = sys.version_info < (3, 7, 0, "final")
+python_doesnt_have_future_annotations = (
+    (sys.version_info < (3, 7, 0, "final")),
+    "Python version does not have __future__.annotations"
+)
 
 
 def signature_not_using_future_annotations(*args, **kwargs):
