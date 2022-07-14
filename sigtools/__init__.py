@@ -1,5 +1,5 @@
 # sigtools - Collection of Python modules for manipulating function signatures
-# Copyright (C) 2013-2021 Yann Kaiser
+# Copyright (C) 2013-2022 Yann Kaiser
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
