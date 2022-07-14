@@ -16,7 +16,6 @@ function annotations.
     :caption: Guide
 
     signature-retrieval
-    build-introspect
     forwards-howto
     sphinx-autodoc
     modifiers

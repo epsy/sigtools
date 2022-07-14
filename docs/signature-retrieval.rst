@@ -1,12 +1,50 @@
 
+.. _build introspect:
 .. _signature retrieval:
 
 ============================
 Improved signature reporting
 ============================
 
-Python's `inspect` module can produce `signature objects
-<https://docs.python.org/3/library/inspect#introspecting-callables-with-the-signature-object>`_,
+Whether it is for building documentation or minimizing repetition for the users
+of your library or framework, inspecting callables might be something that could
+help you achieve it.
+
+Python has provided tools to help you do this for a while.
+The `inspect` module in version 2.1 added `~inspect.getargspec`
+which made use of code and function attributes dating back to Python 1.3.
+Python 3.3 introduced `inspect.signature`
+which polished the concept such that
+a `inspect.Signature` object describes a function's
+parameters, annotations and default values.
+
+.. autosignature:: sigtools.signature
+    :index:
+
+    Improved version of `inspect.signature`. Takes into account decorators from
+    `sigtools.specifiers` if present or tries to determine a full signature
+    automatically.
+
+    See `sigtools.specifiers.signature` for detailed reference.
+
+`sigtools.signature` is a drop-in replacement for `inspect.signature`, with a
+few key improvements:
+
+* It can automatically traverse through decorators, while keeping track of
+  which functions owns each parameter
+* It helps you evaluate parameter annotations in the proper context,
+  for instance when the parameter annotation is defined in
+  a module that enables :pep:`postponed evaluation of annotations <563>`.
+* It supports a mechanism for functions to dynamically alter their reported
+  signature
+
+.. _using sigtools.signature:
+
+Using `sigtools.signature`
+==========================
+
+Python's `inspect` module can produce :ref:`signature objects
+<python:inspect-signature-object>`,
 which represent how a function can be called. Their textual representation
 roughly matches the parameter list part of a function definition:
 
@@ -22,18 +60,30 @@ roughly matches the parameter list part of a function definition:
     print(inspect.signature(func))
     # (abc, *args, **kwargs)
 
-``sigtools`` introduces its own version of ``signature`` with improvements:
+You can do the same with `sigtools.signature`::
 
-.. autosignature:: sigtools.signature
-    :index:
+    from sigtools import signature
 
-    Improved version of `inspect.signature`. Takes into account decorators from
-    `sigtools.specifiers` if present or tries to determine a full signature
-    automatically.
+    print(signature(func))
+    # (abc, *args, **kwargs)
 
-    See `sigtools.specifiers.signature` for detailed reference.
+You can use the resulting object the same way as `inspect.Signature`, for example::
 
-For instance, consider this example of a decorator being defined and applied:
+    sig = signature(myfunc)
+    for param in sig.parameters.values():
+        print(param.name, param.kind)
+    # param POSITIONAL_OR_KEYWORD
+    # decorator_param KEYWORD_ONLY
+
+
+.. _signature-decorator-example:
+
+Introspection through decorators
+================================
+
+As alluded to above,
+`sigtools.signature` will look through decorators
+and produce a signature that takes parameters that such decorators add or remove into account:
 
 .. literalinclude:: /../examples/retrieve_signature.py
     :end-at: # sigtools:
@@ -70,6 +120,17 @@ the effective signature of ``func`` as decorated.
     If the decorator alters the effective signature of whatever it wraps,
     like above, this will probably produce an incorrect signature.
 
+.. note::
+
+    While `sigtools.signature` should generally work with most python code (see :ref:`autofwd limits`),
+    ``sigtools`` recommends `sigtools.wrappers.decorator`
+    as the simplest way to write custom decorators
+    while preserving as much information as possible.
+
+    For instance, decorators defined with `~sigtools.wrappers.decorator` are set up in a way
+    that the :ref:`source <parameter-sources>` of each parameter points to a function
+    on which the docstring is not overwritten, unlike in the example above.
+
 
 .. _evaluating stringified annotations:
 .. _evaluating pep-563 annotations:
@@ -87,6 +148,9 @@ Both have a value of type `~sigtools.signature.UpgradedAnnotation`,
 which allow you to get the value of an annotation as seen in the source.
 
 
+.. literalinclude:: /../examples/postponed_annotation.py
+
+
 .. autoclass:: sigtools.signatures.UpgradedAnnotation
     :noindex:
     :members: source_value
@@ -101,6 +165,31 @@ which allow you to get the value of an annotation as seen in the source.
 .. autoclass:: sigtools.signatures.UpgradedParameter
     :noindex:
     :members: upgraded_annotation
+
+.. _parameter-sources:
+
+Parameter provenance
+====================
+
+.. warning::
+
+    Interface is likely to change in `sigtools` 6.0.
+
+`sigtools.signature` adds a ``sources`` attribute to the signature object.
+For each parameter, it lists all functions that will receive this parameter::
+
+    for param in sig.parameters.values():
+        print(param.name, sig.sources[param.name])
+    # param [<function myfunc at ...>]
+    # decorator_param [<function decorator.<locals>._wrapper at ...>]
+
+Additionally, this attribute contains the *depth* of each function, if you need
+a reliable order for them::
+
+    print(sig.sources['+depths'])
+    # {<function decorator.<locals>._wrapper at 0x7f354829c6a8>: 0,
+    #  <function myfunc at 0x7f354829c730>: 1}
+
 
 
 .. _autofwd limits:
@@ -139,3 +228,11 @@ If you still need accurate signature reporting when automatic discovery fails,
 you can use the decorators from the `.specifiers` module:
 
 .. seealso:: :ref:`forwards-pick`
+
+.. _inspect support:
+
+Getting more help
+=================
+
+If there is anything you wish to discuss more thoroughly, feel free to come by
+the sigtools `gitter chat <https://gitter.im/epsy/sigtools>`_.
