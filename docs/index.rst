@@ -16,7 +16,6 @@ function annotations.
     :caption: Guide
 
     signature-retrieval
-    forwards-howto
     sphinx-autodoc
     modifiers
 
@@ -24,6 +23,7 @@ function annotations.
     :caption: Reference
 
     api
+    forwards-howto
 
 
 .. |pip| replace:: pip
