@@ -4,10 +4,6 @@
 API Reference
 -------------
 
-.. automodule:: sigtools.modifiers
-    :members:
-    :undoc-members:
-
 .. automodule:: sigtools.specifiers
     :members:
     :undoc-members:
@@ -22,6 +18,10 @@ API Reference
     :members:
     :undoc-members:
     :show-inheritance:
+
+.. automodule:: sigtools.modifiers
+    :members:
+    :undoc-members:
 
 .. automodule:: sigtools.support
     :members:
