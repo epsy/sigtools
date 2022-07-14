@@ -24,5 +24,5 @@ in order to supply your own explanations, you can use this directive instead of
 .. rst:directive:: .. autosignature:: path.to.callable.object
 
     Documents a Python object while ignoring the source docstring.
-    `sigtools.specifiers.signature` is used to retrieve the object's call
+    `sigtools.signature` is used to retrieve the object's call
     signature

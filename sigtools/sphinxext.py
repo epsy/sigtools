@@ -102,7 +102,10 @@ class SignatureDocumenter(autodoc.FunctionDocumenter):
 
     def add_content(self, *args, no_docstring=True, **kwargs):
         return super(SignatureDocumenter, self).add_content(
-            *args, no_docstring=True, **kwargs)
+            *args, **kwargs)
+
+    def get_doc(self):
+        return []
 
 def setup(app):
     app.connect('autodoc-process-signature', process_signature)
