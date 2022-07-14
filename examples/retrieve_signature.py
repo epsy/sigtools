@@ -15,7 +15,7 @@ def decorator(value_for_first_param):
     return _decorate
 
 
-@decorator('eggs')
+@decorator("eggs")
 def func(ham, spam):
     return ham, spam
 
@@ -37,7 +37,7 @@ def decorator_without_wraps(value_for_first_param):
     return _decorate
 
 
-@decorator_without_wraps('eggs')
+@decorator_without_wraps("eggs")
 def func_without_wraps(ham, spam):
     return ham, spam
 
