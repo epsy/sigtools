@@ -62,9 +62,9 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
 
         feature = getattr(__future__, "annotations", None)
         if feature and function.__code__.co_flags & feature.compiler_flag:
-            return PostponedAnnotation(raw_annotation, function)
+            return _PostponedAnnotation(raw_annotation, function)
 
-        return PreEvaluatedAnnotation(raw_annotation)
+        return _PreEvaluatedAnnotation(raw_annotation)
 
     @classmethod
     def preevaluated(cls, value) -> 'UpgradedAnnotation':
@@ -72,7 +72,7 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
         in an `~sigtools.signatures.UpgradedAnnotation`"""
         if value is UpgradedParameter.empty:
             return EmptyAnnotation
-        return PreEvaluatedAnnotation(value)
+        return _PreEvaluatedAnnotation(value)
 
     def __eq__(self, other):
         if isinstance(other, UpgradedAnnotation):
@@ -81,7 +81,7 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
 
 
 @attr.define(eq=False)
-class PostponedAnnotation(UpgradedAnnotation):
+class _PostponedAnnotation(UpgradedAnnotation):
     """An annotation whose evaluation was postponed per :PEP:`563`"""
 
     _raw_annotation: typing.Any
@@ -92,7 +92,7 @@ class PostponedAnnotation(UpgradedAnnotation):
 
 
 @attr.define(eq=False)
-class PreEvaluatedAnnotation(UpgradedAnnotation):
+class _PreEvaluatedAnnotation(UpgradedAnnotation):
     """An annotation that did not go through postponed evaluation"""
 
     _annotation: typing.Any
@@ -102,7 +102,7 @@ class PreEvaluatedAnnotation(UpgradedAnnotation):
 
 
 @attr.define(eq=False)
-class ConstantAnnotation(UpgradedAnnotation):
+class _ConstantAnnotation(UpgradedAnnotation):
     """An annotation that always evaluates to a given value"""
 
     _annotation: typing.Any
