@@ -135,7 +135,7 @@ class UpgradedSignature(_util.funcsigs.Signature):
         
         .. warning::
         
-            Interface is likely to change in `sigtools` 6.0.
+            Interface is likely to change in `sigtools` 5.0.
         """
         self.upgraded_return_annotation = upgraded_return_annotation
         """
@@ -248,7 +248,7 @@ class UpgradedParameter(_util.funcsigs.Parameter):
 
         .. warning::
 
-            Interface is likely to change in `sigtools` 6.0.
+            Interface is likely to change in `sigtools` 5.0.
         """
         self.source_depths = source_depths
         """
@@ -256,7 +256,7 @@ class UpgradedParameter(_util.funcsigs.Parameter):
 
         .. warning::
 
-            Interface is likely to change in `sigtools` 6.0.
+            Interface is likely to change in `sigtools` 5.0.
         """
         self.upgraded_annotation = upgraded_annotation
         """Annotation of this parameter.
