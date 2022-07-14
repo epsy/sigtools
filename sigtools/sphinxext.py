@@ -62,7 +62,7 @@ def process_signature(app, what, name, obj, options,
         return sig, return_annotation
     ret_annot = sig.return_annotation
     if ret_annot != sig.empty:
-        sret_annot = '-> {0!r}'.format(ret_annot)
+        sret_annot = '{0!r}'.format(ret_annot)
         sig = sig.replace(return_annotation=sig.empty)
     else:
         sret_annot = ''
