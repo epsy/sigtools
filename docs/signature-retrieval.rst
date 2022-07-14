@@ -173,7 +173,7 @@ Parameter provenance
 
 .. warning::
 
-    Interface is likely to change in `sigtools` 6.0.
+    Interface is likely to change in `sigtools` 5.0.
 
 `sigtools.signature` adds a ``sources`` attribute to the signature object.
 For each parameter, it lists all functions that will receive this parameter::
