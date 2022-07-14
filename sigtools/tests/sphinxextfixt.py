@@ -9,7 +9,7 @@ class AClass(object):
     class_attr = True
     """class attr doc"""
 
-    def __init__(self):
+    def __init__(self): # pragma: no cover
         self.abc = 123
         """instance attr doc"""
 
@@ -26,3 +26,7 @@ def kwo(a, b, c=1, d=2):
 @specifiers.forwards_to(inner)
 def outer(c, *args, **kwargs):
     raise NotImplementedError
+
+
+def autoforwards(d, *args, **kwargs):
+    return inner(*args, **kwargs) # pragma: no cover

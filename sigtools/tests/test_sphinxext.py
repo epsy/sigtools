@@ -56,6 +56,12 @@ class SphinxExtTests(unittest.TestCase):
             sphinxextfixt.AClass.outer, {}, '(a, b, c=1, d=2)', None)
         self.assertEqual(('(a, b, *, c=1, d=2)', ''), r)
 
+    def test_autoforward(self):
+        r = self.sphinxext.process_signature(
+            app, 'function', 'sigtools.tests.sphinxextfixt.autoforwards',
+            sphinxextfixt.autoforwards, {}, '(d, *args, **kwargs)', None)
+        self.assertEqual(('(d, a, b)', ''), r)
+
     def test_attribute(self):
         r = self.sphinxext.process_signature(
             app, 'attribute', 'sigtools.tests.sphinxextfixt.AClass.class_attr',
