@@ -21,6 +21,7 @@
 
 import __future__
 import abc
+import types
 from itertools import zip_longest
 import itertools
 import collections
@@ -34,8 +35,20 @@ from sigtools import _util
 
 
 class UpgradedAnnotation(metaclass=abc.ABCMeta):
+    """Represents an annotation, whether already evaluated,
+    or deferred by :pep:`563`.
+    """
+
+    @abc.abstractmethod
+    def source_value(self):
+        """Value of this annotation as would be evaluated at the site
+        of its definition."""
+        raise NotImplementedError
+
     @classmethod
-    def upgrade(cls, raw_annotation, function, *, _stacklevel=0) -> 'UpgradedAnnotation':
+    def upgrade(cls, raw_annotation, function, param_name, *, _stacklevel=0) -> 'UpgradedAnnotation':
+        """Wraps a ``raw_annotation`` as found on ``function``
+        in an `~sigtools.signatures.UpgradedAnnotation`."""
         if raw_annotation is UpgradedParameter.empty:
             return EmptyAnnotation
 
@@ -55,17 +68,15 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
 
     @classmethod
     def preevaluated(cls, value) -> 'UpgradedAnnotation':
+        """Wraps an already-evaluated annotation value
+        in an `~sigtools.signatures.UpgradedAnnotation`"""
         if value is UpgradedParameter.empty:
             return EmptyAnnotation
         return PreEvaluatedAnnotation(value)
 
-    @abc.abstractmethod
-    def value(self):
-        raise NotImplementedError
-
     def __eq__(self, other):
         if isinstance(other, UpgradedAnnotation):
-            return self.value() == other.value()
+            return self.source_value() == other.source_value()
         return False
 
 
@@ -73,27 +84,37 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
 class PostponedAnnotation(UpgradedAnnotation):
     """An annotation whose evaluation was postponed per :PEP:`563`"""
 
-    raw_annotation: typing.Any
-    function: typing.Callable
+    _raw_annotation: typing.Any
+    _function: types.FunctionType
 
-    def value(self):
-        return eval(self.raw_annotation, self.function.__globals__, {})
+    def source_value(self):
+        return eval(self._raw_annotation, self._function.__globals__, {})
 
 
 @attr.define(eq=False)
 class PreEvaluatedAnnotation(UpgradedAnnotation):
-    """An annotation that was already evaluated"""
+    """An annotation that did not go through postponed evaluation"""
 
-    annotation: typing.Any
+    _annotation: typing.Any
 
-    def value(self):
-        return self.annotation
+    def source_value(self):
+        return self._annotation
+
+
+@attr.define(eq=False)
+class ConstantAnnotation(UpgradedAnnotation):
+    """An annotation that always evaluates to a given value"""
+
+    _annotation: typing.Any
+
+    def source_value(self):
+        return self._annotation
 
 
 class _EmptyAnnotation(UpgradedAnnotation):
     """An annotation that was not supplied"""
 
-    def value(self):
+    def source_value(self):
         return UpgradedParameter.empty
 
     def __repr__(self):
@@ -102,26 +123,42 @@ EmptyAnnotation: UpgradedAnnotation = _EmptyAnnotation()
 
 
 class UpgradedSignature(_util.funcsigs.Signature):
+    """A `~inspect.Signature` augmented with parameter sources and upgraded annotations,
+    as returned by `sigtools.signature` or `sigtools.signatures.signature`
+    """
     __slots__ = _util.funcsigs.Signature.__slots__ + ('sources', 'upgraded_return_annotation')
 
     def __init__(self, parameters=None, *args, upgraded_return_annotation=EmptyAnnotation, _stacklevel=0, **kwargs):
         self.sources = kwargs.pop('sources', {})
+        """
+        Sources of the signature's parameters.
+        
+        .. warning::
+        
+            Interface is likely to change in `sigtools` 6.0.
+        """
         self.upgraded_return_annotation = upgraded_return_annotation
+        """
+        Return annotation.
+        
+        :type: sigtools.signatures.UpgradedAnnotation
+        """
         parameters = _upgrade_parameters_with_warning(parameters, stacklevel=_stacklevel + 1)
         super(Signature, self).__init__(parameters, *args, **kwargs)
 
     @classmethod
-    def upgrade(cls, inst, function, sources, *, _stacklevel=0):
+    def _upgrade(cls, inst, function, sources, *, _stacklevel=0):
+        """Upgrades an `inspect.Signature` given a function and soources"""
         if isinstance(inst, cls):
             return inst
         params = [
-            UpgradedParameter.upgrade(param, function, sources)
+            UpgradedParameter._upgrade(param, function, sources)
             for param in inst.parameters.values()
         ]
         return cls(
             params,
             return_annotation=inst.return_annotation,
-            upgraded_return_annotation=UpgradedAnnotation.upgrade(inst.return_annotation, function),
+            upgraded_return_annotation=UpgradedAnnotation.upgrade(inst.return_annotation, function, 'return'),
             sources=sources,
             _stacklevel=_stacklevel,
         )
@@ -136,7 +173,7 @@ class UpgradedSignature(_util.funcsigs.Signature):
             DeprecationWarning,
             stacklevel=_stacklevel + 2,
         )
-        return cls.upgrade(inst, None, {})
+        return cls._upgrade(inst, None, {})
 
     def replace(self, *args, _stacklevel=0, **kwargs):
         try:
@@ -160,9 +197,10 @@ class UpgradedSignature(_util.funcsigs.Signature):
         return ret
 
     def evaluated(self):
+        """Returns a copy of this Signature with annotations replaced by their evaluated counterparts"""
         return self.replace(
             parameters=[param.evaluated() for param in self.parameters.values()],
-            return_annotation=self.upgraded_return_annotation.value(),
+            return_annotation=self.upgraded_return_annotation.source_value(),
         )
 
     def __eq__(self, other):
@@ -175,10 +213,13 @@ Signature = UpgradedSignature
 
 
 class UpgradedParameter(_util.funcsigs.Parameter):
-    __slots__ = _util.funcsigs.Parameter.__slots__ + ('upgraded_annotation', 'function', 'sources', "source_depths")
+    """A `~inspect.Parameter` augmented with parameter sources and upgraded annotations,
+    as found on signatures returned by `sigtools.signature` or `sigtools.signatures.signature`.
+    """
+    __slots__ = _util.funcsigs.Parameter.__slots__ + ('upgraded_annotation', '_function', 'sources', "source_depths")
 
     @classmethod
-    def upgrade(cls, inst, function, function_sources):
+    def _upgrade(cls, inst, function, function_sources):
         if isinstance(inst, cls):
             return inst
         sources = function_sources.get(inst.name, [])
@@ -192,7 +233,7 @@ class UpgradedParameter(_util.funcsigs.Parameter):
             kind=inst.kind,
             default=inst.default,
             annotation=inst.annotation,
-            upgraded_annotation=UpgradedAnnotation.upgrade(inst.annotation, function),
+            upgraded_annotation=UpgradedAnnotation.upgrade(inst.annotation, function, inst.name),
             function=function,
             sources=sources,
             source_depths=source_depths,
@@ -200,27 +241,46 @@ class UpgradedParameter(_util.funcsigs.Parameter):
 
     def __init__(self, *args, function=None, sources=[], source_depths={}, upgraded_annotation=EmptyAnnotation, **kwargs):
         super().__init__(*args, **kwargs)
-        self.function = function
+        self._function = function
         self.sources = sources
+        """
+        Sources of this parameter.
+
+        .. warning::
+
+            Interface is likely to change in `sigtools` 6.0.
+        """
         self.source_depths = source_depths
+        """
+        How deep was each of this parameter's sources found.
+
+        .. warning::
+
+            Interface is likely to change in `sigtools` 6.0.
+        """
         self.upgraded_annotation = upgraded_annotation
+        """Annotation of this parameter.
+
+        :type: sigtools.signatures.UpgradedAnnotation
+        """
 
     def replace(self, function=_util.UNSET, sources=_util.UNSET, source_depths=_util.UNSET, upgraded_annotation=_util.UNSET, **kwargs):
-        function = self.function if function is _util.UNSET else function
+        function = self._function if function is _util.UNSET else function
         sources = self.sources if sources is _util.UNSET else sources
         source_depths = self.source_depths if source_depths is _util.UNSET else source_depths
         upgraded_annotation = self.upgraded_annotation if upgraded_annotation is _util.UNSET else upgraded_annotation
 
         ret = super().replace(**kwargs)
         assert isinstance(ret, type(self))
-        ret.function = function
+        ret._function = function
         ret.sources = sources
         ret.source_depths = source_depths
         ret.upgraded_annotation = upgraded_annotation
         return ret
 
     def evaluated(self):
-        return self.replace(annotation=self.upgraded_annotation.value())
+        """Returns a copy of this Parameter with annotations replaced by their evaluated counterparts"""
+        return self.replace(annotation=self.upgraded_annotation.source_value())
 
     def __eq__(self, other):
         if not super().__eq__(other):
@@ -242,7 +302,7 @@ def _upgrade_parameters_with_warning(parameters, stacklevel=1):
             stacklevel=2 + stacklevel
         )
         return [
-            UpgradedParameter.upgrade(param, function=None, function_sources={})
+            UpgradedParameter._upgrade(param, function=None, function_sources={})
             for param in parameters
         ]
 
@@ -255,13 +315,15 @@ def default_sources(sig, obj):
 
 def set_default_sources(sig, obj):
     """Assigns the source of every parameter of sig to obj"""
-    return Signature.upgrade(sig, obj, default_sources(sig, obj))
+    return Signature._upgrade(sig, obj, default_sources(sig, obj))
 
 
 def signature(obj):
     """Retrieves to unmodified signature from ``obj``, without taking
     `sigtools.specifiers` decorators into account or attempting automatic
     signature discovery.
+
+    For these features, use `sigtools.signature`.
     """
     if isinstance(obj, partial):
         sig = _util.funcsigs.signature(obj.func)
@@ -355,7 +417,7 @@ def apply_params(sig, posargs, pokargs, varargs, kwoargs, varkwargs,
         parameters.append(varkwargs)
     sig = sig.replace(parameters=parameters, _stacklevel=_stacklevel + 1)
     if sources is not None:
-        sig = Signature.upgrade(sig, function, sources, _stacklevel=1)
+        sig = Signature._upgrade(sig, function, sources, _stacklevel=1)
         sig.sources = sources
     return sig
 

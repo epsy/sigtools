@@ -215,11 +215,11 @@ class UpgradedParameterTests(SignatureTests):
 class UpgradedAnnotationTests(SignatureTests):
     def test_upgrade_empty(self):
         self.assertEqual(
-            UpgradedAnnotation.upgrade(UpgradedParameter.empty, None),
+            UpgradedAnnotation.upgrade(UpgradedParameter.empty, None, 'param'),
             UpgradedAnnotation.preevaluated(UpgradedParameter.empty)
         )
         self.assertEqual(
-            UpgradedAnnotation.upgrade(inspect.Parameter.empty, None),
+            UpgradedAnnotation.upgrade(inspect.Parameter.empty, None, 'param'),
             UpgradedAnnotation.preevaluated(UpgradedParameter.empty)
         )
 
@@ -227,7 +227,7 @@ class UpgradedAnnotationTests(SignatureTests):
     def test_upgrade_postponed_annotation(self):
         func = f("", globals={"value": "the value"}, future_features=["annotations"])
         self.assertEqual(
-            UpgradedAnnotation.upgrade('value', func),
+            UpgradedAnnotation.upgrade('value', func, 'param'),
             UpgradedAnnotation.preevaluated("the value"),
         )
 
@@ -235,13 +235,13 @@ class UpgradedAnnotationTests(SignatureTests):
     def test_upgrade_preevaluated_annotation(self):
         func = f("")
         self.assertEqual(
-            UpgradedAnnotation.upgrade('the value', func),
+            UpgradedAnnotation.upgrade('the value', func, 'param'),
             UpgradedAnnotation.preevaluated("the value"),
         )
 
     def test_upgrade_without_function_warns(self):
         with self.assertWarns(DeprecationWarning):
-            value = UpgradedAnnotation.upgrade('a value', None)
+            value = UpgradedAnnotation.upgrade('a value', None, 'param')
         self.assertEqual(value, UpgradedAnnotation.preevaluated(UpgradedParameter.empty))
 
     def test_not_equal(self):
