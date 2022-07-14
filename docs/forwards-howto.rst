@@ -4,7 +4,7 @@
 Picking the appropriate arguments for ``forwards``
 ==================================================
 
-If automatic signature reporting doesn't work for your use case and you still
+If automatic signature reporting (`sigtools.signature`) doesn't work for your use case and you still
 want to specify how a function's ``*args, **kwargs`` is being used, you may
 either use `sigtools.specifiers.forger_function` and `sigtools.support.s`
 to override its signature completely, or you can use the ``forwards_to_*``

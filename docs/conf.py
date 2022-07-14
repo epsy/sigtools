@@ -34,6 +34,8 @@ sys.path.insert(0, os.path.abspath('.'))
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx', 'sphinx.ext.coverage', 'sphinx.ext.viewcode', 'sigtools.sphinxext']
 
+autodoc_member_order = "bysource"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -43,8 +45,8 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-# The master toctree document.
-master_doc = 'index'
+# The root toctree document.
+root_doc = 'index'
 
 # General information about the project.
 project = 'sigtools'

@@ -3,6 +3,8 @@
 
 The ``sigtools`` python library provides:
 
+* ``sigtools.signature`` to resolve function signatures,
+  taking into account parameters added or removed by decorators.
 * Decorators to specify keyword-only parameters, annotations and
   positional-only parameters, even on python2: ``sigtools.modifiers``
 * Decorators to specify how ``*args, **kwargs`` are handled, in a way
