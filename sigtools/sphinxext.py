@@ -55,7 +55,7 @@ def process_signature(app, what, name, obj, options,
     if isinstance(parent, type) and callable(obj):
         obj = _util.safe_get(obj, object(), type(parent))
     try:
-        sig = specifiers.signature(obj)
+        sig = specifiers.signature(obj).evaluated()
     except (TypeError, ValueError):
         # inspect.signature raises ValueError if obj is callable but it can't
         # determine a signature, eg. built-in objects

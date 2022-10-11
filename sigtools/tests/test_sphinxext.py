@@ -73,3 +73,10 @@ class SphinxExtTests(unittest.TestCase):
             app, 'attribute', 'sigtools.tests.sphinxextfixt.AClass.abc',
             None, {}, None, None)
         self.assertEqual((None, None), r)
+
+    def test_attrs_class(self):
+        r = self.sphinxext.process_signature(
+            app, '', 'sigtools.tests.sphinxextfixt.AttrsClass',
+            None, {}, None, None
+        )
+        self.assertEqual(('(one, *, two)', ''), r)

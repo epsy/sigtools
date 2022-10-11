@@ -1,3 +1,5 @@
+import attrs
+
 from sigtools import modifiers, specifiers
 
 
@@ -30,3 +32,9 @@ def outer(c, *args, **kwargs):
 
 def autoforwards(d, *args, **kwargs):
     return inner(*args, **kwargs) # pragma: no cover
+
+
+@attrs.define
+class AttrsClass:
+    one: int
+    two: float = attrs.field(kw_only=True)
