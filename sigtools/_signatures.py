@@ -89,7 +89,8 @@ def _is_co_flag_enabled(obj):
     if not feature:
         return False
 
-    if feature.mandatory and sys.version_info >= feature.mandatory:
+    mandatory_release = feature.getMandatoryRelease()
+    if mandatory_release and sys.version_info >= mandatory_release:
         return True
 
     try:
