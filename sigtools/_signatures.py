@@ -122,16 +122,6 @@ class _PreEvaluatedAnnotation(UpgradedAnnotation):
         return self._annotation
 
 
-@attr.define(eq=False)
-class _ConstantAnnotation(UpgradedAnnotation):
-    """An annotation that always evaluates to a given value"""
-
-    _annotation: typing.Any
-
-    def source_value(self):
-        return self._annotation
-
-
 class _EmptyAnnotation(UpgradedAnnotation):
     """An annotation that was not supplied"""
 
