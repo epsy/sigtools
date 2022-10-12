@@ -23,6 +23,7 @@ import sys
 import warnings
 from collections import defaultdict
 from functools import partial
+import __future__
 
 import unittest
 from repeated_test import tup, WithTestClass, with_options_matrix
@@ -175,11 +176,19 @@ class SignatureTests(unittest.TestCase):
 Fixtures = WithTestClass(SignatureTests)
 
 
-python_has_future_annotations = (3, 7, 0, "final") <= sys.version_info < (3, 11)
-python_has_annotations = (3, 11) <= sys.version_info
+python_has_future_annotations = hasattr(__future__, "annotations")
+python_has_annotations = (
+        python_has_future_annotations
+        and __future__.annotations.getMandatoryRelease()
+        and __future__.annotations.getMandatoryRelease() <= sys.version_info
+)
 python_doesnt_have_future_annotations = (
-    (sys.version_info < (3, 7, 0, "final")),
+    not python_has_future_annotations,
     "Python version does not have __future__.annotations"
+)
+python_has_optional_future_annotations = (
+    python_has_future_annotations and not python_has_annotations,
+    "Python version does not have optional __future__.annotations"
 )
 
 
