@@ -21,7 +21,7 @@
 
 import __future__
 import abc
-import inspect
+import sys
 import types
 from itertools import zip_longest
 import itertools
@@ -61,17 +61,14 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
             )
             return EmptyAnnotation
 
-        feature = getattr(__future__, "annotations", None)
-        if feature:
-            try:
-                has_flag = function.__code__.co_flags & feature.compiler_flag
-            except AttributeError:
-                return EmptyAnnotation
-            else:
-                if has_flag:
-                    return _PostponedAnnotation(raw_annotation, function)
+        has_feature = _is_co_flag_enabled(function)
 
-        return _PreEvaluatedAnnotation(raw_annotation)
+        if has_feature is None:
+            return EmptyAnnotation
+        elif has_feature:
+            return _PostponedAnnotation(raw_annotation, function)
+        else:
+            return _PreEvaluatedAnnotation(raw_annotation)
 
     @classmethod
     def preevaluated(cls, value) -> 'UpgradedAnnotation':
@@ -85,6 +82,22 @@ class UpgradedAnnotation(metaclass=abc.ABCMeta):
         if isinstance(other, UpgradedAnnotation):
             return self.source_value() == other.source_value()
         return False
+
+
+def _is_co_flag_enabled(obj):
+    feature = getattr(__future__, "annotations", None)
+    if not feature:
+        return False
+
+    if feature.mandatory and sys.version_info >= feature.mandatory:
+        return True
+
+    try:
+        has_flag = obj.__code__.co_flags & feature.compiler_flag
+    except AttributeError:
+        return None
+    else:
+        return has_flag
 
 
 @attr.define(eq=False)
